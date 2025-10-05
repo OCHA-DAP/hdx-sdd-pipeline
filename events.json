@@ -1,0 +1,12 @@
+[
+    {
+        "event_type": "resource-data-changed",
+        "event_time": "2025-08-05T20:11:37.131862",
+        "event_source": "ckan",
+        "dataset_name": "esp-requirements-and-funding-data",
+        "dataset_title": " Spain - Requirements and Funding Data ",
+        "dataset_id": "c91a5289-0a29-48da-a332-805cc1465e90",
+        "resource_name": "fts_incoming_funding_esp.csv",
+        "resource_id": "03fd6dd7-ed3d-4776-84dd-b821b25b13dc"
+    }
+]
