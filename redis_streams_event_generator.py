@@ -14,7 +14,7 @@ event_bus = None
 log = logging.getLogger(__name__)
 
 
-def stream_events_to_redis(event_list: List[dict]):
+def stream_events_to_redis(event_list: List[dict], stream_name: str = 'hdx_event_stream'):
     global event_bus
     if event_bus is None:
         redis_stream_host = 'localhost'
@@ -22,7 +22,7 @@ def stream_events_to_redis(event_list: List[dict]):
         redis_stream_db = os.getenv('REDIS_STREAM_DB', 7)
 
         event_bus = connect_to_hdx_write_only_event_bus(
-            'hdx_event_stream', RedisConfig(host=redis_stream_host, port=redis_stream_port, db=redis_stream_db)
+            stream_name, RedisConfig(host=redis_stream_host, port=redis_stream_port, db=redis_stream_db)
         )
     for event in event_list:
         # Add the event to the Redis stream

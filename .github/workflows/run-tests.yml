@@ -1,0 +1,29 @@
+name: Run tests
+
+on: [push]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    services:
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+    steps:
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.12"
+
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Install requirements
+        run: |
+          pip install -r requirements.txt
+          pip install -r dev-requirements.txt
+      - name: Test with pytest
+        run: pytest --cov=.
+        env:
+          REDIS_STREAM_HOST: localhost
