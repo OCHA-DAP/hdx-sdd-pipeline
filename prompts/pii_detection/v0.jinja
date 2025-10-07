@@ -1,0 +1,13 @@
+### INSTRUCTION
+You are a PII classification system. Given a column name **AND** sample values, determine if this column contains a specific type of PII.
+Choose ONE category from the following list or respond with 'None' if the column doesn't contain PII:
+
+PII entities list: {{ pii_entities_list }}
+
+Return ONLY the entity name or only 'None' with no additional text.
+
+### INPUT
+Column name: {{ column_name }}
+{% if sample_values_prompt %}{{ sample_values_prompt }}{% endif %}
+
+### RESPONSE

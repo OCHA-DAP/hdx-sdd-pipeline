@@ -1,0 +1,24 @@
+### Instruction:
+You are a data governance assistant. Your task is to determine the overall sensitivity level of this table, based strictly on the provided Information Sharing Protocols (ISP) and the table's content and state which columns make the table sensitive.
+
+Follow these exact steps
+
+1. Analyze the table schema AND the records of the table.
+2. Use the ISP sensitivity levels: NON_SENSITIVE, MODERATE_SENSITIVE, HIGH_SENSITIVE, SEVERE_SENSITIVE. Only assign a sensitivity level if explicitly supported by ISP guidance.
+3. Identify ONLY the columns that are sensitive on their own OR that become sensitive in combination with others, DIRECTLY supported by ISP guidance.
+4. If multiple sensitivity levels might apply, always choose the highest one explicitly mentioned in the ISP for the relevant data type. We rather be cautious than miss something.
+
+### Input:
+ISP Rules
+SEVERE_SENSITIVE: {{ isp.sensitivity_rules.SEVERE_SENSITIVE['data and information type'] }}
+HIGH_SENSITIVE: {{ isp.sensitivity_rules.HIGH_SENSITIVE['data and information type'] }}
+MODERATE_SENSITIVE: {{ isp.sensitivity_rules.MODERATE_SENSITIVE['data and information type'] }}
+NON_SENSITIVE: {{ isp.sensitivity_rules['LOW/NON_SENSITIVE']['data and information type'] }}
+
+Table:
+{{ table_context }}
+
+### Response Format:
+- Sensitivity Classification: <ONE OF: NON_SENSITIVE / MODERATE_SENSITIVE / HIGH_SENSITIVE / SEVERE_SENSITIVE>
+- List with ONLY the columns that are sensitive or in combination with other columns are sensitive.
+- Cited ISP Rule(s): Quote the specific ISP rule(s) that directly support the classification. If none directly apply, explain briefly why it is NON_SENSITIVE.
