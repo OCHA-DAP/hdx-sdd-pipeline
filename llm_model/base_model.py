@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from typing import Optional, Any, Dict
+from typing import Optional
 import logging
 
 # import torch
@@ -13,8 +13,8 @@ class BaseLLMModel(ABC):
 
     def __init__(self, model_name: str, device: Optional[str] = None, **kwargs):
         self.model_name = model_name
-        # self.device = device or ("cuda" if torch.cuda.is_available() else "cpu")
-        self.device = "cpu"
+        # self.device = device or ('cuda' if torch.cuda.is_available() else 'cpu')
+        self.device = 'cpu'
         self.model = None
         self.tokenizer = None
         self.client = None
@@ -42,7 +42,7 @@ class BaseLLMModel(ABC):
 
     def is_ready(self) -> bool:
         """Check if the model is ready for inference."""
-        if self.model_type in ["openai", "azure", "deepseek"]:
+        if self.model_type in ['openai', 'azure', 'deepseek']:
             return self.client is not None
         else:
             return self.model is not None and self.tokenizer is not None
@@ -50,4 +50,4 @@ class BaseLLMModel(ABC):
     def _setup_logging(self, logger_name: str) -> None:
         """Setup logging for the model."""
         logging.getLogger(logger_name).setLevel(logging.WARNING)
-        logging.getLogger("httpx").setLevel(logging.WARNING)
+        logging.getLogger('httpx').setLevel(logging.WARNING)

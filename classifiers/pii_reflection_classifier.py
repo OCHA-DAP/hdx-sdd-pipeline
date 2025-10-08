@@ -18,26 +18,26 @@ class PIIReflectionClassifier(BaseClassifier):
         context: str,
         pii_entity: str,
         max_new_tokens: int = 128,
-        version: str = "v0",
+        version: str = 'v0',
     ) -> Dict[str, Any]:
-        if pii_entity == "None":
+        if pii_entity == 'None':
             return self._standardize_output(
-                "PII_SENSITIVITY",
-                "NON_SENSITIVE",
-                "PII Entity = None",
+                'PII_SENSITIVITY',
+                'NON_SENSITIVE',
+                'PII Entity = None',
             )
 
         jinja_context = {
-            "column_name": column_name,
-            "context": context,
-            "pii_entity": pii_entity,
+            'column_name': column_name,
+            'context': context,
+            'pii_entity': pii_entity,
         }
 
         try:
-            prediction = self._run_prompt("pii_reflection", jinja_context, version, max_new_tokens)
+            prediction = self._run_prompt('pii_reflection', jinja_context, version, max_new_tokens)
             sensitivity_level = self._map_sensitivity(prediction)
-            success = sensitivity_level != "UNDETERMINED"
-            return self._standardize_output("PII_SENSITIVITY", sensitivity_level, prediction, success)
+            success = sensitivity_level != 'UNDETERMINED'
+            return self._standardize_output('PII_SENSITIVITY', sensitivity_level, prediction, success)
         except Exception as e:
-            logger.exception("PII sensitivity classification failed")
-            return self._standardize_output("PII_SENSITIVITY", "ERROR_GENERATION", str(e), success=False)
+            logger.exception('PII sensitivity classification failed')
+            return self._standardize_output('PII_SENSITIVITY', 'ERROR_GENERATION', str(e), success=False)

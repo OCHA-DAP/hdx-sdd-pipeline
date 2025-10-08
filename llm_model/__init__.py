@@ -12,6 +12,6 @@ from .base_model import BaseLLMModel
 from .azure_strategy import AzureOpenAIStrategy
 
 __all__ = [
-    "BaseLLMModel",
-    "AzureOpenAIStrategy",
+    'BaseLLMModel',
+    'AzureOpenAIStrategy',
 ]

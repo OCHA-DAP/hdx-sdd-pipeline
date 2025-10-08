@@ -1,6 +1,6 @@
 # src/classifiers/base_classifier.py
 import logging
-from typing import Any, Dict, Optional
+from typing import Any, Dict
 
 from llm_model import AzureOpenAIStrategy
 from utilities.prompt_manager import PromptManager
@@ -18,11 +18,11 @@ class BaseClassifier:
     """
 
     _SENSITIVITY_KEYWORDS = {
-        "non_sensitive": "NON_SENSITIVE",
-        "medium_sensitive": "MEDIUM_SENSITIVE",
-        "moderate_sensitive": "MODERATE_SENSITIVE",
-        "high_sensitive": "HIGH_SENSITIVE",
-        "severe_sensitive": "SEVERE_SENSITIVE",
+        'non_sensitive': 'NON_SENSITIVE',
+        'medium_sensitive': 'MEDIUM_SENSITIVE',
+        'moderate_sensitive': 'MODERATE_SENSITIVE',
+        'high_sensitive': 'HIGH_SENSITIVE',
+        'severe_sensitive': 'SEVERE_SENSITIVE',
     }
 
     def __init__(self, model_name: str):
@@ -51,17 +51,17 @@ class BaseClassifier:
     ) -> Dict[str, Any]:
         """Return standardized classification output."""
         return {
-            "classification_type": classification_type,
-            "value": value,
-            "raw_model_output": (raw_model_output.strip() if isinstance(raw_model_output, str) else raw_model_output),
-            "success": success,
+            'classification_type': classification_type,
+            'value': value,
+            'raw_model_output': (raw_model_output.strip() if isinstance(raw_model_output, str) else raw_model_output),
+            'success': success,
         }
 
     def _run_prompt(
         self,
         prompt_name: str,
         context: Dict[str, Any],
-        version: str = "v0",
+        version: str = 'v0',
         max_new_tokens: int = 256,
     ) -> str:
         """Render a Jinja prompt and run the model."""
@@ -74,7 +74,7 @@ class BaseClassifier:
         for keyword, level in self._SENSITIVITY_KEYWORDS.items():
             if keyword in pred_lower:
                 return level
-        return "UNDETERMINED"
+        return 'UNDETERMINED'
 
     @staticmethod
     def _has_alphanumeric(values: list) -> bool:

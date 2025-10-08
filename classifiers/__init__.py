@@ -14,10 +14,10 @@ from .non_pii_classifier import NonPIIClassifier
 from .pii_reflection_classifier import PIIReflectionClassifier
 
 __all__ = [
-    "BaseClassifier",
-    "PIIClassifier",
-    "NonPIIClassifier",
-    "PIIReflectionClassifier",
+    'BaseClassifier',
+    'PIIClassifier',
+    'NonPIIClassifier',
+    'PIIReflectionClassifier',
 ]
 
-__version__ = "1.0.0"
+__version__ = '1.0.0'
