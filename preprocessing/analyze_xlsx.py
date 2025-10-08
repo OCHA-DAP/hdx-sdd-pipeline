@@ -18,6 +18,7 @@ from typing import Dict, List, Tuple
 import pandas as pd
 import math
 
+
 def _is_number(val) -> bool:
     try:
         # treat booleans as non-numeric for our purposes
@@ -28,9 +29,10 @@ def _is_number(val) -> bool:
     except Exception:
         return False
 
-def _connected_components(mask: pd.DataFrame) -> List[List[Tuple[int,int]]]:
+
+def _connected_components(mask: pd.DataFrame) -> List[List[Tuple[int, int]]]:
     R, C = mask.shape
-    visited = [[False]*C for _ in range(R)]
+    visited = [[False] * C for _ in range(R)]
     components = []
     for i in range(R):
         for j in range(C):
@@ -43,17 +45,18 @@ def _connected_components(mask: pd.DataFrame) -> List[List[Tuple[int,int]]]:
             while stack:
                 x, y = stack.pop()
                 comp.append((x, y))
-                for dx, dy in ((1,0),(-1,0),(0,1),(0,-1)):
-                    nx, ny = x+dx, y+dy
+                for dx, dy in ((1, 0), (-1, 0), (0, 1), (0, -1)):
+                    nx, ny = x + dx, y + dy
                     if 0 <= nx < R and 0 <= ny < C and not visited[nx][ny] and mask.iat[nx, ny]:
                         visited[nx][ny] = True
                         stack.append((nx, ny))
             components.append(comp)
     return components
 
-def _component_stats(comp: List[Tuple[int,int]]) -> Dict:
-    rows = [r for r,_ in comp]
-    cols = [c for _,c in comp]
+
+def _component_stats(comp: List[Tuple[int, int]]) -> Dict:
+    rows = [r for r, _ in comp]
+    cols = [c for _, c in comp]
     min_r, max_r = min(rows), max(rows)
     min_c, max_c = min(cols), max(cols)
     bbox_rows = max_r - min_r + 1
@@ -62,11 +65,15 @@ def _component_stats(comp: List[Tuple[int,int]]) -> Dict:
     density = num_cells / (bbox_rows * bbox_cols) if bbox_rows * bbox_cols > 0 else 0
     return {
         "num_cells": num_cells,
-        "min_r": min_r, "max_r": max_r,
-        "min_c": min_c, "max_c": max_c,
-        "bbox_rows": bbox_rows, "bbox_cols": bbox_cols,
-        "density": density
+        "min_r": min_r,
+        "max_r": max_r,
+        "min_c": min_c,
+        "max_c": max_c,
+        "bbox_rows": bbox_rows,
+        "bbox_cols": bbox_cols,
+        "density": density,
     }
+
 
 def analyze_excel_file(file_path: str, min_table_cells: int = 3) -> Dict:
     """
@@ -84,11 +91,7 @@ def analyze_excel_file(file_path: str, min_table_cells: int = 3) -> Dict:
     xls = pd.ExcelFile(file_path)
     sheet_names = xls.sheet_names
 
-    results = {
-        "metadatasheet": False,
-        "multiple_sheets": len(sheet_names) > 1,
-        "multiple_tables": {}
-    }
+    results = {"metadatasheet": False, "multiple_sheets": len(sheet_names) > 1, "multiple_tables": {}}
 
     metadata_keywords = {"description", "about", "info", "metadata", "explanation", "notes", "readme"}
 
@@ -158,8 +161,8 @@ def analyze_excel_file(file_path: str, min_table_cells: int = 3) -> Dict:
 
             # compute numeric ratio inside component
             numeric_in_comp = 0
-            for (r,c) in comp:
-                if _is_number(df.iat[r,c]):
+            for r, c in comp:
+                if _is_number(df.iat[r, c]):
                     numeric_in_comp += 1
             comp_numeric_ratio = numeric_in_comp / nc if nc else 0
 
@@ -184,7 +187,7 @@ def analyze_excel_file(file_path: str, min_table_cells: int = 3) -> Dict:
             if is_table:
                 table_components += 1
 
-        results["multiple_tables"][sheet] = (table_components > 1)
+        results["multiple_tables"][sheet] = table_components > 1
 
     return results
 
@@ -192,10 +195,12 @@ def analyze_excel_file(file_path: str, min_table_cells: int = 3) -> Dict:
 # Quick example / CLI usage
 if __name__ == "__main__":
     import sys
+
     if len(sys.argv) < 2:
         print("Usage: python analyze_xlsx.py <file.xlsx>")
         sys.exit(1)
     path = sys.argv[1]
     res = analyze_excel_file(path)
     import json
+
     print(json.dumps(res, indent=2))

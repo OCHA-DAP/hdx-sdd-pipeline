@@ -53,11 +53,7 @@ class BaseClassifier:
         return {
             "classification_type": classification_type,
             "value": value,
-            "raw_model_output": (
-                raw_model_output.strip()
-                if isinstance(raw_model_output, str)
-                else raw_model_output
-            ),
+            "raw_model_output": (raw_model_output.strip() if isinstance(raw_model_output, str) else raw_model_output),
             "success": success,
         }
 
@@ -69,9 +65,7 @@ class BaseClassifier:
         max_new_tokens: int = 256,
     ) -> str:
         """Render a Jinja prompt and run the model."""
-        prompt = self.prompt_manager.get_prompt(
-            prompt_name=prompt_name, version=version, context=context
-        )
+        prompt = self.prompt_manager.get_prompt(prompt_name=prompt_name, version=version, context=context)
         return self.generate(prompt, max_new_tokens=max_new_tokens).strip()
 
     def _map_sensitivity(self, prediction: str) -> str:
@@ -85,7 +79,4 @@ class BaseClassifier:
     @staticmethod
     def _has_alphanumeric(values: list) -> bool:
         """Check if any value contains at least one letter or digit."""
-        return any(
-            any(char.isalpha() or char.isdigit() for char in str(value))
-            for value in values
-        )
+        return any(any(char.isalpha() or char.isdigit() for char in str(value)) for value in values)

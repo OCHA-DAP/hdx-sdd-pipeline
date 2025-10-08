@@ -28,14 +28,10 @@ class PIIClassifier(BaseClassifier):
         context = {"column_name": column_name, "sample_values": sample_values[:k]}
 
         try:
-            prediction = self._run_prompt(
-                "pii_detection", context, version, max_new_tokens=8
-            )
+            prediction = self._run_prompt("pii_detection", context, version, max_new_tokens=8)
         except Exception as e:
             logger.exception("PII classification failed")
-            return self._standardize_output(
-                "PII", "ERROR_GENERATION", str(e), success=False
-            )
+            return self._standardize_output("PII", "ERROR_GENERATION", str(e), success=False)
 
         prediction_lower = prediction.lower()
         if "none" in prediction_lower:
@@ -50,6 +46,4 @@ class PIIClassifier(BaseClassifier):
             if entity.lower() in prediction_lower:
                 return self._standardize_output("PII", entity, prediction)
 
-        return self._standardize_output(
-            "PII", "UNDETERMINED", prediction, success=False
-        )
+        return self._standardize_output("PII", "UNDETERMINED", prediction, success=False)

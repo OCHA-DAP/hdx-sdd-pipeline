@@ -14,8 +14,8 @@ class AzureOpenAIStrategy(BaseLLMModel):
     def __init__(self, model_name: str, device: Optional[str] = None, **kwargs):
         # Azure-specific configuration
         self.azure_endpoint = kwargs.get("azure_endpoint") or os.getenv("AZURE_OPENAI_ENDPOINT")
-        self.api_version    = kwargs.get("api_version")    or os.getenv("AZURE_OPENAI_API_VERSION")
-        self.api_key        = kwargs.get("api_key")        or os.getenv("AZURE_OPENAI_API_KEY")
+        self.api_version = kwargs.get("api_version") or os.getenv("AZURE_OPENAI_API_VERSION")
+        self.api_key = kwargs.get("api_key") or os.getenv("AZURE_OPENAI_API_KEY")
 
         print(self.azure_endpoint, self.api_key, self.api_version)
         if not self.azure_endpoint or not self.api_key:
@@ -39,17 +39,13 @@ class AzureOpenAIStrategy(BaseLLMModel):
             # Get configuration from kwargs or environment
             azure_endpoint = self.azure_endpoint or os.getenv("AZURE_OPENAI_ENDPOINT")
             api_key = self.api_key or os.getenv("AZURE_OPENAI_API_KEY")
-            api_version = self.api_version or os.getenv(
-                "AZURE_OPENAI_API_VERSION", "2024-02-15-preview"
-            )
+            api_version = self.api_version or os.getenv("AZURE_OPENAI_API_VERSION", "2024-02-15-preview")
 
             if not azure_endpoint or not api_key:
                 raise ValueError("Azure OpenAI endpoint and API key must be provided")
 
             # Initialize Azure OpenAI client
-            self.client = AzureOpenAI(
-                azure_endpoint=azure_endpoint, api_key=api_key, api_version=api_version
-            )
+            self.client = AzureOpenAI(azure_endpoint=azure_endpoint, api_key=api_key, api_version=api_version)
 
             self._setup_logging("openai")
             print(f"Azure OpenAI client initialized for model: {self.model_name}")
@@ -58,9 +54,7 @@ class AzureOpenAIStrategy(BaseLLMModel):
             print(f"Error initializing Azure OpenAI client: {e}")
             raise
 
-    def generate(
-        self, prompt: str, temperature: float = 0.3, max_new_tokens: int = 8, **kwargs
-    ) -> str:
+    def generate(self, prompt: str, temperature: float = 0.3, max_new_tokens: int = 8, **kwargs) -> str:
         """Generate text using Azure OpenAI API."""
         try:
             # Handle different model versions
