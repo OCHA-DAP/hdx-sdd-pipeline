@@ -1,8 +1,9 @@
-# src/classifiers/pii_classifier.py
+"""classifiers/pii_classifier.py: Handles detection of PII entities from column names and sample values."""
+
 import logging
 from typing import Any, Dict, List
 
-from utilities.prompt_register import PII_ENTITIES_LIST
+from utilities.main_config import PII_ENTITIES_LIST
 from .base_classifier import BaseClassifier
 
 logger = logging.getLogger(__name__)

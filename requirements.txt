@@ -1,1 +1,6 @@
 git+https://github.com/OCHA-DAP/hdx-redis-lib.git@0.3.2
+pandas
+requests
+python-dotenv
+jinja2
+openpyxl

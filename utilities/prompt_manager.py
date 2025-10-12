@@ -1,8 +1,12 @@
+"""utilities/prompt_manager.py: Manages prompts for the HDX SSD Pipeline."""
+
 import os
 from jinja2 import Environment, FileSystemLoader, select_autoescape
 
 
 class PromptManager:
+    """PromptManager: Manages prompts for the HDX SSD Pipeline."""
+
     def __init__(self, base_path: str = 'prompts'):
         self.base_path = base_path
         self.env = Environment(
@@ -17,13 +21,7 @@ class PromptManager:
         prompt_dir = os.path.join(self.base_path, prompt_name)
         if not os.path.isdir(prompt_dir):
             raise FileNotFoundError(f'Prompt {prompt_name} not found.')
-        return sorted(
-            [
-                f.replace('.jinja', '')
-                for f in os.listdir(prompt_dir)
-                if f.endswith('.jinja')
-            ]
-        )
+        return sorted([f.replace('.jinja', '') for f in os.listdir(prompt_dir) if f.endswith('.jinja')])
 
     def get_prompt(self, prompt_name: str, version: str, context: dict) -> str:
         """
@@ -34,7 +32,5 @@ class PromptManager:
         try:
             template = self.env.get_template(template_path)
         except Exception as e:
-            raise FileNotFoundError(
-                f'Template not found for {prompt_name} version {version}: {e}'
-            )
+            raise FileNotFoundError(f'Template not found for {prompt_name} version {version}: {e}')
         return template.render(context)

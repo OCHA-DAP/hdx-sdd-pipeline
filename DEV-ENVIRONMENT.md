@@ -2,7 +2,7 @@
 
 This file describes the development environment for the SSD pipeline.
 
-## SSD Pipeline
+## SDD Pipeline
 - is a python 3.12 application
 - python pipeline that runs on the host system, not in docker
 - runs in a python virtual environment
