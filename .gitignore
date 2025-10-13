@@ -1,3 +1,9 @@
 # pycache fiels
 __pycache__/
 *.log
+
+logging.conf
+
+.vscode/launch.json
+.vscode/settings.json
+.vscode/extensions.json
