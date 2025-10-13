@@ -1,4 +1,4 @@
-"""utilities/prompt_manager.py: Manages prompts for the HDX SSD Pipeline."""
+"""utils/prompt_manager.py: Manages prompts for the HDX SSD Pipeline."""
 
 import os
 from jinja2 import Environment, FileSystemLoader, select_autoescape

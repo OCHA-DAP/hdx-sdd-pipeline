@@ -6,7 +6,7 @@ from typing import Any, Dict
 from classifiers.pii_classifier import PIIClassifier
 from classifiers.pii_reflection_classifier import PIIReflectionClassifier
 from classifiers.non_pii_classifier import NonPIIClassifier
-from utilities.main_config import PII_DETECT_MODEL, PII_REFLECT_MODEL, NON_PII_DETECT_MODEL, ISP_DEFAULT
+from utils.main_config import PII_DETECT_MODEL, PII_REFLECT_MODEL, NON_PII_DETECT_MODEL, ISP_DEFAULT
 
 logger = logging.getLogger(__name__)
 

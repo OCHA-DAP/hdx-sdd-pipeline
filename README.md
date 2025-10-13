@@ -121,7 +121,7 @@ python redis_streams_event_generator.py
 
 ### Model Configuration
 
-Models can be configured in `utilities/main_config.py`:
+Models can be configured in `utils/main_config.py`:
 
 ```python
 NON_PII_DETECT_MODEL = 'gpt-4o-mini'
@@ -131,7 +131,7 @@ PII_REFLECT_MODEL = 'gpt-4o-mini'
 
 ### ISP Rules
 
-Information Sensitivity Protocol rules are defined in `utilities/main_config.py` under `ISP_DEFAULT`. These rules define sensitivity levels for humanitarian data sharing.
+Information Sensitivity Protocol rules are defined in `utils/main_config.py` under `ISP_DEFAULT`. These rules define sensitivity levels for humanitarian data sharing.
 
 ## File Structure
 
@@ -142,7 +142,7 @@ hdx-ssd-pipeline/
 ├── pipeline/            # Orchestration logic
 ├── preprocessing/       # Data preprocessing
 ├── prompts/            # Prompt templates
-├── utilities/          # Configuration and utilities
+├── utils/          # Configuration and utils
 ├── main.py            # Main pipeline entry point
 └── requirements.txt   # Dependencies
 ```
@@ -189,3 +189,8 @@ python -m pytest test/
 
 [Add license information]
 
+## Requirements
+jinja2
+openai
+python-dotenv
+requests

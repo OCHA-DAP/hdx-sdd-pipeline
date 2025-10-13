@@ -1,4 +1,4 @@
-"""utilities/main_config.py: Main configuration file for the HDX SSD Pipeline."""
+"""utils/main_config.py: Main configuration file for the HDX SSD Pipeline."""
 
 import os
 

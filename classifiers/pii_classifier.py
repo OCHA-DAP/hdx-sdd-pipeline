@@ -3,7 +3,7 @@
 import logging
 from typing import Any, Dict, List
 
-from utilities.main_config import PII_ENTITIES_LIST
+from utils.main_config import PII_ENTITIES_LIST
 from .base_classifier import BaseClassifier
 
 logger = logging.getLogger(__name__)

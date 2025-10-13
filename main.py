@@ -8,9 +8,9 @@ from hdx_redis_lib import connect_to_hdx_event_bus, RedisConfig
 
 from preprocessing.preprocessor import TablePreprocessor
 from pipeline.orchestrator import SSDOrchestrator
-from utilities.hdx_downloader import download_resource
-from utilities.main_config import INPUT_STREAM
-from utilities.result_formatter import format_results_for_redis
+from utils.hdx_downloader import download_resource
+from utils.main_config import INPUT_STREAM
+from utils.result_formatter import format_results_for_redis
 
 logging.config.fileConfig('logging.conf')
 dotenv.load_dotenv()

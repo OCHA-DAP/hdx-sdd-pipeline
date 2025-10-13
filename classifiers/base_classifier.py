@@ -3,7 +3,7 @@ import logging
 from typing import Any, Dict
 
 from llm_model import AzureOpenAIStrategy
-from utilities.prompt_manager import PromptManager
+from utils.prompt_manager import PromptManager
 
 logger = logging.getLogger(__name__)
 

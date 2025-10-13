@@ -1,4 +1,4 @@
-"""utilities/result_formatter.py: Formats results for Redis response."""
+"""utils/result_formatter.py: Formats results for Redis response."""
 
 import logging
 from typing import Any, Dict

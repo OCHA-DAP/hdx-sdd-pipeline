@@ -1,4 +1,4 @@
-"""utilities/hdx_downloader.py: HDX data downloader for the SSD Pipeline."""
+"""utils/hdx_downloader.py: HDX data downloader for the SSD Pipeline."""
 
 from urllib.parse import urlparse
 import logging
