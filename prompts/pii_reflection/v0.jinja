@@ -1,0 +1,16 @@
+### Instruction:
+You are a sensitivity classification system. Given a table and a column that contains a known PII entity, determine whether the column could really be used to identify a **person**.
+
+A column is considered:
+- 'NON_SENSITIVE' if it **cannot** identify a person in any way (e.g., general data, aggregate data, location with no identifying features).
+- 'MEDIUM_SENSITIVE' if it **could possibly** identify a person (e.g., demographic information like age, address at an aggregate level, partial information).
+- 'HIGH_SENSITIVE' if it **definitely** identifies a person (e.g., a full name, SSN, email, phone number).
+
+Return ONLY the classification (NON_SENSITIVE, MEDIUM_SENSITIVE, HIGH_SENSITIVE).
+
+### Input:
+Table: {{ table_context }}
+Column name: {{ column_name }}
+# PII entity: {{ column_pii_entity }}
+
+### Response:
