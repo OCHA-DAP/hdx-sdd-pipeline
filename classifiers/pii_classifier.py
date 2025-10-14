@@ -1,7 +1,8 @@
-"""classifiers/pii_classifier.py: Handles detection of PII entities from column names and sample values."""
+"""classifiers/pii_classifier.py: Handles detection of PII entities."""
 
 import logging
 from typing import Any, Dict, List
+import pandas as pd
 
 from utils.main_config import PII_ENTITIES_LIST
 from .base_classifier import BaseClassifier
@@ -14,7 +15,11 @@ class PIIClassifier(BaseClassifier):
     Handles detection of PII entities from column names and sample values.
     """
 
-    def classify(
+    def _prepare_context(self, df: pd.DataFrame) -> Dict[str, Any]:
+        """Prepare context for PII classification."""
+        return df.to_dict(orient='records')
+
+    def _classify_column(
         self,
         column_name: str,
         sample_values: List[Any],
@@ -48,3 +53,12 @@ class PIIClassifier(BaseClassifier):
                 return self._standardize_output('PII', entity, prediction)
 
         return self._standardize_output('PII', 'UNDETERMINED', prediction, success=False)
+
+    def classify_df(self, df: pd.DataFrame) -> Dict[str, Any]:
+        """Classify a DataFrame."""
+        # context = self._prepare_context(df)
+        for column in df.columns:
+            pred = self._classify_column(column, df[column].tolist())
+            if pred['entity_type'] != 'None':
+                return pred
+        return self._standardize_output('PII', 'None', 'No PII detected', success=True)

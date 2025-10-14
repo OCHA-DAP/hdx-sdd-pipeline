@@ -19,7 +19,12 @@ class SSDOrchestrator:
     3. Non-PII Classification
     """
 
-    def __init__(self, pii_model: str = None, pii_reflect_model: str = None, non_pii_model: str = None):
+    def __init__(
+        self,
+        pii_model: str = None,
+        pii_reflect_model: str = None,
+        non_pii_model: str = None,
+    ):
         """
         Initialize the orchestrator with model configurations.
 
@@ -41,8 +46,8 @@ class SSDOrchestrator:
         self.isp_data = ISP_DEFAULT
 
         logger.info(
-            f'Initialized SSDOrchestrator with models: PII={self.pii_model}, '
-            f'PII_Reflect={self.pii_reflect_model}, Non_PII={self.non_pii_model}'
+            'Initialized SSDOrchestrator with models: PII=%s, '
+            'PII_Reflect=%s, Non_PII=%s', self.pii_model, self.pii_reflect_model, self.non_pii_model
         )
 
     def process_table(self, table_data: Dict[str, Any]) -> Dict[str, Any]:
@@ -74,7 +79,7 @@ class SSDOrchestrator:
             return table_data
 
         except Exception as e:
-            logger.error(f'Error in table processing pipeline: {e}')
+            logger.error('Error in table processing pipeline: %s', e)
             # Add error information to the results
             table_data['metadata']['processing_error'] = str(e)
             table_data['metadata']['processing_success'] = False
@@ -86,7 +91,7 @@ class SSDOrchestrator:
 
         for col_name, col_data in columns.items():
             try:
-                logger.info(f'Detecting PII in column: {col_name}')
+                logger.info('Detecting PII in column: %s', col_name)
 
                 sample_values = col_data.get('sample_values', [])
                 if not sample_values:
@@ -95,15 +100,15 @@ class SSDOrchestrator:
                     continue
 
                 # Run PII classification
-                pii_result = self.pii_classifier.classify(column_name=col_name, sample_values=sample_values)
+                pii_result = self.pii_classifier.classify_df(column_name=col_name, sample_values=sample_values)
 
                 # Store result
                 col_data['pii_entity'] = pii_result
 
-                logger.info(f'PII detection result for {col_name}: {pii_result.get('entity_type', 'Unknown')}')
+                logger.info('PII detection result for %s: %s', col_name, pii_result.get('entity_type', 'Unknown'))
 
             except Exception as e:
-                logger.error(f'Error detecting PII in column {col_name}: {e}')
+                logger.error('Error detecting PII in column %s: %s', col_name, e)
                 col_data['pii_entity'] = {'entity_type': 'ERROR', 'confidence': str(e), 'success': False}
 
         return table_data
@@ -127,7 +132,7 @@ class SSDOrchestrator:
                     }
                     continue
 
-                logger.info(f'Reflecting PII sensitivity for column: {col_name} (entity: {entity_type})')
+                logger.info('Reflecting PII sensitivity for column: %s (entity: %s)', col_name, entity_type)
 
                 # Run PII reflection classification
                 reflection_result = self.pii_reflection_classifier.classify(
@@ -138,11 +143,11 @@ class SSDOrchestrator:
                 col_data['pii_sensitivity'] = reflection_result
 
                 logger.info(
-                    f'PII sensitivity result for {col_name}: {reflection_result.get('sensitivity_level', 'Unknown')}'
+                    'PII sensitivity result for %s: %s', col_name, reflection_result.get('sensitivity_level', 'Unknown')
                 )
 
             except Exception as e:
-                logger.error(f'Error reflecting PII sensitivity in column {col_name}: {e}')
+                logger.error('Error reflecting PII sensitivity in column %s: %s', col_name, e)
                 col_data['pii_sensitivity'] = {'sensitivity_level': 'ERROR', 'confidence': str(e), 'success': False}
 
         return table_data
@@ -160,10 +165,10 @@ class SSDOrchestrator:
             # Store result in metadata
             table_data['metadata']['non_pii_sensitivity'] = non_pii_result
 
-            logger.info(f'Non-PII classification result: {non_pii_result.get('sensitivity_level', 'Unknown')}')
+            logger.info('Non-PII classification result: %s', non_pii_result.get('sensitivity_level', 'Unknown'))
 
         except Exception as e:
-            logger.error(f'Error in non-PII classification: {e}')
+            logger.error('Error in non-PII classification: %s', e)
             table_data['metadata']['non_pii_sensitivity'] = {
                 'sensitivity_level': 'ERROR',
                 'confidence': str(e),

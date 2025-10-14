@@ -36,7 +36,7 @@ class TablePreprocessor:
             if file_ext not in self.supported_formats:
                 raise ValueError(f'Unsupported file format: {file_ext}')
 
-            logger.info(f'Processing file: {file_path}')
+            logger.info('Processing file: %s', file_path)
 
             # Load data based on file type
             if file_ext == '.csv':
@@ -64,11 +64,11 @@ class TablePreprocessor:
 
             result = {'columns': columns_data, 'table_context': table_context, 'metadata': metadata}
 
-            logger.info(f'Successfully processed file: {file_path}')
+            logger.info('Successfully processed file: %s', file_path)
             return result
 
         except Exception as e:
-            logger.error(f'Error processing file {file_path}: {e}')
+            logger.error('Error processing file %s: %s', file_path, e)
             raise
 
     def _load_csv(self, file_path: str) -> pd.DataFrame:
@@ -79,7 +79,7 @@ class TablePreprocessor:
             for encoding in encodings:
                 try:
                     df = pd.read_csv(file_path, encoding=encoding)
-                    logger.info(f'Successfully loaded CSV with encoding: {encoding}')
+                    logger.info('Successfully loaded CSV with encoding: %s', encoding)
                     return df
                 except UnicodeDecodeError:
                     continue
@@ -90,7 +90,7 @@ class TablePreprocessor:
             return df
 
         except Exception as e:
-            logger.error(f'Error loading CSV file {file_path}: {e}')
+            logger.error('Error loading CSV file %s: %s', file_path, e)
             raise
 
     def _load_excel(self, file_path: str) -> tuple[pd.DataFrame, Dict[str, Any]]:
@@ -102,11 +102,11 @@ class TablePreprocessor:
             # Load the first sheet (or main data sheet)
             df = pd.read_excel(file_path, sheet_name=0)
 
-            logger.info(f'Successfully loaded Excel file with analysis: {excel_analysis}')
+            logger.info('Successfully loaded Excel file with analysis: %s', excel_analysis)
             return df, excel_analysis
 
         except Exception as e:
-            logger.error(f'Error loading Excel file {file_path}: {e}')
+            logger.error('Error loading Excel file %s: %s', file_path, e)
             raise
 
     def _extract_columns_data(self, df: pd.DataFrame) -> Dict[str, Any]:
