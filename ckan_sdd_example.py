@@ -58,11 +58,12 @@ def resource_show(resource_id):
     """
     url = f'{CKAN_URL}/api/3/action/resource_show'
     params = {'id': resource_id}
+    headers = {'Authorization': CKAN_API_TOKEN}
 
     logger.info('Fetching resource: %s', resource_id)
     logger.info('URL: %s', url)
     logger.info('Params: %s', params)
-    response = requests.get(url, params=params, timeout=30)
+    response = requests.get(url, params=params, timeout=30, headers=headers)
     response.raise_for_status()
 
     data = response.json()
@@ -89,12 +90,12 @@ def resource_patch(resource_id, new_description):
 
     url = f'{CKAN_URL}/api/3/action/resource_patch'
     headers = {'Authorization': CKAN_API_TOKEN}
-    payload = {'id': resource_id, 'sensitive': new_description}
+    new_sdd_report = {"example_key": "example_value"}
+    payload = {'id': resource_id, 'sensitive': new_description, 'ssd_report': new_sdd_report}
 
     logger.info('Updating resource sensitive to %s: %s', new_description, resource_id)
     response = requests.post(url, json=payload, headers=headers, timeout=30)
     response.raise_for_status()
-
     data = response.json()
     if data['success']:
         logger.info('Successfully updated resource sensitive to %s: %s', new_description, data['result']['sensitive'])
@@ -121,12 +122,13 @@ if __name__ == '__main__':
         logger.info('Resource name: %s', resource.get('name'))
         logger.info('Resource download URL: %s', resource.get('download_url'))
         logger.info('Resource sensitive: %s', resource.get('sensitive'))
-        logger.info('Resource sensitive report: %s', resource.get('ssd_report'))
+        logger.info('Resource sensitive report: %s', resource.get('sdd_report'))
+        # logger.info('Resource ssd report: %s', resource.get('sdd_report'))
 
     # Example 3: Update resource sensitivity
-    NEW_SENSITIVE = True
-    updated_resource = resource_patch(RESOURCE_ID, NEW_SENSITIVE)
-    if updated_resource:
-        logger.info('New sensitivity: %s', updated_resource.get('sensitive'))
+    # NEW_SENSITIVE = True
+    # updated_resource = resource_patch(RESOURCE_ID, NEW_SENSITIVE)
+    # if updated_resource:
+    #     logger.info('New sensitivity: %s', updated_resource.get('sensitive'))
 
     logger.info('CKAN ssd demonstration completed')

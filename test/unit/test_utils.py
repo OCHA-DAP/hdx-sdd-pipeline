@@ -1,7 +1,4 @@
 """test/unit/test_utils.py: Unit tests for utils/result_formatter.py."""
-
-import sys
-import os
 import pytest
 from utils.result_formatter import (
     format_results_for_redis,

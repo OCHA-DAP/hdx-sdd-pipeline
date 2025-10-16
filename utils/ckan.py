@@ -22,12 +22,13 @@ def _ckan_request(action: str, method: str = 'GET', **kwargs) -> Optional[dict]:
     """
     Internal helper for CKAN API requests.
     """
+    headers = {'Authorization': CKAN_API_TOKEN}
     url = f'{CKAN_URL}/api/3/action/{action}'
     try:
         if method.upper() == 'GET':
-            response = requests.get(url, timeout=30, **kwargs)
+            response = requests.get(url, timeout=30, headers=headers, **kwargs)
         else:
-            response = requests.post(url, timeout=30, **kwargs)
+            response = requests.post(url, timeout=30, headers=headers, **kwargs)
 
         response.raise_for_status()
         data = response.json()
@@ -67,11 +68,10 @@ def update_resource_fields(resource_id: str, fields: Dict[str, Any]) -> Optional
     if not CKAN_API_TOKEN:
         raise EnvironmentError('CKAN_API_TOKEN is required to update resources')
 
-    headers = {'Authorization': CKAN_API_TOKEN}
     payload = {'id': resource_id, **fields}
 
     logger.info('Updating resource %s with fields: %s', resource_id, list(fields.keys()))
-    return _ckan_request('resource_patch', method='POST', json=payload, headers=headers)
+    return _ckan_request('resource_patch', method='POST', json=payload)
 
 
 def get_download_link(resource_id: str) -> Optional[str]:
