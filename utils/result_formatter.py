@@ -92,19 +92,20 @@ def format_results_for_redis(table_data: Dict[str, Any], event: Dict[str, Any]) 
             'message': (
                 'Processing completed successfully'
                 if metadata.get('processing_success', True)
-                else f'Processing failed: {metadata.get('processing_error', 'Unknown error')}'
+                else f"Processing failed: {metadata.get('processing_error', 'Unknown error')}"
             ),
         }
 
         logger.info(
-            f'Formatted results for Redis: {len(pii_columns)} PII columns detected, '
-            f'overall sensitivity: {overall_sensitivity}'
+            'Formatted results for Redis: %s PII columns detected, overall sensitivity: %s',
+            len(pii_columns),
+            overall_sensitivity
         )
 
         return response
 
     except Exception as e:
-        logger.error(f'Error formatting results for Redis: {e}')
+        logger.error('Error formatting results for Redis: %s', e)
         # Return error response
         return {
             'event_metadata': event,

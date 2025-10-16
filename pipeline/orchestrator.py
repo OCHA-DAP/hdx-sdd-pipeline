@@ -46,8 +46,10 @@ class SSDOrchestrator:
         self.isp_data = ISP_DEFAULT
 
         logger.info(
-            'Initialized SSDOrchestrator with models: PII=%s, '
-            'PII_Reflect=%s, Non_PII=%s', self.pii_model, self.pii_reflect_model, self.non_pii_model
+            'Initialized SSDOrchestrator with models: PII=%s, ' 'PII_Reflect=%s, Non_PII=%s',
+            self.pii_model,
+            self.pii_reflect_model,
+            self.non_pii_model,
         )
 
     def process_table(self, table_data: Dict[str, Any]) -> Dict[str, Any]:

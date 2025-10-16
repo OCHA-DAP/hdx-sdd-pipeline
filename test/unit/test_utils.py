@@ -3,10 +3,6 @@
 import sys
 import os
 import pytest
-
-# Go up two directories: from test/unit → test → project root
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../..')))
-
 from utils.result_formatter import (
     format_results_for_redis,
     format_error_response,

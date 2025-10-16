@@ -53,9 +53,7 @@ class BaseClassifier:
         return {
             'classification_type': classification_type,
             'value': value,
-            'raw_model_output': (
-                raw_model_output.strip() if isinstance(raw_model_output, str) else raw_model_output
-            ),
+            'raw_model_output': (raw_model_output.strip() if isinstance(raw_model_output, str) else raw_model_output),
             'success': success,
         }
 

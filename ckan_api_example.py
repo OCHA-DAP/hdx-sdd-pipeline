@@ -1,4 +1,5 @@
 """ckan_api_example.py: Example of using the CKAN API."""
+
 import logging
 import logging.config
 import os
@@ -36,10 +37,10 @@ def package_show(package_id):
 
     data = response.json()
     if data['success']:
-        logger.info('Successfully retrieved package: %s', data["result"]["name"])
+        logger.info('Successfully retrieved package: %s', data['result']['name'])
         return data['result']
     else:
-        logger.error('Failed to retrieve package: %s', data.get("error"))
+        logger.error('Failed to retrieve package: %s', data.get('error'))
         return None
 
 
@@ -62,10 +63,10 @@ def resource_show(resource_id):
 
     data = response.json()
     if data['success']:
-        logger.info('Successfully retrieved resource: %s', data["result"]["name"])
+        logger.info('Successfully retrieved resource: %s', data['result']['name'])
         return data['result']
     else:
-        logger.error('Failed to retrieve resource: %s', data.get("error"))
+        logger.error('Failed to retrieve resource: %s', data.get('error'))
         return None
 
 
@@ -90,10 +91,10 @@ def resource_patch(resource_id, new_description):
 
     data = response.json()
     if data['success']:
-        logger.info('Successfully updated resource: %s', data["result"]["name"])
+        logger.info('Successfully updated resource: %s', data['result']['name'])
         return data['result']
     else:
-        logger.error('Failed to update resource: %s', data.get("error"))
+        logger.error('Failed to update resource: %s', data.get('error'))
         return None
 
 
@@ -103,14 +104,14 @@ if __name__ == '__main__':
     # Example 1: Show package details
     package = package_show(PACKAGE_ID)
     if package:
-        logger.info('Package title: %s', package.get("title"))
-        logger.info('Number of resources: %s', len(package.get("resources", [])))
+        logger.info('Package title: %s', package.get('title'))
+        logger.info('Number of resources: %s', len(package.get('resources', [])))
 
     # Example 2: Show resource details
     resource = resource_show(RESOURCE_ID)
     if resource:
-        logger.info('Resource name: %s', resource.get("name"))
-        logger.info('Current description: %s', resource.get("description"))
+        logger.info('Resource name: %s', resource.get('name'))
+        logger.info('Current description: %s', resource.get('description'))
         # Logg all keys of resource
         logger.info('Resource keys: %s', resource.keys())
 
@@ -118,11 +119,11 @@ if __name__ == '__main__':
     NEW_DESCRIPTION = 'This is an updated description for the resource.'
     updated_resource = resource_patch(RESOURCE_ID, NEW_DESCRIPTION)
     if updated_resource:
-        logger.info('New description: %s', updated_resource.get("description"))
+        logger.info('New description: %s', updated_resource.get('description'))
 
     # Check if resource description is updated
     resource = resource_show(RESOURCE_ID)
-    if resource.get("description") == NEW_DESCRIPTION:
+    if resource.get('description') == NEW_DESCRIPTION:
         logger.info('Resource description is updated')
     else:
         logger.info('Resource description is not updated')

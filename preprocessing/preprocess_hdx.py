@@ -4,16 +4,19 @@ import logging
 
 logger = logging.getLogger(__name__)
 
+
 def write_temp_csv(download_url, temp_path='temp.csv'):
     """
     Write a temp CSV file from a download URL.
     """
     import requests
+
     response = requests.get(download_url)
     response.raise_for_status()
     with open(temp_path, 'wb') as f:
         f.write(response.content)
     return temp_path
+
 
 def process_csv(temp_path='temp.csv'):
     """
