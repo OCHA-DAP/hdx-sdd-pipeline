@@ -109,4 +109,4 @@ print(f'[INFO] Report saved to {output_path}')
 
 # Remove the report file from output directory
 os.remove(output_path)
-print(f'[INFO] Report file removed from output directory')
+print('[INFO] Report file removed from output directory')

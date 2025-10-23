@@ -9,7 +9,9 @@ logger = logging.getLogger(__name__)
 
 class NonPIIClassifier(BaseClassifier):
     """Classify the sensitivity level of non-PII sensitive data."""
+
     def format_prediction(self, prediction: str) -> str:
+        """Format the prediction of the non-PII classifier."""
         prediction = prediction.split('\n')[0]  # First line of the prediction
         if 'high_sensitive' in prediction.lower():
             return 'HIGH_SENSITIVE'
@@ -28,7 +30,7 @@ class NonPIIClassifier(BaseClassifier):
         max_new_tokens: int = 512,
         version: str = 'v0',
     ) -> Dict[str, Any]:
-    """Classify the sensitivity level of non-PII tables."""
+        """Classify the sensitivity level of non-PII sensitive data."""
         context = {'table_markdown': table_markdown, 'isp': isp['default'] or {}}
 
         try:
