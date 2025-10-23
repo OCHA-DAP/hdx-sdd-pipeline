@@ -11,13 +11,11 @@ class AzureOpenAIStrategy:
 
     def __init__(self, model_name: str, device: Optional[str] = None, **kwargs):
         load_dotenv()
-        print(' ===== STARTING AZURE OPENAI STRATEGY ===== ')
         # Azure-specific configuration
         self.azure_endpoint = os.getenv('AZURE_OPENAI_ENDPOINT')
         self.api_key = os.getenv('AZURE_OPENAI_API_KEY')
         self.client = None
         self.model = model_name
-        print(f'[AZURE_OPENAI_STRATEGY] DEBUG Model: {self.model}')
         self._setup_client()
         print(' ===== AZURE OPENAI STRATEGY SETUP COMPLETED ===== ')
 

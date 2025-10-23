@@ -10,9 +10,11 @@ from classifiers.pii_classifier import PIIClassifier
 from classifiers.non_pii_classifier import NonPIIClassifier
 from classifiers.pii_reflection_classifier import PIIReflectionClassifier
 import pandas as pd
+
 from utils.main_config import ISP_DEFAULT
 from models.sdd_report import SDDReport
 import logging
+
 
 
 logger = logging.getLogger(__name__)
@@ -39,10 +41,12 @@ output_path = os.path.join(OUTPUT_DIR, f'{file_name}_sdd_report.json')
 if os.path.exists(output_path):
     print(f'[INFO] Report already exists at {output_path}')
 
-# Load an existing report
-with open(output_path, 'r', encoding='utf-8') as f:
-    report = SDDReport.from_json(f.read())
+    # Load an existing report
+    with open(output_path, 'r', encoding='utf-8') as f:
+        report = SDDReport.from_json(f.read())
 
+else:
+    report = None
 # ===== Preprocessing & Sampling =====
 sampler = DataSampler()
 df = sampler.sample_from_url(download_url)
@@ -50,7 +54,7 @@ print('[INFO] Sampled data:')
 print(df.head(), '\n')
 
 # Alternatively, create a new report
-if not report:
+if report is None:
     report = SDDReport(
         resource_id=RESOURCE_ID,
         file_name=file_name,
@@ -107,6 +111,3 @@ with open(output_path, 'w', encoding='utf-8') as f:
 
 print(f'[INFO] Report saved to {output_path}')
 
-# Remove the report file from output directory
-os.remove(output_path)
-print('[INFO] Report file removed from output directory')
