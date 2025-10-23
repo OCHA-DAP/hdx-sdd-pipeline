@@ -62,13 +62,13 @@ if not report:
     )
 
 # ===== PII Detection =====
-pii_detector = PIIClassifier(model_name='gpt-4o-mini')
+pii_detector = PIIClassifier(model_name='gpt-4.1-nano')
 print('[INFO] Starting PII Detection...\n')
 
 report = pii_detector.classify_df(df=df, report=report)
 
 # ===== PII Reflection Detection =====
-pii_reflection_classifier = PIIReflectionClassifier(model_name='gpt-4o-mini')
+pii_reflection_classifier = PIIReflectionClassifier(model_name='gpt-4.1-nano')
 
 
 def table_markdown(report: SDDReport):
@@ -92,7 +92,7 @@ report = pii_reflection_classifier.classify_df(
 )
 
 # ===== (Optional) Non-PII Classification =====
-non_pii_classifier = NonPIIClassifier(model_name='gpt-4.1-mini')
+non_pii_classifier = NonPIIClassifier(model_name='gpt-4.1-nano')
 report = non_pii_classifier.classify(
     table_markdown=table_markdown(report),
     report=report,
