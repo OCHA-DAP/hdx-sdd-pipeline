@@ -45,6 +45,7 @@ class NonPIIClassifier(BaseClassifier):
             report.add_non_pii_report(
                 NonPIIReport(
                     model_name=self.model_name,
+                    isp_used=isp['default']['country'],
                     sensitivity=pred_level,
                     explanation=prediction,
                 )

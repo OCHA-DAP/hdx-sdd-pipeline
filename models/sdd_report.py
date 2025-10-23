@@ -34,7 +34,9 @@ class PIIColumnReport:
 @dataclass
 class NonPIIReport:
     """Represents analysis details for the non-PII part of the dataset."""
+
     model_name: str
+    isp_used: str
     sensitivity: str
     explanation: str
 
@@ -135,7 +137,9 @@ class SDDReport:
         if non_pii_data:
             non_pii = NonPIIReport(
                 model_name=non_pii_data.get('model_name', ''),
-                sensitivity=non_pii_data.get('sensitivity', ''), explanation=non_pii_data.get('explanation', '')
+                isp_used=non_pii_data.get('isp_used', ''),
+                sensitivity=non_pii_data.get('sensitivity', ''),
+                explanation=non_pii_data.get('explanation', ''),
             )
 
         # Build the SDDReport instance
@@ -191,7 +195,8 @@ if __name__ == '__main__':
     report.add_non_pii_report(
         NonPIIReport(
             model_name='gpt-4.1-nano',
-            sensitivity='LOW', explanation='The table contains email addresses, which are considered sensitive data.'
+            sensitivity='LOW',
+            explanation='The table contains email addresses, which are considered sensitive data.',
         )
     )
 

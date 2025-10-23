@@ -16,7 +16,6 @@ from models.sdd_report import SDDReport
 import logging
 
 
-
 logger = logging.getLogger(__name__)
 
 dotenv.load_dotenv()
@@ -114,4 +113,3 @@ with open(output_path, 'w', encoding='utf-8') as f:
     f.write(report.to_json(indent=2))
 
 print(f'[INFO] Report saved to {output_path}')
-
