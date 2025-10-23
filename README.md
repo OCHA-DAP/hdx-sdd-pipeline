@@ -96,16 +96,64 @@ python redis_streams_event_generator.py
 - Receives HDX events containing `resource_id`
 - Downloads CSV/Excel files from HDX API
 - Preprocesses files to extract table structure
+```python
+{
+    'resource_id': '1234567890',
+    'file_name': 'example.csv',
+    'file_url': 'https://example.com/example.csv'
+    'processing_timestamp': '2025-01-01 12:00:00'
+    'processing_success': True,
+    'n_records': 100,
+    'n_columns': 10,
+    'pii_sensitive': True,
+    'non_pii_sensitive': True,
+    'columns': [
+        {
+            'column_name': 'email_address',
+            'sample_values': ['john@example.com', 'jane@company.com'],
+            'pii': {
+                'entity_type': 'EMAIL_ADDRESS',
+                'sensitive': True
+            }
+        }
+    ]
+    'non_pii': {
+        'sensitivity': 'LOW'
+        'explanation': 'The table contains email addresses, which are considered sensitive data.'
+    }
+}
+```
 
 ### 2. PII Detection Phase
 - Analyzes each column for PII entities
 - Uses sample values and column names
 - Returns entity types (e.g., PERSON_NAME, EMAIL_ADDRESS, etc.)
 
+```python
+{
+    'column_name': 'email_address',
+    'sample_values': ['john@example.com', 'jane@company.com'],
+    'pii': {
+        'entity_type': 'EMAIL_ADDRESS',
+    }
+}
+```
+
 ### 3. PII Reflection Phase
 - For columns with detected PII, determines sensitivity level
 - Considers table context and entity type
 - Returns sensitivity levels: NON_SENSITIVE, MODERATE_SENSITIVE, HIGH_SENSITIVE, SEVERE_SENSITIVE
+
+```python
+{
+    'column_name': 'email_address',
+    'sample_values': ['john@example.com', 'jane@company.com'],
+    'pii': {
+        'entity_type': 'EMAIL_ADDRESS',
+        'sensitive': True
+    }
+}
+```
 
 ### 4. Non-PII Classification Phase
 - Analyzes overall table for non-PII sensitivity
