@@ -49,7 +49,7 @@ class PIIReflectionClassifier(BaseClassifier):
 
     def classify_df(self, table_markdown: str, report: SDDReport) -> Dict[str, Any]:
         """Classify the sensitivity level of detected PII entities."""
-        for column in tqdm(report.columns, desc='Classifying columns'):
+        for column in tqdm(report.columns, desc='Reflecting on PII entities'):
             # Skip if no PII entity type is detected
             if column.pii.get('sensitive') is not None:
                 continue
@@ -72,5 +72,5 @@ class PIIReflectionClassifier(BaseClassifier):
             report.update_pii_column(
                 column_name=column.column_name, entity_type=column.pii.get('entity_type'), sensitive=pred
             )
-            report.add_pii_reflection_model(model_name=self.model_name)
+            report.pii_reflection_model = self.model_name
         return report

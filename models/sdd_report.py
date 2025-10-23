@@ -91,14 +91,6 @@ class SDDReport:
                     self.pii_sensitive = any(col.pii.get('sensitive', False) for col in self.columns)
                 break
 
-    def add_pii_classifier_model(self, model_name: str):
-        """Adds a new PII classifier model to the SDD."""
-        self.pii_classifier_model = model_name
-
-    def add_pii_reflection_model(self, model_name: str):
-        """Adds a new PII reflection model to the SDD."""
-        self.pii_reflection_model = model_name
-
     def to_dict(self) -> Dict[str, Any]:
         """Convert the SDDReport to a nested dictionary."""
         return {
@@ -155,6 +147,8 @@ class SDDReport:
             processing_success=data.get('processing_success', False),
             n_records=data.get('n_records', 0),
             n_columns=data.get('n_columns', 0),
+            pii_classifier_model=data.get('pii_classifier_model', ''),
+            pii_reflection_model=data.get('pii_reflection_model', ''),
             pii_sensitive=data.get('pii_sensitive', False),
             non_pii_sensitive=data.get('non_pii_sensitive', False),
             columns=columns,

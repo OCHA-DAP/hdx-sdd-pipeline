@@ -21,6 +21,22 @@ logger = logging.getLogger(__name__)
 
 dotenv.load_dotenv()
 
+
+def table_markdown(report: SDDReport):
+    columns_data = report.columns
+    column_samples = {}
+
+    for column in columns_data:
+        if column.pii.get('entity_type') != 'None':
+            column_key = column.column_name + ' - ' + column.pii.get('entity_type')
+            column_samples[column_key] = column.sample_values
+        else:
+            column_samples[column.column_name] = column.sample_values
+
+    table_data = pd.DataFrame(column_samples)
+    return table_data.to_markdown()
+
+
 # ===== Configuration =====
 CKAN_URL = os.getenv('CKAN_URL')
 CKAN_API_TOKEN = os.getenv('CKAN_API_TOKEN')
@@ -64,46 +80,36 @@ if report is None:
     )
 
 # ===== PII Detection =====
-pii_detector = PIIClassifier(model_name='gpt-4.1-nano')
-print('[INFO] Starting PII Detection...\n')
-
-report = pii_detector.classify_df(df=df, report=report)
+# If there are already PII columns in the report, skip PII Detection
+if report.pii_classifier_model is None:
+    print('[1/3] Starting PII Detection...\n')
+    pii_detector = PIIClassifier(model_name='gpt-4.1-nano')
+    report = pii_detector.classify_df(df=df, report=report)
+else:
+    print('[1/3] PII Detection already performed, skipping...\n')
 
 # ===== PII Reflection Detection =====
-pii_reflection_classifier = PIIReflectionClassifier(model_name='gpt-4.1-nano')
-
-
-def table_markdown(report: SDDReport):
-    columns_data = report.columns
-    column_samples = {}
-
-    for column in columns_data:
-        if column.pii.get('entity_type') != 'None':
-            column_key = column.column_name + ' - ' + column.pii.get('entity_type')
-            column_samples[column_key] = column.sample_values
-        else:
-            column_samples[column.column_name] = column.sample_values
-
-    table_data = pd.DataFrame(column_samples)
-    return table_data.to_markdown()
-
-
-report = pii_reflection_classifier.classify_df(
-    table_markdown=table_markdown(report),
-    report=report,
-)
+# If there are already PII reflection columns in the report, skip PII Reflection Detection
+if report.pii_reflection_model is None:
+    print('[2/3] Starting PII Reflection Detection...\n')
+    pii_reflection_classifier = PIIReflectionClassifier(model_name='gpt-4.1-nano')
+    report = pii_reflection_classifier.classify_df(table_markdown=table_markdown(report), report=report)
+else:
+    print('[2/3] PII Reflection Detection already performed, skipping...\n')
 
 # ===== (Optional) Non-PII Classification =====
-non_pii_classifier = NonPIIClassifier(model_name='gpt-4.1-nano')
-report = non_pii_classifier.classify(
-    table_markdown=table_markdown(report),
-    report=report,
-    isp=ISP_DEFAULT,
-)
+if report.non_pii is None:
+    print('[3/3] Starting Non-PII Classification...\n')
+    non_pii_classifier = NonPIIClassifier(model_name='gpt-4.1-nano')
+    report = non_pii_classifier.classify(
+        table_markdown=table_markdown(report),
+        report=report,
+        isp=ISP_DEFAULT,
+    )
+else:
+    print('[3/3] Non-PII Classification already performed, skipping...\n')
 
 # ===== Save report =====
-
-
 with open(output_path, 'w', encoding='utf-8') as f:
     f.write(report.to_json(indent=2))
 

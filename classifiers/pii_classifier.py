@@ -3,6 +3,7 @@
 import logging
 from typing import Any, List
 import pandas as pd
+from tqdm import tqdm
 
 from .base_classifier import BaseClassifier
 from models.sdd_report import SDDReport, PIIColumnReport
@@ -104,9 +105,9 @@ class PIIClassifier(BaseClassifier):
     def classify_df(self, df: pd.DataFrame, report: SDDReport) -> SDDReport:
         """Classify each column in a DataFrame and populate the SDD report."""
 
-        for column in df.columns:
+        for column in tqdm(df.columns, desc='Classifying columns'):
             # TODO: Check if the column is already classified
             sample_values = df[column].dropna().astype(str).tolist()
             self._classify_column(column_name=column, sample_values=sample_values, report=report)
-            report.add_pii_classifier_model(model_name=self.model_name)
+            report.pii_classifier_model = self.model_name
         return report
