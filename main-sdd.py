@@ -129,4 +129,4 @@ sdd_report = report.to_json(indent=2)
 
 ckan.update_resource_fields(RESOURCE_ID, {'sdd_report': sdd_report, 'sensitive': SENSITIVE})
 
-print(f'[INFO] Report updated in CKAN: {SENSITIVE}')
+print(f'[INFO] Report updated in CKAN and set sensitive to: {SENSITIVE}')
