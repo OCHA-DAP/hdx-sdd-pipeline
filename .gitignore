@@ -223,3 +223,9 @@ __marimo__/
 
 reports/
 resources/
+
+logging.conf
+
+.vscode/launch.json
+.vscode/settings.json
+.vscode/extensions.json

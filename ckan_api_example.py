@@ -10,7 +10,7 @@ logging.config.fileConfig('logging.conf')
 logger = logging.getLogger(__name__)
 
 # Read configuration from environment variables
-CKAN_URL = os.getenv('CKAN_URL', 'https://data.humdata.org')
+CKAN_URL = os.getenv('CKAN_URL')
 CKAN_API_TOKEN = os.getenv('CKAN_API_TOKEN')
 
 # Hard-coded IDs for the example
