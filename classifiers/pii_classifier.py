@@ -4,9 +4,9 @@ import logging
 from typing import Any, List
 import pandas as pd
 
-from utils.main_config import PII_ENTITIES_LIST
 from .base_classifier import BaseClassifier
 from models.sdd_report import SDDReport, PIIColumnReport
+from utils.main_config import PII_ENTITIES_LIST
 
 logger = logging.getLogger(__name__)
 
@@ -66,7 +66,7 @@ class PIIClassifier(BaseClassifier):
             report.prompt_tokens += prompt_tokens
 
         except Exception as e:
-            logger.exception('PII classification failed for column {column_name}', e)
+            logger.exception('PII classification failed for column %s: %s', column_name, str(e))
             report.add_pii_column(
                 PIIColumnReport(
                     column_name=column_name,

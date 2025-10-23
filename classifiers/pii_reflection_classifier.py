@@ -1,10 +1,10 @@
 # src/classifiers/pii_sensitivity_classifier.py
 import logging
 from typing import Any, Dict
+from tqdm import tqdm
 
 from models.sdd_report import SDDReport
 from .base_classifier import BaseClassifier
-from tqdm import tqdm
 
 logger = logging.getLogger(__name__)
 
@@ -22,6 +22,7 @@ class PIIReflectionClassifier(BaseClassifier):
         max_new_tokens: int = 12,
         version: str = 'v0',
     ) -> Dict[str, Any]:
+        """Classify the sensitivity level of a detected PII entity."""
         if column_entity == 'None':
             return self._standardize_output(
                 'PII_SENSITIVITY',
@@ -43,11 +44,11 @@ class PIIReflectionClassifier(BaseClassifier):
 
             return prediction, completion_tokens, prompt_tokens
         except Exception as e:
-            logger.exception('PII reflection classification failed', e)
+            logger.exception('PII reflection classification failed: %s', str(e))
             return False, 0, 0
 
     def classify_df(self, table_markdown: str, report: SDDReport) -> Dict[str, Any]:
-        """Classify the sensitivity level of detected PII entities in a DataFrame."""
+        """Classify the sensitivity level of detected PII entities."""
         for column in tqdm(report.columns, desc='Classifying columns'):
             # Skip if no PII entity type is detected
             if column.pii.get('sensitive') is not None:

@@ -8,10 +8,7 @@ logger = logging.getLogger(__name__)
 
 
 class NonPIIClassifier(BaseClassifier):
-    """
-    Classify sensitivity level for non-PII tables.
-    """
-
+    """Classify the sensitivity level of non-PII sensitive data."""
     def format_prediction(self, prediction: str) -> str:
         prediction = prediction.split('\n')[0]  # First line of the prediction
         if 'high_sensitive' in prediction.lower():
@@ -31,6 +28,7 @@ class NonPIIClassifier(BaseClassifier):
         max_new_tokens: int = 512,
         version: str = 'v0',
     ) -> Dict[str, Any]:
+    """Classify the sensitivity level of non-PII tables."""
         context = {'table_markdown': table_markdown, 'isp': isp['default'] or {}}
 
         try:
@@ -51,5 +49,5 @@ class NonPIIClassifier(BaseClassifier):
             report.non_pii_classifier_model = self.model_name
             return report
         except Exception as e:
-            logger.exception('Non-PII table sensitivity classification failed', e)
+            logger.exception('Non-PII table sensitivity classification failed: %s', str(e))
             return report
