@@ -1,0 +1,117 @@
+from dataclasses import dataclass, field, asdict
+from typing import List, Dict, Any, Optional
+import json
+from datetime import datetime
+
+# Entity Types for PII Classification
+ENTITY_TYPES = [
+    "person_name", "email_address", "phone_number", "address", "city", "country", 
+    "date", "product_name", "price", "unknown"
+]
+
+@dataclass
+class PIIColumnReport:
+    """Represents analysis details for a single column in the dataset."""
+    column_name: str
+    sample_values: List[str]
+    pii: Dict[str, Any]
+
+    def to_dict(self) -> Dict[str, Any]:
+        return asdict(self)
+
+@dataclass
+class NonPIIReport:
+    """Represents analysis details for the non-PII part of the dataset."""
+    sensitivity: str
+    explanation: str
+
+    def to_dict(self) -> Dict[str, Any]:
+        return asdict(self)
+
+@dataclass
+class SDDReport:
+    """Represents a full Sensitive Data Detection (SDD) report for one dataset."""
+    resource_id: str
+    file_name: str
+    file_url: str
+    processing_timestamp: str
+    processing_success: bool
+    n_records: int
+    n_columns: int
+    pii_sensitive: bool = False
+    non_pii_sensitive: bool = False
+    columns: List[PIIColumnReport] = field(default_factory=list)
+    non_pii: Optional[NonPIIReport] = None
+
+    def add_pii_column(self, column_report: PIIColumnReport):
+        """Adds a new PII column report to the SDD."""
+        self.columns.append(column_report)
+        # If any column has sensitive PII, set the pii_sensitive flag to True
+        if column_report.pii.get("sensitive", False):
+            self.pii_sensitive = True
+
+    def add_non_pii_report(self, non_pii_report: NonPIIReport):
+        """Adds a new non-PII report to the SDD."""
+        self.non_pii = non_pii_report
+        # If the non-PII report mentions sensitivity, set the non_pii_sensitive flag to True
+        if non_pii_report.sensitivity.lower() in ["high", "high_sensitive"]:
+            self.non_pii_sensitive = True
+
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert the SDDReport to a nested dictionary."""
+        return {
+            "resource_id": self.resource_id,
+            "file_name": self.file_name,
+            "file_url": self.file_url,
+            "processing_timestamp": self.processing_timestamp,
+            "processing_success": self.processing_success,
+            "n_records": self.n_records,
+            "n_columns": self.n_columns,
+            "pii_sensitive": self.pii_sensitive,
+            "non_pii_sensitive": self.non_pii_sensitive,
+            "columns": [column.to_dict() for column in self.columns],
+            "non_pii": self.non_pii.to_dict() if self.non_pii else None
+        }
+
+    def to_json(self, indent: int = 2) -> str:
+        """Convert the SDDReport to a JSON string."""
+        return json.dumps(self.to_dict(), indent=indent)
+
+# ---------------------------
+# Example usage
+# ---------------------------
+if __name__ == "__main__":
+    # Sample metadata
+    metadata = {
+        "isp_used": "default"
+    }
+
+    # Create the SDD report
+    report = SDDReport(
+        resource_id="1234567890",
+        file_name="example.csv",
+        file_url="https://example.com/example.csv",
+        processing_timestamp=datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+        processing_success=True,
+        n_records=100,
+        n_columns=10,
+    )
+
+    # Add PII column reports
+    report.add_pii_column(PIIColumnReport(
+        column_name="email_address",
+        sample_values=["john@example.com", "jane@company.com"],
+        pii={
+            "entity_type": "email_address",
+            "sensitive": True
+        }
+    ))
+
+    # Add Non-PII report
+    report.add_non_pii_report(NonPIIReport(
+        sensitivity="LOW",
+        explanation="The table contains email addresses, which are considered sensitive data."
+    ))
+
+    # Print the JSON output
+    print(report.to_json(indent=2))
