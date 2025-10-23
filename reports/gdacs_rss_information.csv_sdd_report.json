@@ -1,0 +1,229 @@
+{
+  "resource_id": "4ef001d1-7888-4f5d-98ce-0ca8006787f7",
+  "file_name": "gdacs_rss_information.csv",
+  "file_url": "https://dev.data-humdata-org.ahconu.org/dataset/a87f96f8-16e6-4d51-872c-cfa54a8251ec/resource/4ef001d1-7888-4f5d-98ce-0ca8006787f7/download/gdacs_rss_information.csv",
+  "processing_timestamp": "2025-10-23 14:54:42",
+  "completion_tokens": 417,
+  "prompt_tokens": 21953,
+  "processing_success": true,
+  "n_records": 20,
+  "n_columns": 15,
+  "pii_sensitive": false,
+  "non_pii_sensitive": true,
+  "columns": [
+    {
+      "column_name": "id",
+      "sample_values": [
+        "EQ1504458",
+        "DR1017904",
+        "FL1103500",
+        "DR1017051",
+        "EQ1504340"
+      ],
+      "pii": {
+        "entity_type": "None",
+        "sensitive": false
+      }
+    },
+    {
+      "column_name": "iso3",
+      "sample_values": [
+        "CHL",
+        "BHS",
+        "USA",
+        "AUT",
+        "FSM"
+      ],
+      "pii": {
+        "entity_type": "None",
+        "sensitive": false
+      }
+    },
+    {
+      "column_name": "country",
+      "sample_values": [
+        "Chile",
+        "The Bahamas, Costa Rica, Cuba, Mexico, Nicaragua",
+        "United States",
+        "Austria, Bosnia & Herzegovina, Bulgaria, Georgia, Greece, Croatia, Hungary, Moldova, Montenegro, The Republic of North Macedonia, Romania, Serbia, Russia, Slovenia, Slovakia, T\u00fcrkiye, Ukraine",
+        "Micronesia"
+      ],
+      "pii": {
+        "entity_type": "None",
+        "sensitive": false
+      }
+    },
+    {
+      "column_name": "title",
+      "sample_values": [
+        "Green earthquake alert (Magnitude 7.6M, Depth:8.794km) in Chile 10/10/2025 20:29 UTC, Few people affected in MMI III.",
+        "Drought is on going in The Bahamas, Costa Rica, Cuba, Mexico, Nicaragua",
+        "Green flood alert in United States",
+        "Drought is on going in Austria, Bosnia & Herzegovina, Bulgaria, Georgia, Greece, Croatia, Hungary, Moldova, Montenegro, The Republic of North Macedonia, Romania, Serbia, Russia, Slovenia, Slovakia, T\u00fcrkiye, Ukraine",
+        "Green earthquake alert (Magnitude 5.6M, Depth:10km) in Micronesia 10/10/2025 09:43 UTC, 1 thousand in MMI&>=II."
+      ],
+      "pii": {
+        "entity_type": "DATE_OF_BIRTH",
+        "sensitive": false
+      }
+    },
+    {
+      "column_name": "summary",
+      "sample_values": [
+        "On 10/10/2025 8:29:20 PM, an earthquake occurred in Chile potentially affecting Few people affected in MMI III. The earthquake had Magnitude 7.6M, Depth:8.794km.",
+        "The  Drought alert level is Green.",
+        "On 12/09/2025, a flood started in United States, lasting until 13/10/2025 (last update). The flood caused 12 deaths and 9411 displaced .",
+        "The  Drought alert level is Orange.",
+        "On 10/10/2025 9:43:40 AM, an earthquake occurred in Micronesia potentially affecting 1 thousand in MMI&>=II. The earthquake had Magnitude 5.6M, Depth:10km."
+      ],
+      "pii": {
+        "entity_type": "None",
+        "sensitive": false
+      }
+    },
+    {
+      "column_name": "event_type",
+      "sample_values": [
+        "Earthquake",
+        "Drought",
+        "Flood",
+        "Drought",
+        "Earthquake"
+      ],
+      "pii": {
+        "entity_type": "None",
+        "sensitive": false
+      }
+    },
+    {
+      "column_name": "severity_unit",
+      "sample_values": [
+        "M",
+        "km2",
+        "km2",
+        "M",
+        "km2"
+      ],
+      "pii": {
+        "entity_type": "None",
+        "sensitive": false
+      }
+    },
+    {
+      "column_name": "severity_value",
+      "sample_values": [
+        "7.6",
+        "166696",
+        "0",
+        "1011546",
+        "5.6"
+      ],
+      "pii": {
+        "entity_type": "None",
+        "sensitive": false
+      }
+    },
+    {
+      "column_name": "source",
+      "sample_values": [
+        "Joint Research Center of the European Commission",
+        "Joint Research Center of the European Commission",
+        "Joint Research Center of the European Commission",
+        "Joint Research Center of the European Commission",
+        "Joint Research Center of the European Commission"
+      ],
+      "pii": {
+        "entity_type": "ORGANIZATION_NAME",
+        "sensitive": false
+      }
+    },
+    {
+      "column_name": "from_date",
+      "sample_values": [
+        "Fri, 10 Oct 2025 20:29:20 GMT",
+        "Fri, 21 Mar 2025 00:00:00 GMT",
+        "Fri, 12 Sep 2025 01:00:00 GMT",
+        "Thu, 21 Mar 2024 00:00:00 GMT",
+        "Fri, 10 Oct 2025 09:43:40 GMT"
+      ],
+      "pii": {
+        "entity_type": "None",
+        "sensitive": false
+      }
+    },
+    {
+      "column_name": "to_date",
+      "sample_values": [
+        "Fri, 10 Oct 2025 20:29:20 GMT",
+        "Sat, 11 Oct 2025 00:00:00 GMT",
+        "Mon, 13 Oct 2025 01:00:00 GMT",
+        "Sat, 11 Oct 2025 00:00:00 GMT",
+        "Fri, 10 Oct 2025 09:43:40 GMT"
+      ],
+      "pii": {
+        "entity_type": "None",
+        "sensitive": false
+      }
+    },
+    {
+      "column_name": "link",
+      "sample_values": [
+        "https://www.gdacs.org/report.aspx?eventtype=EQ&eventid=1504458",
+        "https://www.gdacs.org/report.aspx?eventtype=DR&eventid=1017904",
+        "https://www.gdacs.org/report.aspx?eventtype=FL&eventid=1103500",
+        "https://www.gdacs.org/report.aspx?eventtype=DR&eventid=1017051",
+        "https://www.gdacs.org/report.aspx?eventtype=EQ&eventid=1504340"
+      ],
+      "pii": {
+        "entity_type": "URL",
+        "sensitive": false
+      }
+    },
+    {
+      "column_name": "geo_lat",
+      "sample_values": [
+        "-60.1958",
+        "18.369",
+        "33.4674695",
+        "44.955",
+        "11.4553"
+      ],
+      "pii": {
+        "entity_type": "GEO_COORDINATES",
+        "sensitive": false
+      }
+    },
+    {
+      "column_name": "geo_long",
+      "sample_values": [
+        "-61.799",
+        "-92.748",
+        "-112.3842224",
+        "27.598",
+        "141.5675"
+      ],
+      "pii": {
+        "entity_type": "GEO_COORDINATES",
+        "sensitive": false
+      }
+    },
+    {
+      "column_name": "gdacs_bbox",
+      "sample_values": [
+        "-65.799 -57.799 -64.1958 -56.1958",
+        "-96.748 -88.748 14.369 22.369",
+        "-116.3842224 -108.3842224 29.4674695 37.4674695",
+        "23.598 31.598 40.955 48.955",
+        "137.5675 145.5675 7.4553 15.4553"
+      ],
+      "pii": {
+        "entity_type": "GEO_COORDINATES",
+        "sensitive": false
+      }
+    }
+  ],
+  "non_pii": {
+    "sensitivity": "NON_SENSITIVE",
+    "explanation": "- Sensitivity Classification: NON_SENSITIVE  \n- Sensitive columns: None  \n- Cited ISP Rule(s):  \n  The table consists primarily of aggregated event-level data (earthquake, drought, flood) at country or multi-country level with no personal identifiers or beneficiary-level details. There are no individual survey responses, no personal or biometric data, no aid-worker contact details, nor detailed or exact facility coordinates.  \n  Specifically:\n  - Location data are either country names or geographic coordinates related to event epicenters or bounding boxes, which do not constitute \"Health and education facility data with exact coordinates\" or other protected sensitive facility/location data per HIGH_SENSITIVE rules.\n  - No individual or household-level data, nor personal data of beneficiaries are included, excluding SEVERE_SENSITIVE or HIGH_SENSITIVE classifications.\n  - Data is not disaggregated to ADM2 or ADM3 with personal identifiers or detailed survey data. It is event summary data, not survey or monitoring data at community/household level (HIGH_SENSITIVE) nor aggregated survey data at ADM2/ADM3 (MODERATE_SENSITIVE).\n  \nTherefore, the dataset fits within NON_SENSITIVE according to:  \n- \"Humanitarian Needs Overview (HNO) and Humanitarian Response Plan (HRP) data\"  \n- \"Common Operational Datasets (CODs)\"  \n- \"Situation reports and snapshots\"  \n- \"Aggregated assessment results at ADM2 or higher\"  \n\nNo column on its own or in combination meets criteria for MODERATE_SENSITIVE, HIGH_SENSITIVE, or SEVERE_SENSITIVE."
+  }
+}

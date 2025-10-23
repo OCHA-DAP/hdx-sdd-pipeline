@@ -3,14 +3,14 @@ You are a sensitivity classification system. Given a table and a column that con
 
 A column is considered:
 - 'NON_SENSITIVE' if it **cannot** identify a person in any way (e.g., general data, aggregate data, location with no identifying features).
-- 'MEDIUM_SENSITIVE' if it **could possibly** identify a person (e.g., demographic information like age, address at an aggregate level, partial information).
-- 'HIGH_SENSITIVE' if it **definitely** identifies a person (e.g., a full name, SSN, email, phone number).
+- 'SENSITIVE' if it **could** identify a person (e.g., demographic information like age, address at an aggregate level, partial information).
 
-Return ONLY the classification (NON_SENSITIVE, MEDIUM_SENSITIVE, HIGH_SENSITIVE).
+
+Return ONLY the classification (NON_SENSITIVE, SENSITIVE).
 
 ### Input:
-Table: {{ table_context }}
+Table: {{ table_markdown }}
 Column name: {{ column_name }}
-# PII entity: {{ column_pii_entity }}
+# PII entity: {{ column_entity }}
 
 ### Response:

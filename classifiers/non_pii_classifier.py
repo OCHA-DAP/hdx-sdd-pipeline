@@ -1,7 +1,7 @@
 # src/classifiers/non_pii_classifier.py
 import logging
 from typing import Any, Dict, Optional
-
+from models.sdd_report import SDDReport, NonPIIReport
 from .base_classifier import BaseClassifier
 
 logger = logging.getLogger(__name__)
@@ -12,20 +12,44 @@ class NonPIIClassifier(BaseClassifier):
     Classify sensitivity level for non-PII tables.
     """
 
+    def format_prediction(self, prediction: str) -> str:
+        prediction = prediction.split('\n')[0]  # First line of the prediction
+        if 'high_sensitive' in prediction.lower():
+            return 'HIGH_SENSITIVE'
+        elif 'moderate_sensitive' in prediction.lower():
+            return 'MODERATE_SENSITIVE'
+        elif 'non_sensitive' in prediction.lower():
+            return 'NON_SENSITIVE'
+        else:
+            return 'UNDETERMINED'
+
     def classify(
         self,
-        table_context: str,
+        table_markdown: str,
+        report: SDDReport,
         isp: Optional[Dict[str, Any]] = None,
         max_new_tokens: int = 512,
         version: str = 'v0',
     ) -> Dict[str, Any]:
-        context = {'table_context': table_context, 'isp': isp or {}}
+        context = {'table_markdown': table_markdown, 'isp': isp['default'] or {}}
 
         try:
-            prediction = self._run_prompt('non_pii_detection', context, version, max_new_tokens)
-            sensitivity_level = self._map_sensitivity(prediction)
-            success = sensitivity_level != 'UNDETERMINED'
-            return self._standardize_output('NON_PII_SENSITIVITY', sensitivity_level, prediction, success)
+            if report.non_pii is not None:
+                return report
+            prediction, completion_tokens, prompt_tokens = self._run_prompt(
+                'non_pii_detection', context, version, max_new_tokens
+            )
+            report.completion_tokens += completion_tokens
+            report.prompt_tokens += prompt_tokens
+            pred_level = self.format_prediction(prediction)
+            report.add_non_pii_report(
+                NonPIIReport(
+                    sensitivity=pred_level,
+                    explanation=prediction,
+                )
+            )
+            report.non_pii_classifier_model = self.model_name
+            return report
         except Exception as e:
-            logger.exception('Non-PII table sensitivity classification failed')
-            return self._standardize_output('NON_PII_SENSITIVITY', 'ERROR_GENERATION', str(e), success=False)
+            logger.exception('Non-PII table sensitivity classification failed', e)
+            return report

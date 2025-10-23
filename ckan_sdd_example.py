@@ -90,7 +90,7 @@ def resource_patch(resource_id, new_description):
 
     url = f'{CKAN_URL}/api/3/action/resource_patch'
     headers = {'Authorization': CKAN_API_TOKEN}
-    new_sdd_report = {"example_key": "example_value"}
+    new_sdd_report = {'example_key': 'example_value'}
     payload = {'id': resource_id, 'sensitive': new_description, 'ssd_report': new_sdd_report}
 
     logger.info('Updating resource sensitive to %s: %s', new_description, resource_id)
