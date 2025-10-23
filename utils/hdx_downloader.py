@@ -33,7 +33,7 @@ def download_resource(resource_id: str, output_dir: str = None) -> str:
     try:
         # Get resource metadata from HDX API
         resource_url = f'{HDX_API_BASE_URL}/resource_show?id={resource_id}'
-        logger.info(f'Fetching resource metadata from: {resource_url}')
+        logger.info('Fetching resource metadata from: %s', resource_url)
 
         response = requests.get(resource_url, timeout=30)
         response.raise_for_status()
@@ -50,7 +50,7 @@ def download_resource(resource_id: str, output_dir: str = None) -> str:
         if not resource_url:
             raise Exception('No download URL found in resource metadata')
 
-        logger.info(f'Downloading resource from: {resource_url}')
+        logger.info('Downloading resource from: %s', resource_url)
 
         # Download the file
         file_response = requests.get(resource_url, timeout=300, stream=True)
@@ -80,14 +80,14 @@ def download_resource(resource_id: str, output_dir: str = None) -> str:
             for chunk in file_response.iter_content(chunk_size=8192):
                 f.write(chunk)
 
-        logger.info(f'Successfully downloaded resource to: {file_path}')
+        logger.info('Successfully downloaded resource to: %s', file_path)
         return file_path
 
     except requests.exceptions.RequestException as e:
-        logger.error(f'Network error downloading resource {resource_id}: {e}')
+        logger.error('Network error downloading resource %s: %s', resource_id, e)
         raise Exception(f'Failed to download resource {resource_id}: {e}')
     except Exception as e:
-        logger.error(f'Error downloading resource {resource_id}: {e}')
+        logger.error('Error downloading resource %s: %s', resource_id, e)
         raise
 
 
@@ -106,7 +106,7 @@ def get_resource_metadata(resource_id: str) -> dict:
     """
     try:
         resource_url = f'{HDX_API_BASE_URL}/resource_show?id={resource_id}'
-        logger.info(f'Fetching resource metadata from: {resource_url}')
+        logger.info('Fetching resource metadata from: %s', resource_url)
 
         response = requests.get(resource_url, timeout=30)
         response.raise_for_status()
@@ -119,8 +119,8 @@ def get_resource_metadata(resource_id: str) -> dict:
         return resource_data.get('result', {})
 
     except requests.exceptions.RequestException as e:
-        logger.error(f'Network error fetching resource metadata {resource_id}: {e}')
+        logger.error('Network error fetching resource metadata %s: %s', resource_id, e)
         raise Exception(f'Failed to fetch resource metadata {resource_id}: {e}')
     except Exception as e:
-        logger.error(f'Error fetching resource metadata {resource_id}: {e}')
+        logger.error('Error fetching resource metadata %s: %s', resource_id, e)
         raise

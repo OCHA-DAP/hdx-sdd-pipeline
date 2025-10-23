@@ -2,19 +2,32 @@
     // Use IntelliSense to learn about possible attributes.
     // Hover to view descriptions of existing attributes.
     // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
-    "version": "0.2.0",
-    "configurations": [
+    'version': '0.2.0',
+    'configurations': [
         {
-            "name": "Python: CKAN API Example",
-            "type": "debugpy",
-            "request": "launch",
-            "program": "ckan_api_example.py",
-            "console": "integratedTerminal",
-            "env": {
-                "CKAN_API_TOKEN": "your_api_key_here",
-                "CKAN_URL": "your_ckan_url_here",
-                "PACKAGE_ID": "your_package_id_here",
-                "RESOURCE_ID": "your_resource_id_here"
+            'name': 'Python: CKAN API Example',
+            'type': 'debugpy',
+            'request': 'launch',
+            'program': 'ckan_api_example.py',
+            'console': 'integratedTerminal',
+            'env': {
+                'CKAN_API_TOKEN': 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqdGkiOiJmM19NandZTVN2Y2QxSGluNXJmUG5oLUkyWkRHdmdrWTU3em5xbkFKRUVJIiwiaWF0IjoxNzYwNTYyMzIyLCJleHAiOjE3NjgzMzgzMjJ9.hVweGx1hoqMS7hgjakgsERe3hXvdBT66Ahnq196hzkY',
+                'CKAN_URL': 'https://dev.data-humdata-org.ahconu.org/',
+                'PACKAGE_ID': 'a87f96f8-16e6-4d51-872c-cfa54a8251ec',
+                'RESOURCE_ID': '4ef001d1-7888-4f5d-98ce-0ca8006787f7'
+            }
+        },
+        {
+            'name': 'Python: CKAN modify SDD Example',
+            'type': 'debugpy',
+            'request': 'launch',
+            'program': 'ckan_sdd_example.py',
+            'console': 'integratedTerminal',
+            'env': {
+                'CKAN_API_TOKEN': 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqdGkiOiJmM19NandZTVN2Y2QxSGluNXJmUG5oLUkyWkRHdmdrWTU3em5xbkFKRUVJIiwiaWF0IjoxNzYwNTYyMzIyLCJleHAiOjE3NjgzMzgzMjJ9.hVweGx1hoqMS7hgjakgsERe3hXvdBT66Ahnq196hzkY',
+                'CKAN_URL': 'https://dev.data-humdata-org.ahconu.org/',
+                'PACKAGE_ID': 'a87f96f8-16e6-4d51-872c-cfa54a8251ec',
+                'RESOURCE_ID': '4ef001d1-7888-4f5d-98ce-0ca8006787f7'
             }
         }
     ]

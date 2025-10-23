@@ -27,16 +27,17 @@ class BaseClassifier:
 
     def __init__(self, model_name: str):
         self.model_name = model_name
-        self.model_instance = AzureOpenAIStrategy(self.model_name)
-        (
-            self.model,
-            self.tokenizer,
-            self.client,
-            self.model_type,
-        ) = self.model_instance.get_model_components()
+        # self.model_instance = AzureOpenAIStrategy(self.model_name)
+        # (
+        #     self.model,
+        #     self.tokenizer,
+        #     self.client,
+        #     self.model_type,
+        # ) = self.model_instance.get_model_components()
 
-        self.generate = self.model_instance.generate
+        # self.generate = self.model_instance.generate
         self.prompt_manager = PromptManager()
+        self.model = AzureOpenAIStrategy(model_name=model_name)
 
     # ---------------------------------------------------------------------
     # 🧰 Helper Methods
@@ -47,14 +48,13 @@ class BaseClassifier:
         classification_type: str,
         value: str,
         raw_model_output: Any,
-        success: bool = True,
     ) -> Dict[str, Any]:
         """Return standardized classification output."""
         return {
             'classification_type': classification_type,
             'value': value,
             'raw_model_output': (raw_model_output.strip() if isinstance(raw_model_output, str) else raw_model_output),
-            'success': success,
+            # 'success': success,
         }
 
     def _run_prompt(
@@ -65,8 +65,14 @@ class BaseClassifier:
         max_new_tokens: int = 256,
     ) -> str:
         """Render a Jinja prompt and run the model."""
-        prompt = self.prompt_manager.get_prompt(prompt_name=prompt_name, version=version, context=context)
-        return self.generate(prompt, max_new_tokens=max_new_tokens).strip()
+        try:
+            prompt = self.prompt_manager.get_prompt(prompt_name=prompt_name, version=version, context=context)
+        except Exception as e:
+            print(e)
+            return 'ERROR_GENERATION', 0, 0
+
+        prediction, completion_tokens, prompt_tokens = self.model.generate(prompt, max_new_tokens=max_new_tokens)
+        return prediction, completion_tokens, prompt_tokens
 
     def _map_sensitivity(self, prediction: str) -> str:
         """Map model output text to standardized sensitivity levels."""

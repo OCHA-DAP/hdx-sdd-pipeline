@@ -2,6 +2,7 @@
 
 import os
 from jinja2 import Environment, FileSystemLoader, select_autoescape
+from utils.main_config import PII_ENTITIES_LIST
 
 
 class PromptManager:
@@ -30,6 +31,7 @@ class PromptManager:
         """
         template_path = f'{prompt_name}/{version}.jinja'
         try:
+            context['PII_ENTITIES_LIST'] = PII_ENTITIES_LIST
             template = self.env.get_template(template_path)
         except Exception as e:
             raise FileNotFoundError(f'Template not found for {prompt_name} version {version}: {e}')
