@@ -34,7 +34,7 @@ class PIIColumnReport:
 @dataclass
 class NonPIIReport:
     """Represents analysis details for the non-PII part of the dataset."""
-
+    model_name: str
     sensitivity: str
     explanation: str
 
@@ -55,7 +55,6 @@ class SDDReport:
     n_columns: int
     pii_classifier_model: Optional[str] = None
     pii_reflection_model: Optional[str] = None
-    non_pii_classifier_model: Optional[str] = None
     pii_sensitive: bool = False
     non_pii_sensitive: bool = False
     columns: List[PIIColumnReport] = field(default_factory=list)
@@ -92,6 +91,14 @@ class SDDReport:
                     self.pii_sensitive = any(col.pii.get('sensitive', False) for col in self.columns)
                 break
 
+    def add_pii_classifier_model(self, model_name: str):
+        """Adds a new PII classifier model to the SDD."""
+        self.pii_classifier_model = model_name
+
+    def add_pii_reflection_model(self, model_name: str):
+        """Adds a new PII reflection model to the SDD."""
+        self.pii_reflection_model = model_name
+
     def to_dict(self) -> Dict[str, Any]:
         """Convert the SDDReport to a nested dictionary."""
         return {
@@ -104,6 +111,8 @@ class SDDReport:
             'processing_success': self.processing_success,
             'n_records': self.n_records,
             'n_columns': self.n_columns,
+            'pii_classifier_model': self.pii_classifier_model,
+            'pii_reflection_model': self.pii_reflection_model,
             'pii_sensitive': self.pii_sensitive,
             'non_pii_sensitive': self.non_pii_sensitive,
             'columns': [column.to_dict() for column in self.columns],
@@ -133,6 +142,7 @@ class SDDReport:
         non_pii = None
         if non_pii_data:
             non_pii = NonPIIReport(
+                model_name=non_pii_data.get('model_name', ''),
                 sensitivity=non_pii_data.get('sensitivity', ''), explanation=non_pii_data.get('explanation', '')
             )
 
@@ -186,6 +196,7 @@ if __name__ == '__main__':
     # Add Non-PII report
     report.add_non_pii_report(
         NonPIIReport(
+            model_name='gpt-4.1-nano',
             sensitivity='LOW', explanation='The table contains email addresses, which are considered sensitive data.'
         )
     )

@@ -50,8 +50,6 @@ else:
 # ===== Preprocessing & Sampling =====
 sampler = DataSampler()
 df = sampler.sample_from_url(download_url)
-print('[INFO] Sampled data:')
-print(df.head(), '\n')
 
 # Alternatively, create a new report
 if report is None:

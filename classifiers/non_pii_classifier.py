@@ -44,11 +44,11 @@ class NonPIIClassifier(BaseClassifier):
             pred_level = self.format_prediction(prediction)
             report.add_non_pii_report(
                 NonPIIReport(
+                    model_name=self.model_name,
                     sensitivity=pred_level,
                     explanation=prediction,
                 )
             )
-            report.non_pii_classifier_model = self.model_name
             return report
         except Exception as e:
             logger.exception('Non-PII table sensitivity classification failed: %s', str(e))

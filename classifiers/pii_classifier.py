@@ -108,7 +108,5 @@ class PIIClassifier(BaseClassifier):
             # TODO: Check if the column is already classified
             sample_values = df[column].dropna().astype(str).tolist()
             self._classify_column(column_name=column, sample_values=sample_values, report=report)
-
-            report.pii_classifier_model = self.model_name
-
+            report.add_pii_classifier_model(model_name=self.model_name)
         return report
