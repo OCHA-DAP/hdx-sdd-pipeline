@@ -1,7 +1,10 @@
 import logging
 import logging.config
+import dotenv
 import os
 import requests
+
+dotenv.load_dotenv()
 
 logging.config.fileConfig('logging.conf')
 
@@ -29,8 +32,14 @@ def package_show(package_id):
     url = f'{CKAN_URL}/api/3/action/package_show'
     params = {'id': package_id}
 
+<<<<<<< Updated upstream
     logger.info(f'Fetching package: {package_id}')
     response = requests.get(url, params=params)
+=======
+    logger.info('Fetching package: %s', package_id)
+    response = requests.get(url, params=params, timeout=30, headers={'Authorization': CKAN_API_TOKEN})
+    print(response.request.url)
+>>>>>>> Stashed changes
     response.raise_for_status()
 
     data = response.json()
@@ -83,8 +92,14 @@ def resource_patch(resource_id, new_description):
     headers = {'Authorization': CKAN_API_TOKEN}
     payload = {'id': resource_id, 'description': new_description}
 
+<<<<<<< Updated upstream
     logger.info(f'Updating resource description: {resource_id}')
     response = requests.post(url, json=payload, headers=headers)
+=======
+    logger.info('Updating resource description: %s', resource_id)
+    response = requests.post(url, json=payload, headers=headers, timeout=30)
+    print(response.request.url)
+>>>>>>> Stashed changes
     response.raise_for_status()
 
     data = response.json()
