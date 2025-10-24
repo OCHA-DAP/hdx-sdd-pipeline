@@ -99,7 +99,7 @@ if __name__ == '__main__':
     output_path = os.path.join(OUTPUT_DIR, f'{file_name}_sdd_report.json')
 
     for sheet_name, df in dfs_by_sheet.items():
-        if 'readme' in sheet_name.lower():
+        if 'readme' in sheet_name.lower() or 'instrucciones' in sheet_name.lower():
             logger.info('Skipping readme sheet')
             continue
         logger.info('Processing sheet: %s', sheet_name)
