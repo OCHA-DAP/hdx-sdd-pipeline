@@ -53,11 +53,6 @@ class DataSampler:
             # Load all sheets with a sample size of 200 rows (to prevenet memory issues)
             all_sheets = pd.read_excel(file_path, sheet_name=None, nrows=200)
 
-            # Log info
-            total_rows = sum(len(df) for df in all_sheets.values())
-            total_columns = max(df.shape[1] for df in all_sheets.values())
-            print(f'Loaded dataset with {total_rows} rows and {total_columns} columns across {len(all_sheets)} sheets')
-
             # Return dictionary of DataFrames
             return all_sheets
         else:
