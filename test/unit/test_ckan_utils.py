@@ -4,7 +4,6 @@ import pytest
 from utils.ckan import CKANClient
 import dotenv
 import os
-import logging
 import pathlib
 
 dotenv.load_dotenv()
