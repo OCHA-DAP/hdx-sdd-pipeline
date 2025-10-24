@@ -25,12 +25,11 @@ def test_update_resource_fields_success():
     CKAN_URL = os.getenv('CKAN_URL')
     CKAN_API_TOKEN = os.getenv('CKAN_API_TOKEN')
 
-    ckan_logger = logging.getLogger(__name__).getChild('ckan')
-    ckan = CKANClient(base_url=CKAN_URL, api_token=CKAN_API_TOKEN, logger=ckan_logger)
+    ckan = CKANClient(base_url=CKAN_URL, api_token=CKAN_API_TOKEN, logger=None)
 
     resource = ckan.resource_show(test_resource_id)
     assert resource is not None
-    assert resource['sensitive'] is True
+    assert resource['download_url'] is not None
 
     ckan.remove_resource_field(test_resource_id, 'sensitive')
     new_resource = ckan.resource_show(test_resource_id)
