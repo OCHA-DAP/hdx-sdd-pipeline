@@ -53,16 +53,18 @@ class SDDReport:
     file_url: str
     processing_timestamp: str
     processing_success: bool
+
     n_records: int
     n_columns: int
+    completion_tokens: int = 0
+    prompt_tokens: int = 0
+    sheet_name: Optional[str] = None
     pii_classifier_model: Optional[str] = None
     pii_reflection_model: Optional[str] = None
     pii_sensitive: bool = False
     non_pii_sensitive: bool = False
     columns: List[PIIColumnReport] = field(default_factory=list)
     non_pii: Optional[NonPIIReport] = None
-    completion_tokens: int = 0
-    prompt_tokens: int = 0
 
     def add_pii_column(self, column_report: PIIColumnReport):
         """Adds a new PII column report to the SDD."""
@@ -94,24 +96,8 @@ class SDDReport:
                 break
 
     def to_dict(self) -> Dict[str, Any]:
-        """Convert the SDDReport to a nested dictionary."""
-        return {
-            'resource_id': self.resource_id,
-            'file_name': self.file_name,
-            'file_url': self.file_url,
-            'processing_timestamp': self.processing_timestamp,
-            'completion_tokens': self.completion_tokens,
-            'prompt_tokens': self.prompt_tokens,
-            'processing_success': self.processing_success,
-            'n_records': self.n_records,
-            'n_columns': self.n_columns,
-            'pii_classifier_model': self.pii_classifier_model,
-            'pii_reflection_model': self.pii_reflection_model,
-            'pii_sensitive': self.pii_sensitive,
-            'non_pii_sensitive': self.non_pii_sensitive,
-            'columns': [column.to_dict() for column in self.columns],
-            'non_pii': self.non_pii.to_dict() if self.non_pii else None,
-        }
+        """Convert the SDDReport to a nested dictionary based on all fields."""
+        return asdict(self)
 
     def to_json(self, indent: int = 2) -> str:
         """Convert the SDDReport to a JSON string."""

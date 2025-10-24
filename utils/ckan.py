@@ -14,7 +14,11 @@ class CKANClient:
     """
 
     def __init__(
-        self, base_url: Optional[str] = None, api_token: Optional[str] = None, logging_conf: str = 'logging.conf'
+        self,
+        base_url: Optional[str] = None,
+        api_token: Optional[str] = None,
+        logging_conf: str = 'logging.conf',
+        logger: Optional[logging.Logger] = None,
     ):
         # --- Configuration ---
         self.base_url = base_url or os.getenv('CKAN_URL')
@@ -23,9 +27,12 @@ class CKANClient:
         self.headers = {'Authorization': self.api_token} if self.api_token else {}
 
         # --- Logging setup ---
-        if Path(logging_conf).exists():
-            logging.config.fileConfig(logging_conf)
-        self.logger = logging.getLogger(__name__)
+        if logger is None:
+            if Path(logging_conf).exists():
+                logging.config.fileConfig(logging_conf)
+            self.logger = logging.getLogger(__name__)
+        else:
+            self.logger = logger
 
         self.logger.debug('Initialized CKANClient with base_url=%s', self.base_url)
 
@@ -42,6 +49,7 @@ class CKANClient:
                 response = requests.get(url, timeout=30, headers=self.headers, **kwargs)
             else:
                 response = requests.post(url, timeout=30, headers=self.headers, **kwargs)
+
             response.raise_for_status()
             data = response.json()
         except (requests.RequestException, ValueError) as e:

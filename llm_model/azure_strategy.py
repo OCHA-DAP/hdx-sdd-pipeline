@@ -17,7 +17,6 @@ class AzureOpenAIStrategy:
         self.client = None
         self.model = model_name
         self._setup_client()
-        print(' ===== AZURE OPENAI STRATEGY SETUP COMPLETED ===== ')
 
     def _get_model_type(self) -> str:
         """Return the model type identifier."""
@@ -62,4 +61,3 @@ if __name__ == '__main__':
     model = AzureOpenAIStrategy(model_name='gpt-4o-mini')
     response = model.generate('What is the capital of France?')
     print(response)
-    print(' ===== AZURE OPENAI STRATEGY TEST COMPLETED ===== ')

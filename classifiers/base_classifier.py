@@ -4,6 +4,7 @@ from typing import Any, Dict
 
 from llm_model import AzureOpenAIStrategy
 from utils.prompt_manager import PromptManager
+from utils.main_config import DEBUG
 
 logger = logging.getLogger(__name__)
 
@@ -27,15 +28,6 @@ class BaseClassifier:
 
     def __init__(self, model_name: str):
         self.model_name = model_name
-        # self.model_instance = AzureOpenAIStrategy(self.model_name)
-        # (
-        #     self.model,
-        #     self.tokenizer,
-        #     self.client,
-        #     self.model_type,
-        # ) = self.model_instance.get_model_components()
-
-        # self.generate = self.model_instance.generate
         self.prompt_manager = PromptManager()
         self.model = AzureOpenAIStrategy(model_name=model_name)
 
@@ -71,6 +63,8 @@ class BaseClassifier:
             print(e)
             return 'ERROR_GENERATION', 0, 0
 
+        if DEBUG:
+            return 'DEBUG_MODE', 0, 0
         prediction, completion_tokens, prompt_tokens = self.model.generate(prompt, max_new_tokens=max_new_tokens)
         return prediction, completion_tokens, prompt_tokens
 
