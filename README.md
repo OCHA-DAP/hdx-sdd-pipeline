@@ -27,17 +27,20 @@ Redis Event → Download CSV → Preprocess → PII Detection → PII Reflection
 ### Installation
 
 1. Clone the repository:
+
 ```bash
 git clone <repository-url>
 cd hdx-ssd-pipeline
 ```
 
 2. Install dependencies:
+
 ```bash
 pip install -r requirements.txt
 ```
 
 3. Set up environment variables:
+
 ```bash
 cp .env.example .env
 # Edit .env with your configuration
@@ -77,6 +80,7 @@ python main.py
 ```
 
 The pipeline will:
+
 1. Listen for events on the `sdd:tables` Redis stream
 2. Download resources from HDX when events are received
 3. Process files through the three classification stages
@@ -93,9 +97,11 @@ python redis_streams_event_generator.py
 ## Pipeline Workflow
 
 ### 1. Event Processing
+
 - Receives HDX events containing `resource_id`
 - Downloads CSV/Excel files from HDX API
 - Preprocesses files to extract table structure
+
 ```python
 {
     'resource_id': '1234567890',
@@ -125,6 +131,7 @@ python redis_streams_event_generator.py
 ```
 
 ### 2. PII Detection Phase
+
 - Analyzes each column for PII entities
 - Uses sample values and column names
 - Returns entity types (e.g., PERSON_NAME, EMAIL_ADDRESS, etc.)
@@ -140,6 +147,7 @@ python redis_streams_event_generator.py
 ```
 
 ### 3. PII Reflection Phase
+
 - For columns with detected PII, determines sensitivity level
 - Considers table context and entity type
 - Returns sensitivity levels: NON_SENSITIVE, MODERATE_SENSITIVE, HIGH_SENSITIVE, SEVERE_SENSITIVE
@@ -156,11 +164,13 @@ python redis_streams_event_generator.py
 ```
 
 ### 4. Non-PII Classification Phase
+
 - Analyzes overall table for non-PII sensitivity
 - Uses ISP (Information Sensitivity Protocol) rules
 - Considers humanitarian data sharing guidelines
 
 ### 5. Result Formatting
+
 - Combines all classification results
 - Formats for Redis response
 - Includes processing metadata and summaries
@@ -207,6 +217,7 @@ The pipeline includes comprehensive error handling:
 ## Logging
 
 Logs are written to:
+
 - `logs/ssd.log` - General pipeline logs
 - `logs/ssd-json.log` - JSON formatted logs
 
@@ -221,6 +232,7 @@ Logs are written to:
 ### Testing
 
 Run tests with:
+
 ```bash
 python -m pytest test/
 ```
@@ -238,6 +250,7 @@ python -m pytest test/
 [Add license information]
 
 ## Requirements
+
 jinja2
 openai
 python-dotenv

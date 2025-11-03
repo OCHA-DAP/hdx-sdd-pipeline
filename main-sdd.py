@@ -6,7 +6,6 @@ import json
 import logging
 import logging.config
 from datetime import datetime
-from pathlib import Path
 
 import dotenv
 import pandas as pd
@@ -19,21 +18,33 @@ from classifiers.pii_classifier import PIIClassifier
 from classifiers.non_pii_classifier import NonPIIClassifier
 from classifiers.pii_reflection_classifier import PIIReflectionClassifier
 
+import logging
+import logging.config
+from hdx_redis_lib import connect_to_hdx_event_bus, RedisConfig
 
-def setup_logging() -> logging.Logger:
-    """Configure logging. Use config file if available, else default."""
-    if Path('logging.conf').exists():
-        logging.config.fileConfig('logging.conf', disable_existing_loggers=False)
-    else:
-        logging.basicConfig(
-            filename='logs/sdd.log',
-            level=logging.INFO,
-            format='%(asctime)s [%(levelname)s] %(name)s: %(message)s',
-        )
+logging.config.fileConfig('logging.conf')
 
-    logger = logging.getLogger(__name__)
-    logger.propagate = True
-    return logger
+logger = logging.getLogger(__name__)
+
+stream_name = 'hdx_event_stream'
+group_name = 'default_group'
+consumer_name = 'consumer-1'
+redis_stream_host = 'localhost'
+redis_stream_port = os.getenv('REDIS_STREAM_PORT', 6379)
+redis_stream_db = os.getenv('REDIS_STREAM_DB', 7)
+
+event_bus = connect_to_hdx_event_bus(
+    stream_name,
+    group_name,
+    consumer_name,
+    RedisConfig(host=redis_stream_host, db=redis_stream_db, port=redis_stream_port),
+)
+
+
+def event_processor(event):
+    # Process the event (this is just a placeholder)
+    logger.info('Handling event: %s', event)
+    return True, 'Success'
 
 
 def load_isp_info(file_name: str) -> dict:
@@ -112,7 +123,8 @@ def determine_sensitivity(reports: list) -> str:
 
 
 def main():
-    logger = setup_logging()
+    event_bus.hdx_listen(event_processor, allowed_event_types={'resource-data-changed'}, max_iterations=10_000)
+
     dotenv.load_dotenv()
 
     # === CKAN setup ===

@@ -36,4 +36,21 @@ line-length = 120
 skip-string-normalization = true
 
 [tool.pytest.ini_options]
-addopts = '--ignore=src'
+addopts = """
+    --cov=classifiers
+    --cov=llm_model
+    --cov=models
+    --cov=utils
+    --cov-report=term-missing
+    --cov-report=html
+    --ignore=src
+"""
+
+# ✅ Coverage config added here
+[tool.coverage.run]
+omit = [
+    "*/__init__.py",
+]
+
+[tool.coverage.report]
+show_missing = true
