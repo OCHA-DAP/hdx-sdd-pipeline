@@ -125,14 +125,14 @@ def main():
     RESOURCE_ID = 'b495dbc5-abf4-4efd-9501-3cde16bf23c9'
     resource = ckan.resource_show(RESOURCE_ID)
 
-    if resource is None and not RERUN:
+    if resource is None:
         logger.error('Resource %s not found', RESOURCE_ID)
         sys.exit(1)
 
     download_url = resource.get('download_url')
     file_name = resource.get('name', 'unknown_dataset.csv')
 
-    if resource.get('sdd_report'):
+    if resource.get('sdd_report') and RERUN is False:
         logger.info('SDD Report already exists. Exiting.')
         sys.exit(1)
 
