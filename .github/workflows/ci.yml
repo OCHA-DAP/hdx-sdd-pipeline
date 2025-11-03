@@ -1,0 +1,54 @@
+name: CI
+
+on: [push]
+
+jobs:
+  lint:
+    name: Linting
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install ruff linter
+        run: |
+          pip install ruff
+
+      - name: Run the linter
+        run: |
+          ruff check
+
+      - name: Install black formatter
+        run: |
+          pip install black
+
+      - name: Run the formatter
+        run: |
+          black .
+
+  test:
+    name: Run tests
+    runs-on: ubuntu-latest
+    services:
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+    steps:
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.12"
+
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Install requirements
+        run: |
+          pip install -r requirements.txt
+          pip install -r dev-requirements.txt
+
+      - name: Test with pytest
+        run: pytest --cov=.
+        env:
+          REDIS_STREAM_HOST: localhost
