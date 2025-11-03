@@ -4,6 +4,11 @@ from unittest.mock import MagicMock, patch
 
 from classifiers.pii_reflection_classifier import PIIReflectionClassifier
 from models.sdd_report import SDDReport, PIIColumnReport
+import os
+
+os.environ['AZURE_OPENAI_API_KEY'] = 'your-azure-api-key'
+os.environ['AZURE_OPENAI_API_BASE'] = 'https://your-resource-name.openai.azure.com/'
+os.environ['AZURE_OPENAI_API_VERSION'] = '2023-07-01-preview'
 
 
 # ------------------------------------------------------------
