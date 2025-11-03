@@ -31,7 +31,10 @@ class NonPIIClassifier(BaseClassifier):
         version: str = 'v0',
     ) -> Dict[str, Any]:
         """Classify the sensitivity level of non-PII sensitive data."""
-        context = {'table_markdown': table_markdown, 'isp': isp['default'] or {}}
+        if isp is None:
+            raise ValueError('ISP is required')
+        isp_name = list(isp.keys())[0]
+        context = {'table_markdown': table_markdown, 'isp': isp[isp_name]}
 
         try:
             if report.non_pii is not None:
@@ -45,7 +48,7 @@ class NonPIIClassifier(BaseClassifier):
             report.add_non_pii_report(
                 NonPIIReport(
                     model_name=self.model_name,
-                    isp_used=isp['default']['country'],
+                    isp_used=isp_name,
                     sensitivity=pred_level,
                     explanation=prediction,
                 )

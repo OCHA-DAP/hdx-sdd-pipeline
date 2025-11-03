@@ -1,165 +1,171 @@
-"""main-sdd.py: Main script for the SDD Pipeline."""
+"""main-sdd.py: Main script for the SDD Pipeline (refactored)."""
 
-import dotenv
 import os
+import sys
+import json
+import logging
+import logging.config
 from datetime import datetime
 from pathlib import Path
+
+import dotenv
+import pandas as pd
+
+from models.sdd_report import SDDReport
+from utils.main_config import RERUN, PII_DETECT_MODEL, PII_REFLECT_MODEL, NON_PII_DETECT_MODEL
 from utils.ckan import CKANClient
 from utils.processing import DataSampler
 from classifiers.pii_classifier import PIIClassifier
 from classifiers.non_pii_classifier import NonPIIClassifier
 from classifiers.pii_reflection_classifier import PIIReflectionClassifier
-import pandas as pd
-import json
-from utils.main_config import ISP_DEFAULT
-from models.sdd_report import SDDReport
-import logging
-import logging.config
 
 
-def table_markdown(report: SDDReport):
-    """Generate a markdown table from the report."""
-    columns_data = report.columns
-    column_samples = {}
-
-    # Build dict of column -> list of values
-    for column in columns_data:
-        if column.pii.get('entity_type') != 'None':
-            column_key = f"{column.column_name} - {column.pii.get('entity_type')}"
-        else:
-            column_key = column.column_name
-        column_samples[column_key] = column.sample_values
-
-    # Find the maximum number of samples among all columns
-    max_len = max(len(v) for v in column_samples.values())
-
-    # Pad shorter columns with empty strings
-    for key, values in column_samples.items():
-        if len(values) < max_len:
-            column_samples[key] = values + [''] * (max_len - len(values))
-
-    # Create DataFrame and return as markdown
-    table_data = pd.DataFrame(column_samples)
-    return table_data.to_markdown(index=False)
-
-
-if __name__ == '__main__':
-    # ===== Logging =====
+def setup_logging() -> logging.Logger:
+    """Configure logging. Use config file if available, else default."""
     if Path('logging.conf').exists():
         logging.config.fileConfig('logging.conf', disable_existing_loggers=False)
     else:
         logging.basicConfig(
-            filename='logs/sdd.log', level=logging.INFO, format='%(asctime)s [%(levelname)s] %(name)s: %(message)s'
+            filename='logs/sdd.log',
+            level=logging.INFO,
+            format='%(asctime)s [%(levelname)s] %(name)s: %(message)s',
         )
 
     logger = logging.getLogger(__name__)
     logger.propagate = True
+    return logger
 
-    # ===== Environment Variables =====
+
+def load_isp_info(file_name: str) -> dict:
+    """Load ISP configuration and determine matching or default ISP."""
+    with open('data/isps.json', 'r') as f:
+        isps = json.load(f)
+
+    for isp_name, isp_data in isps.items():
+        if isp_data.get('country', '').lower() in file_name.lower():
+            return {isp_name: isp_data}
+
+    return {'default': isps.get('default')}
+
+
+def table_markdown(report: SDDReport) -> str:
+    """Generate a markdown table from the report sample columns."""
+    column_samples = {}
+
+    for col in report.columns:
+        key = (
+            f"{col.column_name} - {col.pii.get('entity_type')}"
+            if col.pii.get('entity_type') != 'None'
+            else col.column_name
+        )
+        column_samples[key] = col.sample_values
+
+    max_len = max(len(values) for values in column_samples.values())
+    for key, values in column_samples.items():
+        column_samples[key] = values + [''] * (max_len - len(values))
+
+    return pd.DataFrame(column_samples).to_markdown(index=False) or ''
+
+
+def process_sheet(df, sheet_name, file_name, download_url, resource_id, isp, logger):
+    """Process a single sheet: PII, Reflection, Non-PII classification."""
+    logger.info('Processing sheet: %s', sheet_name)
+
+    report = SDDReport(
+        resource_id=resource_id,
+        file_name=file_name,
+        file_url=download_url,
+        sheet_name=sheet_name,
+        processing_timestamp=datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+        processing_success=True,
+        n_records=len(df),
+        n_columns=len(df.columns),
+    )
+
+    if report.pii_classifier_model is None:
+        logger.info('Running PII detection...')
+        report = PIIClassifier(model_name=PII_DETECT_MODEL).classify_df(df, report)
+
+    if report.pii_reflection_model is None:
+        logger.info('Running PII Reflection detection...')
+        report = PIIReflectionClassifier(model_name=PII_REFLECT_MODEL).classify_df(table_markdown(report), report)
+
+    if report.non_pii is None:
+        logger.info('Running Non-PII classification...')
+        report = NonPIIClassifier(model_name=NON_PII_DETECT_MODEL).classify(table_markdown(report), report, isp)
+
+    return report.to_dict()
+
+
+def determine_sensitivity(reports: list) -> str:
+    """Determine overall sensitivity from sheet-level reports."""
+    for r in reports:
+        if r.get('pii_sensitive') and r.get('non_pii_sensitive'):
+            return 'sensitive-pii-and-non-pii'
+    for r in reports:
+        if r.get('pii_sensitive') and not r.get('non_pii_sensitive'):
+            return 'sensitive-pii'
+    for r in reports:
+        if r.get('non_pii_sensitive') and not r.get('pii_sensitive'):
+            return 'sensitive-non-pii'
+    return 'not-sensitive'
+
+
+def main():
+    logger = setup_logging()
     dotenv.load_dotenv()
 
-    # ===== CKAN Client =====
-    CKAN_URL = os.getenv('CKAN_URL')
-    CKAN_API_TOKEN = os.getenv('CKAN_API_TOKEN')
+    # === CKAN setup ===
+    ckan = CKANClient(
+        base_url=os.getenv('CKAN_URL'),
+        api_token=os.getenv('CKAN_API_TOKEN'),
+        logger=logger.getChild('ckan'),
+    )
 
-    ckan_logger = logger.getChild('ckan')
-    ckan = CKANClient(base_url=CKAN_URL, api_token=CKAN_API_TOKEN, logger=ckan_logger)
-
-    # ===== Fetch resource metadata =====
-    RESOURCE_ID = 'ffedbcea-4a02-46b4-b5e2-e2cde32627e8'
+    RESOURCE_ID = 'b495dbc5-abf4-4efd-9501-3cde16bf23c9'
     resource = ckan.resource_show(RESOURCE_ID)
+
+    if resource is None and not RERUN:
+        logger.error('Resource %s not found', RESOURCE_ID)
+        sys.exit(1)
+
     download_url = resource.get('download_url')
     file_name = resource.get('name', 'unknown_dataset.csv')
 
-    OUTPUT_DIR = 'reports'
-    os.makedirs(OUTPUT_DIR, exist_ok=True)
-    output_path = os.path.join(OUTPUT_DIR, f'{file_name}_sdd_report.json')
+    if resource.get('sdd_report'):
+        logger.info('SDD Report already exists. Exiting.')
+        sys.exit(1)
 
-    # Check if sdd_report is already in the resource
-    # if resource.get('sdd_report'):
-    #     logger.info('SDD Report already exists in the resource')
-    #     report = SDDReport.from_json(resource.get('sdd_report'))
-    #     sys.exit(1)
-    # else:
-    #     logger.info('SDD Report does not exist in the resource')
+    isp = load_isp_info(file_name)
 
-    # # Check if report file already exists
-    # if os.path.exists(output_path):
-    #     logger.info('Report already exists at %s', output_path)
-
-    #     # Load an existing report
-    #     with open(output_path, 'r', encoding='utf-8') as f:
-    #         report = SDDReport.from_json(f.read())
-
-    # ===== Preprocessing & Sampling =====
     sampler = DataSampler()
-    dfs_by_sheet = sampler.sample_from_url(download_url)  # returns dict: sheet_name -> df
+    dfs = sampler.sample_from_url(download_url)
 
-    reports = []  # List to hold multiple reports if needed
-    output_path = os.path.join(OUTPUT_DIR, f'{file_name}_sdd_report.json')
+    output_dir = 'reports'
+    os.makedirs(output_dir, exist_ok=True)
+    output_file = os.path.join(output_dir, f'{file_name}_sdd_report.json')
 
-    for sheet_name, df in dfs_by_sheet.items():
-        if 'readme' in sheet_name.lower() or 'instrucciones' in sheet_name.lower():
-            logger.info('Skipping readme sheet')
+    reports = []
+    for sheet_name, df in dfs.items():
+        if any(word in sheet_name.lower() for word in ('readme', 'instrucciones')):
+            logger.info('Skipping readme/instructions sheet: %s', sheet_name)
             continue
-        logger.info('Processing sheet: %s', sheet_name)
 
-        report = SDDReport(
-            resource_id=RESOURCE_ID,
-            file_name=file_name,
-            file_url=download_url,
-            sheet_name=sheet_name,
-            processing_timestamp=datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
-            processing_success=True,
-            n_records=len(df),
-            n_columns=len(df.columns),
-        )
+        reports.append(process_sheet(df, sheet_name, file_name, download_url, RESOURCE_ID, isp, logger))
 
-        # ===== PII Detection =====
-        if report.pii_classifier_model is None:
-            logger.info("Starting PII Detection for sheet '%s'...", sheet_name)
-            pii_detector = PIIClassifier(model_name='gpt-4.1-nano')
-            report = pii_detector.classify_df(df=df, report=report)
-        else:
-            logger.info("PII Detection already performed, skipping sheet '%s'", sheet_name)
+    sensitivity = determine_sensitivity(reports)
 
-        # ===== PII Reflection Detection =====
-        if report.pii_reflection_model is None:
-            logger.info("Starting PII Reflection Detection for sheet '%s'...", sheet_name)
-            pii_reflection_classifier = PIIReflectionClassifier(model_name='gpt-4.1-nano')
-            report = pii_reflection_classifier.classify_df(table_markdown=table_markdown(report), report=report)
-        else:
-            logger.info("PII Reflection Detection already performed, skipping sheet '%s'", sheet_name)
+    with open(output_file, 'w', encoding='utf-8') as f:
+        json.dump(reports, f, indent=2)
 
-        # ===== Non-PII Classification =====
-        if report.non_pii is None:
-            print(f'NON-PII CLASSIFICATION PERFORMED FOR {sheet_name}')
-            logger.info("Starting Non-PII Classification for sheet '%s'...", sheet_name)
-            non_pii_classifier = NonPIIClassifier(model_name='gpt-4.1-nano')
-            report = non_pii_classifier.classify(table_markdown=table_markdown(report), report=report, isp=ISP_DEFAULT)
-        else:
-            print(f'NON-PII CLASSIFICATION ALREADY PERFORMED FOR {sheet_name}')
-            logger.info("Non-PII Classification already performed, skipping sheet '%s'", sheet_name)
-        reports.append(report.to_dict())
+    ckan.update_resource_fields(
+        RESOURCE_ID,
+        {'sdd_report': json.dumps(reports, indent=2), 'sensitive': sensitivity},
+    )
 
-    SENSITIVE = False
-    for report in reports:
-        if report.get('pii_sensitive') == True:
-            SENSITIVE = True
-            break
-    for report in reports:
-        if report.get('non_pii_sensitive') == True:
-            SENSITIVE = True
-            break
+    logger.info('Report updated in CKAN (sensitive = %s)', sensitivity)
+    print(f'Report updated in CKAN and set sensitive to: {sensitivity}')
 
-    # ===== Save report =====
-    with open(output_path, 'w', encoding='utf-8') as f:
-        f.write(json.dumps(reports, indent=2))
-    logger.info("Report saved for sheet '%s' at %s", sheet_name, output_path)
-    print(f'Report saved for sheet {sheet_name} at {output_path}')
-    # Append to list if you want to keep track of all sheet reports
 
-    ckan.update_resource_fields(RESOURCE_ID, {'sdd_report': json.dumps(reports, indent=2), 'sensitive': SENSITIVE})
-    print(f'Report updated in CKAN and set sensitive to: {SENSITIVE}')
-
-    logger.info('Report updated in CKAN and set sensitive to: %s', SENSITIVE)
+if __name__ == '__main__':
+    main()

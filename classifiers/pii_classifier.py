@@ -1,7 +1,7 @@
 """classifiers/pii_classifier.py: Handles detection of PII entities."""
 
 import logging
-from typing import Any, List
+from typing import Any, List, Dict, Optional
 import pandas as pd
 from tqdm import tqdm
 
@@ -19,7 +19,7 @@ class PIIClassifier(BaseClassifier):
     Handles detection of PII entities from column names and sample values.
     """
 
-    def _prepare_context(self, df: pd.DataFrame) -> dict:
+    def _prepare_context(self, df: pd.DataFrame) -> Dict[str, Any]:
         """Prepare context for PII classification."""
         return df.to_dict(orient='records')
 
@@ -29,7 +29,7 @@ class PIIClassifier(BaseClassifier):
         sample_values: List[Any],
         k: int = 5,
         version: str = 'v0',
-        report: SDDReport = None,
+        report: Optional[SDDReport] = None,
     ) -> None:
         """
         Detect PII entity type in a column and add a PIIColumnReport to the report.

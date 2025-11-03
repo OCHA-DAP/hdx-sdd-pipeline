@@ -49,18 +49,22 @@ class CKANClient:
                 response = requests.get(url, timeout=30, headers=self.headers, **kwargs)
             else:
                 response = requests.post(url, timeout=30, headers=self.headers, **kwargs)
-
             response.raise_for_status()
+            # Print request 200 or error
+            if response.status_code == 200:
+                self.logger.info('CKAN request successful')
+            else:
+                self.logger.error('CKAN request failed: %s', response.status_code)
             data = response.json()
         except (requests.RequestException, ValueError) as e:
             self.logger.error('CKAN request failed: %s', e)
             return None
 
-        if data.get('success'):
-            return data['result']
+        if data.get('success') is not True:
+            self.logger.error('CKAN API returned error: %s', data.get('error'))
+            return None
 
-        self.logger.error('CKAN API returned error: %s', data.get('error'))
-        return None
+        return data['result']
 
     # --- API Methods ---
     def package_show(self, package_id: str) -> Optional[dict]:
@@ -88,7 +92,14 @@ class CKANClient:
 
         payload = {'id': resource_id, **fields}
         self.logger.info('Updating resource %s with fields: %s', resource_id, list(fields.keys()))
-        return self._request('resource_patch', method='POST', json=payload)
+
+        updated_resource = self._request('resource_patch', method='POST', json=payload)
+        if updated_resource:
+            self.logger.info('Resource %s updated successfully', resource_id)
+            return updated_resource
+        else:
+            self.logger.error('Failed to update resource %s', resource_id)
+            return None
 
     def remove_resource_field(self, resource_id: str, field_name: str) -> Optional[dict]:
         """

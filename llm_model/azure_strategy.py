@@ -1,7 +1,8 @@
 import os
-from typing import Optional, Dict
-from openai import AzureOpenAI
+from typing import Dict
+
 from dotenv import load_dotenv
+from openai import AzureOpenAI
 
 
 class AzureOpenAIStrategy:
@@ -9,7 +10,7 @@ class AzureOpenAIStrategy:
     Strategy for using OpenAI models through Azure API.
     """
 
-    def __init__(self, model_name: str, device: Optional[str] = None, **kwargs):
+    def __init__(self, model_name: str):
         load_dotenv()
         # Azure-specific configuration
         self.azure_endpoint = os.getenv('AZURE_OPENAI_ENDPOINT')
@@ -35,19 +36,24 @@ class AzureOpenAIStrategy:
         except Exception as e:
             raise Exception(f'Error initializing Azure OpenAI client: {e}')
 
-    def generate(self, prompt: str, temperature: float = 0.3, max_new_tokens: int = 200, **kwargs) -> str:
+    def generate(self, prompt: str, temperature: float = 0.3, max_new_tokens: int = 200) -> tuple[str, int, int]:
         """Generate text using Azure OpenAI API."""
         try:
+            if not self.client:
+                raise ValueError('Azure OpenAI client not initialized')
+
             response = self.client.chat.completions.create(
                 messages=[{'role': 'user', 'content': prompt}],
                 max_completion_tokens=max_new_tokens,
                 model=self.model,
+                temperature=temperature,
             )
 
             return response.choices[0].message.content, response.usage.completion_tokens, response.usage.prompt_tokens
 
         except Exception as e:
             print(f'Error generating text with Azure OpenAI: {e}')
+            return 'ERROR_GENERATION', 0, 0
 
     def get_azure_config(self) -> Dict[str, str]:
         """Get Azure configuration details."""
@@ -60,4 +66,6 @@ class AzureOpenAIStrategy:
 if __name__ == '__main__':
     model = AzureOpenAIStrategy(model_name='gpt-4o-mini')
     response = model.generate('What is the capital of France?')
+    test = 'test'
+    HALLO = 'hallo'
     print(response)
