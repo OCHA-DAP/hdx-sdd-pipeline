@@ -8,9 +8,10 @@ from classifiers.base_classifier import BaseClassifier
 # --------------------------------------------------------------
 @pytest.fixture
 def classifier():
-    with patch('classifiers.base_classifier.AzureOpenAIStrategy') as mock_model_cls, patch(
-        'classifiers.base_classifier.PromptManager'
-    ) as mock_prompt_cls:
+    with (
+        patch('classifiers.base_classifier.AzureOpenAIStrategy') as mock_model_cls,
+        patch('classifiers.base_classifier.PromptManager') as mock_prompt_cls,
+    ):
 
         mock_model = MagicMock()
         mock_model.generate.return_value = ('PREDICTION_OK', 10, 5)

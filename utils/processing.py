@@ -37,14 +37,14 @@ def concatenate_header(df: pd.DataFrame, numeric_threshold: float = 0.8) -> pd.D
 
     # ---- STEP 3: extract header block ---- #
     header_block = df.iloc[: header_end_row + 1].copy()
-    header_block = header_block.fillna("").astype(str)
+    header_block = header_block.fillna('').astype(str)
 
     # ---- STEP 4: fill horizontally missing cells ---- #
-    header_block = header_block.apply(lambda row: row.replace("", None).ffill(), axis=1)
-    header_block = header_block.replace("", None).ffill()  # vertical fill
+    header_block = header_block.apply(lambda row: row.replace('', None).ffill(), axis=1)
+    header_block = header_block.replace('', None).ffill()  # vertical fill
 
     # ---- STEP 5: concatenate header rows ---- #
-    final_columns = header_block.apply(lambda col: " | ".join([v for v in col if v]), axis=0)
+    final_columns = header_block.apply(lambda col: ' | '.join([v for v in col if v]), axis=0)
 
     # ---- STEP 6: assign as header ---- #
     cleaned_df = df.iloc[header_end_row + 1 :].copy()
@@ -126,14 +126,14 @@ class DataSampler:
 
         # ---- STEP 3: extract header block ---- #
         header_block = df.iloc[: header_end_row + 1].copy()
-        header_block = header_block.fillna("").astype(str)
+        header_block = header_block.fillna('').astype(str)
 
         # ---- STEP 4: fill horizontally missing cells ---- #
-        header_block = header_block.apply(lambda row: row.replace("", None).ffill(), axis=1)
-        header_block = header_block.replace("", None).ffill()  # vertical fill
+        header_block = header_block.apply(lambda row: row.replace('', None).ffill(), axis=1)
+        header_block = header_block.replace('', None).ffill()  # vertical fill
 
         # ---- STEP 5: concatenate header rows ---- #
-        final_columns = header_block.apply(lambda col: " | ".join([v for v in col if v]), axis=0)
+        final_columns = header_block.apply(lambda col: ' | '.join([v for v in col if v]), axis=0)
 
         # ---- STEP 6: assign as header ---- #
         cleaned_df = df.iloc[header_end_row + 1 :].copy()
