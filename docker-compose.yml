@@ -1,17 +1,39 @@
-services:
-  redis:
-    image: redis:7-alpine
-    container_name: redis
-    ports:
-      - '6379:6379'
-    volumes:
-      - redis-data:/data
-    command: redis-server --appendonly yes
-    healthcheck:
-      test: ['CMD', 'redis-cli', 'ping']
-      interval: 10s
-      timeout: 3s
-      retries: 3
+#version: "3.5"
 
-volumes:
-  redis-data:
+# If you already have redis in another docker stack you can specify here that network.
+# And then also specify the network in the 'hdx-sdd' service
+networks:
+  redis-network:
+    name: hdx_geo_local_default
+    external: true
+  db:
+    external: true
+
+services:
+  hdx-sdd:
+    image: public.ecr.aws/unocha/hdx-sdd:dev
+#    build: .
+    hostname: hdx-sdd
+    volumes:
+      - ".:/srv/sdd"
+      - ".ssh/authorized_keys:/root/.ssh/authorized_keys"
+    ports:
+      - "60066:22"
+    environment:
+      # LISTENER_MODE: ${LISTENER_MODE:-true}
+      WORKER_ENABLED: ${WORKER_ENABLED:-true}
+      REDIS_STREAM_HOST: ${REDIS_STREAM_HOST:-redis}
+      REDIS_STREAM_PORT: ${REDIS_STREAM_PORT:-6379}
+      REDIS_STREAM_DB: ${REDIS_STREAM_DB:-7}
+      REDIS_STREAM_STREAM_NAME: ${REDIS_STREAM_STREAM_NAME:-hdx_event_stream}
+      REDIS_STREAM_GROUP_NAME: ${REDIS_STREAM_GROUP_NAME:-default_group}
+      REDIS_STREAM_CONSUMER_NAME: ${REDIS_STREAM_CONSUMER_NAME:-consumer-1}
+      AZURE_OPENAI_ENDPOINT: ${AZURE_OPENAI_ENDPOINT:-https://your-resource.openai.azure.com/}
+      AZURE_OPENAI_API_KEY: ${AZURE_OPENAI_API_KEY:-your-api-key-here}
+      AZURE_OPENAI_API_VERSION: ${AZURE_OPENAI_API_VERSION:-2024-02-15-preview}
+      HDX_URL: ${HDX_URL:-https://data.humdata.local}
+      HDX_KEY: ${HDX_KEY:-YOUR_HDX_TOKEN}
+    entrypoint: [ "tail", "-f", "/dev/null" ]
+    networks:
+      - redis-network
+      - db

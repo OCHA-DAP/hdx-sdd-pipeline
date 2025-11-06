@@ -16,8 +16,8 @@ def test_invalid_resource_id_type():
 
 
 # def test_update_resource_fields_success():
-#     CKAN_URL = os.getenv('CKAN_URL')
-#     CKAN_API_TOKEN = os.getenv('CKAN_API_TOKEN')
+#     CKAN_URL = os.getenv('HDX_URL')
+#     CKAN_API_TOKEN = os.getenv('HDX_KEY')
 
 #     ckan = CKANClient(base_url=CKAN_URL, api_token=CKAN_API_TOKEN)
 
