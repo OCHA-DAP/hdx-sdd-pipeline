@@ -1,7 +1,5 @@
 """utils/ckan.py: CKAN API client and utilities."""
 
-import logging
-import logging.config
 import os
 from pathlib import Path
 from typing import Optional, Dict, Any
@@ -17,8 +15,6 @@ class CKANClient:
         self,
         base_url: Optional[str] = None,
         api_token: Optional[str] = None,
-        logging_conf: str = 'logging.conf',
-        logger: Optional[logging.Logger] = None,
     ):
         # --- Configuration ---
         self.base_url = base_url or os.getenv('CKAN_URL')
@@ -26,23 +22,12 @@ class CKANClient:
         self.project_root = Path(__file__).resolve().parent.parent
         self.headers = {'Authorization': self.api_token} if self.api_token else {}
 
-        # --- Logging setup ---
-        if logger is None:
-            if Path(logging_conf).exists():
-                logging.config.fileConfig(logging_conf)
-            self.logger = logging.getLogger(__name__)
-        else:
-            self.logger = logger
-
-        self.logger.debug('Initialized CKANClient with base_url=%s', self.base_url)
-
     # --- Core request helper ---
     def _request(self, action: str, method: str = 'GET', **kwargs) -> Optional[dict]:
         """
         Internal helper for making CKAN API requests.
         """
         url = f'{self.base_url}/api/3/action/{action}'
-        self.logger.debug('CKAN request: %s %s', method, url)
 
         try:
             if method.upper() == 'GET':
@@ -52,16 +37,16 @@ class CKANClient:
             response.raise_for_status()
             # Print request 200 or error
             if response.status_code == 200:
-                self.logger.info('CKAN request successful')
+                print('CKAN request successful')
             else:
-                self.logger.error('CKAN request failed: %s', response.status_code)
+                print('CKAN request failed: %s', response.status_code)
             data = response.json()
         except (requests.RequestException, ValueError) as e:
-            self.logger.error('CKAN request failed: %s', e)
+            print('CKAN request failed: %s', e)
             return None
 
         if data.get('success') is not True:
-            self.logger.error('CKAN API returned error: %s', data.get('error'))
+            print('CKAN API returned error: %s', data.get('error'))
             return None
 
         return data['result']
@@ -71,14 +56,14 @@ class CKANClient:
         """Fetch details about a dataset (package)."""
         if not isinstance(package_id, str):
             raise ValueError('package_id must be a string')
-        self.logger.info('Fetching package: %s', package_id)
+        print('Fetching package: %s', package_id)
         return self._request('package_show', params={'id': package_id})
 
     def resource_show(self, resource_id: str) -> Optional[dict]:
         """Fetch details about a resource."""
         if not isinstance(resource_id, str):
             raise ValueError('resource_id must be a string')
-        self.logger.info('Fetching resource: %s', resource_id)
+        print('Fetching resource: %s', resource_id)
         return self._request('resource_show', params={'id': resource_id})
 
     def update_resource_fields(self, resource_id: str, fields: Dict[str, Any]) -> Optional[dict]:
@@ -91,14 +76,14 @@ class CKANClient:
             raise EnvironmentError('CKAN_API_TOKEN is required to update resources')
 
         payload = {'id': resource_id, **fields}
-        self.logger.info('Updating resource %s with fields: %s', resource_id, list(fields.keys()))
+        print('Updating resource %s with fields: %s', resource_id, list(fields.keys()))
 
         updated_resource = self._request('resource_patch', method='POST', json=payload)
         if updated_resource:
-            self.logger.info('Resource %s updated successfully', resource_id)
+            print('Resource %s updated successfully', resource_id)
             return updated_resource
         else:
-            self.logger.error('Failed to update resource %s', resource_id)
+            print('Failed to update resource %s', resource_id)
             return None
 
     def remove_resource_field(self, resource_id: str, field_name: str) -> Optional[dict]:
@@ -113,7 +98,7 @@ class CKANClient:
             raise EnvironmentError('CKAN_API_TOKEN is required to modify resources')
 
         payload = {'id': resource_id, field_name: None}
-        self.logger.info(f'Removing field {field_name} from resource {resource_id}')
+        print(f'Removing field {field_name} from resource {resource_id}')
         return self._request('resource_patch', method='POST', json=payload)
 
     def _get_download_link(self, resource_id: str) -> Optional[str]:
@@ -121,7 +106,7 @@ class CKANClient:
         resource = self.resource_show(resource_id)
         if resource and resource.get('download_url'):
             return resource['download_url']
-        self.logger.error('No download URL found for resource: %s', resource_id)
+        print('No download URL found for resource: %s', resource_id)
         return None
 
     # --- File operations ---
@@ -129,17 +114,17 @@ class CKANClient:
         """Download a file from a URL and save it locally."""
         output_dir.mkdir(parents=True, exist_ok=True)
         file_path = output_dir / filename
-        self.logger.info('Downloading file: %s', url)
+        print('Downloading file: %s', url)
 
         try:
             response = requests.get(url, timeout=30)
             response.raise_for_status()
             file_path.write_bytes(response.content)
         except requests.RequestException as e:
-            self.logger.error('Failed to download file: %s', e)
-            raise
+            print('Failed to download file: %s', e)
+            raise RuntimeError(f'Failed to download file from {url}') from e
 
-        self.logger.info('File saved to: %s', file_path)
+        print('File saved to: %s', file_path)
         return file_path
 
     def download_resource(

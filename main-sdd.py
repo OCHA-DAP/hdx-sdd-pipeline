@@ -131,7 +131,6 @@ def main():
     ckan = CKANClient(
         base_url=os.getenv('CKAN_URL'),
         api_token=os.getenv('CKAN_API_TOKEN'),
-        logger=logger.getChild('ckan'),
     )
 
     RESOURCE_ID = 'e031354c-cd95-471b-a7f4-1a87d30981f7'

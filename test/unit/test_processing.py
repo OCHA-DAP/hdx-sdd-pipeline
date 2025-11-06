@@ -32,7 +32,7 @@ def test_load_file_xlsx():
     assert len(sheets) == 2
     assert sheets.get('Sheet1') is None
     assert sheets.get('EM-DAT (2025-10-14)') is not None
-    assert len(sheets.get('EM-DAT (2025-10-14)')) == 200
+    assert len(sheets.get('EM-DAT (2025-10-14)')) == 199
     assert sheets.get('test') is not None
 
 

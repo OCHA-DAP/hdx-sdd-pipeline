@@ -24,7 +24,7 @@ def test_update_resource_fields_success():
     CKAN_URL = os.getenv('CKAN_URL')
     CKAN_API_TOKEN = os.getenv('CKAN_API_TOKEN')
 
-    ckan = CKANClient(base_url=CKAN_URL, api_token=CKAN_API_TOKEN, logger=None)
+    ckan = CKANClient(base_url=CKAN_URL, api_token=CKAN_API_TOKEN)
 
     resource = ckan.resource_show(test_resource_id)
     assert resource is not None
