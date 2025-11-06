@@ -134,7 +134,7 @@ def main():
         logger=logger.getChild('ckan'),
     )
 
-    RESOURCE_ID = 'b495dbc5-abf4-4efd-9501-3cde16bf23c9'
+    RESOURCE_ID = 'e031354c-cd95-471b-a7f4-1a87d30981f7'
     resource = ckan.resource_show(RESOURCE_ID)
 
     if resource is None:

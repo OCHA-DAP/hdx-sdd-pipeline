@@ -21,7 +21,7 @@ PII_DETECT_MODEL = 'gpt-4.1-mini'
 PII_REFLECT_MODEL = 'gpt-4.1-mini'
 
 DEBUG = False
-RERUN = False
+RERUN = True
 
 PII_ENTITIES_LIST = [
     'IP_ADDRESS',

@@ -230,4 +230,7 @@ logging.conf
 .vscode/settings.json
 .vscode/extensions.json
 
-downloads/
+/downloads/
+.DS_Store
+# Do include test/unit/downloads/
+!test/unit/downloads/

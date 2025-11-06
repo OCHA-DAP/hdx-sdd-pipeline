@@ -1,4 +1,6 @@
 from utils.processing import DataSampler
+from utils.preprocessing_try import concatenate_header
+import pandas as pd
 import os
 
 sampler = DataSampler(output_dir='test/unit/downloads')
@@ -54,3 +56,23 @@ def test_sample_from_url():
     assert sheets['sheet1'] is not None
     if os.path.exists(test_file_path):
         os.remove(test_file_path)
+
+
+def test_concatenate_header():
+    df = pd.read_excel('test/unit/downloads/multicolumn_sample.xlsx', header=None)
+    df = concatenate_header(df)
+    columns = df.columns.tolist()
+    assert df is not None
+    assert 'test | test header 1 | test subheader 1' in columns
+    assert 'test | test header 1 | test subheader 2' in columns
+    assert 'test | test header 2 | test subheader 3' in columns
+
+
+def test_concatenate_header_nan():
+    df = pd.read_excel('test/unit/downloads/multicolumn_sample_nan.xlsx', header=None)
+    df = concatenate_header(df)
+    columns = df.columns.tolist()
+    assert df is not None
+    assert 'test | test header 1 | test subheader 1' in columns
+    assert 'test | test header 1 | test subheader 2' in columns
+    assert 'test | test header 2 | test subheader 3' in columns
