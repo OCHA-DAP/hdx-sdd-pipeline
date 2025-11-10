@@ -10,8 +10,8 @@ logging.config.fileConfig('logging.conf')
 logger = logging.getLogger(__name__)
 
 # Read configuration from environment variables
-CKAN_URL = os.getenv('CKAN_URL')
-CKAN_API_TOKEN = os.getenv('CKAN_API_TOKEN')
+CKAN_URL = os.getenv('HDX_URL')
+CKAN_API_TOKEN = os.getenv('HDX_KEY')
 
 # Hard-coded IDs for the example
 PACKAGE_ID = os.getenv('PACKAGE_ID')

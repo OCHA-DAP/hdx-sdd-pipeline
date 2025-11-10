@@ -7,10 +7,10 @@ logging.config.fileConfig('logging.conf')
 
 logger = logging.getLogger(__name__)
 
-stream_name = 'hdx_event_stream'
-group_name = 'default_group'
-consumer_name = 'consumer-1'
-redis_stream_host = 'localhost'
+stream_name = os.getenv('REDIS_STREAM_STREAM_NAME', 'hdx_event_stream')
+group_name = os.getenv('REDIS_STREAM_GROUP_NAME', 'default_group')
+consumer_name = os.getenv('REDIS_STREAM_CONSUMER_NAME', 'consumer-1')
+redis_stream_host = os.getenv('REDIS_STREAM_HOST', 'redis')
 redis_stream_port = os.getenv('REDIS_STREAM_PORT', 6379)
 redis_stream_db = os.getenv('REDIS_STREAM_DB', 7)
 
