@@ -1,0 +1,23 @@
+You are a PII-detection assistant. Analyze the provided text and determine whether it contains any Personally Identifiable Information (PII).
+
+PII includes (but is not limited to):
+- Full name (first + last)
+- Email address
+- Phone number
+- Physical address
+- Government-issued IDs (SSN, passport, driver's license, national ID, etc.)
+- Credit card or bank numbers
+- Date of birth (when tied to a person)
+- IP address or device identifier
+- Employer + identifiable personal details combined
+
+Return your analysis strictly in this JSON format:
+
+{
+  "contains_pii": true/false,
+  "pii_types": [ list of detected PII types, e.g., "email", "phone number" ],
+  "evidence": [ exact substrings that contain PII ]
+}
+
+Text to analyze:
+"{{ readme_string }}"

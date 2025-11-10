@@ -1,5 +1,5 @@
 import os
-from typing import Dict
+import json
 
 from dotenv import load_dotenv
 from openai import AzureOpenAI
@@ -55,7 +55,28 @@ class AzureOpenAIStrategy:
             print(f'Error generating text with Azure OpenAI: {e}')
             return 'ERROR_GENERATION', 0, 0
 
-    def get_azure_config(self) -> Dict[str, str]:
+    def generate_json(self, prompt: str, temperature: float = 0.3, max_new_tokens: int = 200) -> tuple[dict, int, int]:
+        """Generate JSON using Azure OpenAI API."""
+        try:
+            if not self.client:
+                raise ValueError('Azure OpenAI client not initialized')
+            json_response = self.client.chat.completions.create(
+                messages=[{'role': 'user', 'content': prompt}],
+                max_completion_tokens=max_new_tokens,
+                model=self.model,
+                temperature=temperature,
+                response_format={'type': 'json_object'},
+            )
+            return (
+                json.loads(json_response.choices[0].message.content),
+                json_response.usage.completion_tokens,
+                json_response.usage.prompt_tokens,
+            )
+        except Exception as e:
+            print(f'Error generating JSON with Azure OpenAI: {e}')
+            return {'error': str(e)}, 0, 0
+
+    def get_azure_config(self) -> dict[str, str]:
         """Get Azure configuration details."""
         return {
             'endpoint': self.azure_endpoint,

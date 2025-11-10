@@ -19,6 +19,7 @@ OUTPUT_STREAM = 'sdd:results'
 NON_PII_DETECT_MODEL = 'gpt-4.1-mini'
 PII_DETECT_MODEL = 'gpt-4.1-mini'
 PII_REFLECT_MODEL = 'gpt-4.1-mini'
+README_SCAN_MODEL = 'gpt-4.1-mini'
 
 DEBUG = False
 RERUN = True

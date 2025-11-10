@@ -1,6 +1,8 @@
 from utils.processing import DataSampler, concatenate_header
 import pandas as pd
 import os
+import numpy as np
+import pytest
 
 sampler = DataSampler(output_dir='test/unit/downloads')
 test_url_csv = 'https://dev.data-humdata-org.ahconu.org/dataset/a87f96f8-16e6-4d51-872c-cfa54a8251ec/resource/4ef001d1-7888-4f5d-98ce-0ca8006787f7/download/gdacs_rss_information.csv'
@@ -75,3 +77,24 @@ def test_concatenate_header_nan():
     assert 'test | test header 1 | test subheader 1' in columns
     assert 'test | test header 1 | test subheader 2' in columns
     assert 'test | test header 2 | test subheader 3' in columns
+
+
+def test_concatenate_header_multitable():
+    df = pd.read_excel('test/unit/downloads/multitable.xlsx', header=None)
+    df = concatenate_header(df)
+    columns = df.columns.tolist()
+    expected = [
+        'Table 1 col 1',
+        'Table 1 col 2',
+        'Table 1 col 3',
+        'Table 1 col 4',
+        'Table 1 col 5',
+        'Table 1 col 6',
+        np.nan,
+        'Table 2 col 1',
+        'Table 2 col 2',
+        'Table 2 col 3',
+        'Table 2 col 4',
+    ]
+
+    assert columns == pytest.approx(expected, nan_ok=True)

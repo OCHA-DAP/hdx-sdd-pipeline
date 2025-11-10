@@ -11,13 +11,13 @@ import dotenv
 import pandas as pd
 
 from models.sdd_report import SDDReport
-from utils.main_config import RERUN, PII_DETECT_MODEL, PII_REFLECT_MODEL, NON_PII_DETECT_MODEL
+from utils.main_config import RERUN, PII_DETECT_MODEL, PII_REFLECT_MODEL, NON_PII_DETECT_MODEL, README_SCAN_MODEL
 from utils.ckan import CKANClient
 from utils.processing import DataSampler
 from classifiers.pii_classifier import PIIClassifier
 from classifiers.non_pii_classifier import NonPIIClassifier
 from classifiers.pii_reflection_classifier import PIIReflectionClassifier
-
+from classifiers.readme_scan import ReadMeScanClassifier
 import logging
 import logging.config
 from hdx_redis_lib import connect_to_hdx_event_bus, RedisConfig
@@ -158,11 +158,30 @@ def main():
 
     reports = []
     for sheet_name, df in dfs.items():
-        if any(word in sheet_name.lower() for word in ('readme', 'instrucciones')):
-            logger.info('Skipping readme/instructions sheet: %s', sheet_name)
+        if (
+            'readme' in sheet_name.lower()
+            or 'instrucciones' in sheet_name.lower()
+            or 'instructions' in sheet_name.lower()
+            or 'metadata' in sheet_name.lower()
+        ):
+            readme_string = df.to_string()
+            report, completion_tokens, prompt_tokens = ReadMeScanClassifier(
+                model_name=README_SCAN_MODEL
+            ).classify_readme(readme_string)
+            reports.append(
+                {
+                    'sheet_name': sheet_name,
+                    # 'readme_string': readme_string,
+                    'completion_tokens': completion_tokens,
+                    'prompt_tokens': prompt_tokens,
+                    'pii_sensitive': report.get('contains_pii', False),
+                    'report': report,
+                }
+            )
+            print(f'Readme/instructions sheet: {sheet_name} - {report}')
             continue
-
-        reports.append(process_sheet(df, sheet_name, file_name, download_url, RESOURCE_ID, isp, logger))
+        else:
+            reports.append(process_sheet(df, sheet_name, file_name, download_url, RESOURCE_ID, isp, logger))
 
     sensitivity = determine_sensitivity(reports)
 

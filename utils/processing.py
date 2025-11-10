@@ -23,17 +23,11 @@ def concatenate_header(df: pd.DataFrame, numeric_threshold: float = 0.8) -> pd.D
 
     # ---- STEP 2: fallback to numeric detection if no full row found ---- #
     if header_end_row is None:
-        numeric_ratio = df.apply(lambda col: pd.to_numeric(col, errors='coerce').notna().mean())
-        numeric_cols = numeric_ratio[numeric_ratio >= numeric_threshold].index.tolist()
-
-        if numeric_cols:
-            for idx, row in df.iterrows():
-                if row[numeric_cols].apply(lambda x: pd.to_numeric(x, errors='coerce')).notna().any():
-                    header_end_row = idx
-                    break
-        else:
-            # no numeric columns detected, return original df
-            return df
+        print('No fully populated row found, probably a multi-table file')
+        # Set first row as header
+        df.columns = df.iloc[0]
+        df = df.iloc[1:]
+        return df
 
     # ---- STEP 3: extract header block ---- #
     header_block = df.iloc[: header_end_row + 1].copy()
@@ -167,3 +161,10 @@ class DataSampler:
     def sample_from_local(self, file_path: Union[str, Path], sample_size: int = 20) -> Dict[str, pd.DataFrame]:
         sheets = self._load_file(file_path)
         return {sheet_name: self._sample_dataframe(df, sample_size) for sheet_name, df in sheets.items()}
+
+
+if __name__ == '__main__':
+    df = pd.read_excel('test/unit/downloads/multitable.xlsx', header=None)
+    # print(df.head())
+    df = concatenate_header(df)
+    print(df.columns.tolist())

@@ -55,6 +55,7 @@ class BaseClassifier:
         context: Dict[str, Any],
         version: str = 'v0',
         max_new_tokens: int = 256,
+        json_response_format: bool = False,
     ) -> str:
         """Render a Jinja prompt and run the model."""
         try:
@@ -65,7 +66,12 @@ class BaseClassifier:
 
         if DEBUG:
             return 'DEBUG_MODE', 0, 0
-        prediction, completion_tokens, prompt_tokens = self.model.generate(prompt, max_new_tokens=max_new_tokens)
+        if json_response_format:
+            prediction, completion_tokens, prompt_tokens = self.model.generate_json(
+                prompt, max_new_tokens=max_new_tokens
+            )
+        else:
+            prediction, completion_tokens, prompt_tokens = self.model.generate(prompt, max_new_tokens=max_new_tokens)
         return prediction, completion_tokens, prompt_tokens
 
     def _map_sensitivity(self, prediction: str) -> str:
