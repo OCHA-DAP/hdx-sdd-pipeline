@@ -1,10 +1,10 @@
-from utils.processing import DataSampler, concatenate_header
+from utils.processing import DataSampler
 import pandas as pd
 import os
 import numpy as np
 import pytest
 
-sampler = DataSampler(output_dir='test/unit/downloads')
+sampler = DataSampler(download_dir='test/unit/downloads')
 test_url_csv = 'https://dev.data-humdata-org.ahconu.org/dataset/a87f96f8-16e6-4d51-872c-cfa54a8251ec/resource/4ef001d1-7888-4f5d-98ce-0ca8006787f7/download/gdacs_rss_information.csv'
 test_file_path = 'test/unit/downloads/gdacs_rss_information.csv'
 test_file_xlsx = 'test/unit/downloads/Country Profiles Oct 14 2025.xlsx'
@@ -61,7 +61,8 @@ def test_sample_from_url():
 
 def test_concatenate_header():
     df = pd.read_excel('test/unit/downloads/multicolumn_sample.xlsx', header=None)
-    df = concatenate_header(df)
+    sampler = DataSampler()
+    df = sampler._concatenate_header(df)
     columns = df.columns.tolist()
     assert df is not None
     assert 'test | test header 1 | test subheader 1' in columns
@@ -71,7 +72,8 @@ def test_concatenate_header():
 
 def test_concatenate_header_nan():
     df = pd.read_excel('test/unit/downloads/multicolumn_sample_nan.xlsx', header=None)
-    df = concatenate_header(df)
+    sampler = DataSampler()
+    df = sampler._concatenate_header(df)
     columns = df.columns.tolist()
     assert df is not None
     assert 'test | test header 1 | test subheader 1' in columns
@@ -81,7 +83,8 @@ def test_concatenate_header_nan():
 
 def test_concatenate_header_multitable():
     df = pd.read_excel('test/unit/downloads/multitable.xlsx', header=None)
-    df = concatenate_header(df)
+    sampler = DataSampler()
+    df = sampler._concatenate_header(df)
     columns = df.columns.tolist()
     expected = [
         'Table 1 col 1',
