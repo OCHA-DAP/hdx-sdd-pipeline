@@ -2,8 +2,6 @@
 
 import logging.config
 import json
-import os
-import shutil
 import datetime
 import pandas as pd
 from hdx_redis_lib import connect_to_hdx_event_bus, RedisConfig
@@ -25,7 +23,11 @@ event_bus = connect_to_hdx_event_bus(
     config.REDIS_STREAM_STREAM_NAME,
     config.REDIS_STREAM_GROUP_NAME,
     config.REDIS_STREAM_CONSUMER_NAME,
-    RedisConfig(host=config.REDIS_STREAM_HOST, db=config.REDIS_STREAM_DB, port=config.REDIS_STREAM_PORT),
+    RedisConfig(
+        host=config.REDIS_STREAM_HOST,
+        db=config.REDIS_STREAM_DB,
+        port=config.REDIS_STREAM_PORT,
+    ),
 )
 
 
@@ -103,9 +105,6 @@ def event_processor(event):
         logger.error('Missing resource_id in event.')
         return False, 'Missing resource_id'
 
-    os.makedirs(config.DOWNLOAD_DIR, exist_ok=True)
-    os.makedirs(config.OUTPUT_DIR, exist_ok=True)
-
     ckan = CKANClient(base_url=config.HDX_URL, api_token=config.HDX_KEY)
 
     try:
@@ -145,11 +144,8 @@ def event_processor(event):
                 reports.append(process_sheet(df, sheet_name, file_name, download_url, resource_id, isp))
 
         sensitivity = determine_sensitivity(reports)
-        output_file = os.path.join(config.OUTPUT_DIR, f'{file_name}_sdd_report.json')
 
-        with open(output_file, 'w', encoding='utf-8') as f:
-            json.dump(reports, f, indent=2)
-
+        # Directly update CKAN (no file saving)
         ckan.update_resource_fields(
             resource_id,
             {'sdd_report': json.dumps(reports, indent=2), 'sensitive': sensitivity},
@@ -157,7 +153,7 @@ def event_processor(event):
 
         elapsed = datetime.datetime.now() - start_time
         logger.info(
-            f'Finished processing resource {resource_id} ' f'({file_name}) in {elapsed}. Sensitivity: {sensitivity}'
+            f'Finished processing resource {resource_id} ({file_name}) ' f'in {elapsed}. Sensitivity: {sensitivity}'
         )
 
         return True, f'Processed successfully ({sensitivity})'
@@ -165,16 +161,6 @@ def event_processor(event):
     except Exception as e:
         logger.exception('Error processing resource %s: %s', resource_id, e)
         return False, str(e)
-
-    finally:
-        # Cleanup download directory after processing (even if failed)
-        try:
-            if os.path.exists(config.DOWNLOAD_DIR):
-                shutil.rmtree(config.DOWNLOAD_DIR)
-                os.makedirs(config.DOWNLOAD_DIR, exist_ok=True)
-                logger.info('Cleaned up download directory after event.')
-        except Exception as cleanup_err:
-            logger.warning('Failed to clean up download dir: %s', cleanup_err)
 
 
 if __name__ == '__main__':
@@ -185,4 +171,8 @@ if __name__ == '__main__':
         while True:
             sleep(3600)
     else:
-        event_bus.hdx_listen(event_processor, allowed_event_types={'resource-data-changed'}, max_iterations=10_000)
+        event_bus.hdx_listen(
+            event_processor,
+            allowed_event_types={'resource-data-changed'},
+            max_iterations=10_000,
+        )

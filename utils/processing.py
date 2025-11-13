@@ -2,49 +2,8 @@
 from pathlib import Path
 from typing import Union, Dict
 import pandas as pd
+import os
 import requests
-
-
-def concatenate_header(df: pd.DataFrame, numeric_threshold: float = 0.8) -> pd.DataFrame:
-    """
-    Combined header concatenation:
-    1. First attempts to find the first row without NaN (fully populated row).
-    2. If none found, falls back to detecting numeric columns.
-    3. Fills missing header cells horizontally.
-    4. Concatenates the header rows into single column names.
-    """
-
-    # ---- STEP 1: try first fully populated row ---- #
-    header_end_row = None
-    for idx, row in df.iterrows():
-        if row.notna().all():
-            header_end_row = idx
-            break
-
-    # ---- STEP 2: fallback to numeric detection if no full row found ---- #
-    if header_end_row is None:
-        print('No fully populated row found, probably a multi-table file')
-        # Set first row as header
-        df.columns = df.iloc[0]
-        df = df.iloc[1:]
-        return df
-
-    # ---- STEP 3: extract header block ---- #
-    header_block = df.iloc[: header_end_row + 1].copy()
-    header_block = header_block.fillna('').astype(str)
-
-    # ---- STEP 4: fill horizontally missing cells ---- #
-    header_block = header_block.apply(lambda row: row.replace('', None).ffill(), axis=1)
-    header_block = header_block.replace('', None).ffill()  # vertical fill
-
-    # ---- STEP 5: concatenate header rows ---- #
-    final_columns = header_block.apply(lambda col: ' | '.join([v for v in col if v]), axis=0)
-
-    # ---- STEP 6: assign as header ---- #
-    cleaned_df = df.iloc[header_end_row + 1 :].copy()
-    cleaned_df.columns = final_columns
-
-    return cleaned_df.reset_index(drop=True)
 
 
 class DataSampler:
@@ -52,14 +11,14 @@ class DataSampler:
     Utility class to download a dataset (CSV/XLS/XLSX) and sample random records.
     """
 
-    def __init__(self, output_dir: Union[str, Path] = 'downloads'):
+    def __init__(self, download_dir: Union[str, Path] = 'downloads'):
         # Setup directories
-        self.output_dir = Path(output_dir)
-        self.output_dir.mkdir(parents=True, exist_ok=True)
+        self.download_dir = Path(download_dir)
+        self.download_dir.mkdir(parents=True, exist_ok=True)
 
     def _download_file(self, url: str) -> Path:
         filename = Path(url).name
-        file_path = self.output_dir / filename
+        file_path = self.download_dir / filename
         try:
             response = requests.get(url, timeout=30)
             response.raise_for_status()
@@ -88,7 +47,7 @@ class DataSampler:
         else:
             raise ValueError(f'Unsupported file type: {ext}')
 
-    def _concatenate_header(self, df: pd.DataFrame, numeric_threshold: float = 0.8) -> pd.DataFrame:
+    def _concatenate_header(self, df: pd.DataFrame) -> pd.DataFrame:
         """
         Combined header concatenation:
         1. First attempts to find the first row without NaN (fully populated row).
@@ -106,17 +65,11 @@ class DataSampler:
 
         # ---- STEP 2: fallback to numeric detection if no full row found ---- #
         if header_end_row is None:
-            numeric_ratio = df.apply(lambda col: pd.to_numeric(col, errors='coerce').notna().mean())
-            numeric_cols = numeric_ratio[numeric_ratio >= numeric_threshold].index.tolist()
-
-            if numeric_cols:
-                for idx, row in df.iterrows():
-                    if row[numeric_cols].apply(lambda x: pd.to_numeric(x, errors='coerce')).notna().any():
-                        header_end_row = idx
-                        break
-            else:
-                # no numeric columns detected, return original df
-                return df
+            print('No fully populated row found, probably a multi-table file')
+            # Set first row as header
+            df.columns = df.iloc[0]
+            df = df.iloc[1:]
+            return df
 
         # ---- STEP 3: extract header block ---- #
         header_block = df.iloc[: header_end_row + 1].copy()
@@ -147,7 +100,8 @@ class DataSampler:
             sample = complete_rows.sample(n=n, random_state=42)
         else:
             needed = n - len(complete_rows)
-            incomplete_rows['null_count'] = incomplete_rows.isna().sum(axis=1)
+            incomplete_rows = incomplete_rows.assign(null_count=incomplete_rows.isna().sum(axis=1))
+
             incomplete_rows = incomplete_rows.sort_values('null_count')
             fallback_rows = incomplete_rows.drop(columns='null_count').head(needed)
             sample = pd.concat([complete_rows, fallback_rows]).sample(frac=1, random_state=42)
@@ -155,16 +109,29 @@ class DataSampler:
         return sample.reset_index(drop=True)
 
     def sample_from_url(self, url: str, sample_size: int = 20) -> Dict[str, pd.DataFrame]:
-        file_path = self._download_file(url)
-        return self._load_file(file_path)
+        try:
+            file_path = self._download_file(url)
+            sheets = self._load_file(file_path)
+            return {sheet_name: self._sample_dataframe(df, sample_size) for sheet_name, df in sheets.items()}
+        except Exception as e:
+            print(f'Error sampling from URL {url}: {e}')
+            raise e
+        finally:
+            if Path(file_path).exists():
+                os.remove(file_path)
 
     def sample_from_local(self, file_path: Union[str, Path], sample_size: int = 20) -> Dict[str, pd.DataFrame]:
-        sheets = self._load_file(file_path)
-        return {sheet_name: self._sample_dataframe(df, sample_size) for sheet_name, df in sheets.items()}
+        try:
+            sheets = self._load_file(file_path)
+            return {sheet_name: self._sample_dataframe(df, sample_size) for sheet_name, df in sheets.items()}
+        except Exception as e:
+            print(f'Error sampling from local file {file_path}: {e}')
+            raise e
+        finally:
+            if Path(file_path).exists():
+                os.remove(file_path)
 
 
 if __name__ == '__main__':
     df = pd.read_excel('test/unit/downloads/multitable.xlsx', header=None)
     # print(df.head())
-    df = concatenate_header(df)
-    print(df.columns.tolist())
