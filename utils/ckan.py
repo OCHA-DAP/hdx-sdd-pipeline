@@ -17,8 +17,8 @@ class CKANClient:
         api_token: Optional[str] = None,
     ):
         # --- Configuration ---
-        self.base_url = base_url or os.getenv('HDX_URL')
-        self.api_token = api_token or os.getenv('HDX_KEY')
+        self.base_url = base_url or os.getenv('CKAN_URL')
+        self.api_token = api_token or os.getenv('CKAN_API_TOKEN')
         self.project_root = Path(__file__).resolve().parent.parent
         self.headers = {'Authorization': self.api_token} if self.api_token else {}
 
@@ -61,17 +61,11 @@ class CKANClient:
 
     def resource_show(self, resource_id: str) -> Optional[dict]:
         """Fetch details about a resource."""
-        if not isinstance(resource_id, str):
-            raise ValueError('resource_id must be a string')
         print('Fetching resource: %s', resource_id)
         return self._request('resource_show', params={'id': resource_id})
 
     def update_resource_fields(self, resource_id: str, fields: Dict[str, Any]) -> Optional[dict]:
         """Update one or more fields of a CKAN resource."""
-        if not isinstance(fields, dict):
-            raise ValueError('fields must be a dictionary')
-        if not isinstance(resource_id, str):
-            raise ValueError('resource_id must be a string')
         if not self.api_token:
             raise EnvironmentError('CKAN_API_TOKEN is required to update resources')
 

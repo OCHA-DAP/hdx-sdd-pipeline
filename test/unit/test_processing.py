@@ -43,3 +43,14 @@ def test_concatenate_header_nan():
 def test_concatenate_header_multitable():
     with pytest.raises(ValueError):
         sampler.sample_from_url('test/unit/downloads/multitable.xlsx')
+
+
+def test_unsupported_file_type():
+    with pytest.raises(ValueError):
+        sampler.sample_from_url('test/unit/downloads/unsupported.txt')
+
+
+def test_empty_dataframe():
+    df = pd.DataFrame()
+    assert sampler._sample_dataframe(df) is not None
+    assert len(sampler._sample_dataframe(df)) == 0

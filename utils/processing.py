@@ -84,9 +84,3 @@ class DataSampler:
         """Main entrypoint: load and sample dataset(s) from a URL."""
         sheets = self._load_from_url(url)
         return {name: self._sample_dataframe(df, sample_size) for name, df in sheets.items()}
-
-
-if __name__ == '__main__':
-    sampler = DataSampler()
-    test_url = 'test/unit/downloads/multitable.xlsx'
-    dfs = sampler.sample_from_url(test_url)
