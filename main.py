@@ -83,24 +83,15 @@ def process_sheet(df, sheet_name, file_name, download_url, resource_id, isp):
 
 def determine_sensitivity(reports: list) -> str:
     """Determine overall sensitivity from sheet-level reports."""
-    pii_sensitive = []
-    non_pii_sensitive = []
-    for r in reports:
-        pii_sensitive.append(r.get('pii_sensitive'))
-        non_pii_sensitive.append(r.get('non_pii_sensitive'))
+    pii_sensitive = [r.get('pii_sensitive') for r in reports]
+    non_pii_sensitive = [r.get('non_pii_sensitive') for r in reports]
 
-    # If there is one true in pii_sensitive and one true in non_pii_sensitive, return 'sensitive-pii-and-non-pii'
     if True in pii_sensitive and True in non_pii_sensitive:
         return 'sensitive-pii-and-non-pii'
-    # If there is one true in pii_sensitive and one false in non_pii_sensitive, return 'sensitive-pii'
     if True in pii_sensitive and True not in non_pii_sensitive:
         return 'sensitive-pii'
-    # If there is one false in pii_sensitive and one true in non_pii_sensitive, return 'sensitive-non-pii'
     if True not in pii_sensitive and True in non_pii_sensitive:
         return 'sensitive-non-pii'
-    # If there is one false in pii_sensitive and one false in non_pii_sensitive, return 'not-sensitive'
-    if True not in pii_sensitive and True not in non_pii_sensitive:
-        return 'not-sensitive'
     return 'not-sensitive'
 
 
@@ -130,7 +121,7 @@ def event_processor(event):
         file_name = resource.get('name', 'unknown_dataset.csv')
         isp = load_isp_info(file_name)
 
-        sampler = DataSampler(download_dir=config.DOWNLOAD_DIR)
+        sampler = DataSampler()
         dfs = sampler.sample_from_url(download_url)
 
         reports = []
