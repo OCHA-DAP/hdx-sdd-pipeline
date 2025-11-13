@@ -5,7 +5,7 @@ import pytest
 sampler = DataSampler()
 test_url_csv = 'https://dev.data-humdata-org.ahconu.org/dataset/a87f96f8-16e6-4d51-872c-cfa54a8251ec/resource/4ef001d1-7888-4f5d-98ce-0ca8006787f7/download/gdacs_rss_information.csv'
 test_file_path = 'test/unit/downloads/gdacs_rss_information.csv'
-test_file_xlsx = 'test/unit/downloads/Country Profiles Oct 14 2025.xlsx'
+test_file_xlsx = 'test/unit/downloads/country profiles oct 14 2025.xlsx'
 
 
 def test_init_datasampler():
