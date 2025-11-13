@@ -83,15 +83,24 @@ def process_sheet(df, sheet_name, file_name, download_url, resource_id, isp):
 
 def determine_sensitivity(reports: list) -> str:
     """Determine overall sensitivity from sheet-level reports."""
+    pii_sensitive = []
+    non_pii_sensitive = []
     for r in reports:
-        if r.get('pii_sensitive') and r.get('non_pii_sensitive'):
-            return 'sensitive-pii-and-non-pii'
-    for r in reports:
-        if r.get('pii_sensitive'):
-            return 'sensitive-pii'
-    for r in reports:
-        if r.get('non_pii_sensitive'):
-            return 'sensitive-non-pii'
+        pii_sensitive.append(r.get('pii_sensitive'))
+        non_pii_sensitive.append(r.get('non_pii_sensitive'))
+
+    # If there is one true in pii_sensitive and one true in non_pii_sensitive, return 'sensitive-pii-and-non-pii'
+    if True in pii_sensitive and True in non_pii_sensitive:
+        return 'sensitive-pii-and-non-pii'
+    # If there is one true in pii_sensitive and one false in non_pii_sensitive, return 'sensitive-pii'
+    if True in pii_sensitive and True not in non_pii_sensitive:
+        return 'sensitive-pii'
+    # If there is one false in pii_sensitive and one true in non_pii_sensitive, return 'sensitive-non-pii'
+    if True not in pii_sensitive and True in non_pii_sensitive:
+        return 'sensitive-non-pii'
+    # If there is one false in pii_sensitive and one false in non_pii_sensitive, return 'not-sensitive'
+    if True not in pii_sensitive and True not in non_pii_sensitive:
+        return 'not-sensitive'
     return 'not-sensitive'
 
 
