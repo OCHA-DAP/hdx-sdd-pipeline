@@ -1,4 +1,4 @@
-# utils/data_sampler.py
+# utils/processing.py
 from typing import Dict
 import pandas as pd
 
@@ -45,7 +45,6 @@ class DataSampler:
                 break
 
         if header_end_row is None:
-            # Fallback: treat first row as header
             raise ValueError('Multiple tables detected in the sheet')
 
         # Extract header block and fill missing cells

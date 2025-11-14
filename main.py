@@ -1,4 +1,4 @@
-"""main-sdd.py: HDX SDD pipeline listener and event processor."""
+"""main.py: HDX SDD pipeline listener and event processor."""
 
 import logging.config
 import json
