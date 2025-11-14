@@ -25,7 +25,7 @@ class DataSampler:
         url = self._validate_url(url)
 
         if url.endswith('.csv'):
-            df = pd.read_csv(url, header=None)
+            df = pd.read_csv(url, header=None, nrows=200)
             df = self._concatenate_header(df)
             return {'sheet1': df}
 
