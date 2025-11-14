@@ -29,8 +29,8 @@ class Config:
     README_SCAN_MODEL: str = os.getenv('README_SCAN_MODEL', 'readme-scan-v1')
 
     # Directories
-    DOWNLOAD_DIR: str = os.getenv('DOWNLOAD_DIR', '/tmp/download')
-    OUTPUT_DIR: str = os.getenv('OUTPUT_DIR', '/tmp/reports')
+    # DOWNLOAD_DIR: str = os.getenv('DOWNLOAD_DIR', '/tmp/download')
+    # OUTPUT_DIR: str = os.getenv('OUTPUT_DIR', '/tmp/reports')
 
 
 def get_config() -> Config:
