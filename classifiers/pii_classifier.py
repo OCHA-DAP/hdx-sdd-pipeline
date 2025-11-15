@@ -1,5 +1,3 @@
-"""classifiers/pii_classifier.py: Handles detection of PII entities."""
-
 import logging
 from typing import Any, List, Dict, Optional
 import pandas as pd
@@ -77,7 +75,7 @@ class PIIClassifier(BaseClassifier):
                     },
                 )
             )
-            return report
+            return report  # This should be `return` not `return report` since it's a void function
 
         # Normalize prediction
         prediction_lower = prediction.lower() if isinstance(prediction, str) else ''
@@ -109,5 +107,8 @@ class PIIClassifier(BaseClassifier):
             # TODO: Check if the column is already classified
             sample_values = df[column].dropna().astype(str).tolist()
             self._classify_column(column_name=column, sample_values=sample_values, report=report)
-            report.pii_classifier_model = self.model_name
+
+        # 🐛 FIX: Moved model assignment outside the loop so it runs even if df is empty
+        report.pii_classifier_model = self.model_name
+
         return report

@@ -20,8 +20,12 @@ import logging
 import logging.config
 from hdx_redis_lib import connect_to_hdx_event_bus, RedisConfig
 
+<<<<<<< Updated upstream
 logging.config.fileConfig('logging.conf')
 
+=======
+logging.config.fileConfig('logging.dev.conf')
+>>>>>>> Stashed changes
 logger = logging.getLogger(__name__)
 
 stream_name = os.getenv('REDIS_STREAM_STREAM_NAME', 'hdx_event_stream')
@@ -59,6 +63,7 @@ def load_isp_info(file_name: str) -> dict:
 
 def table_markdown(report: SDDReport) -> str:
     """Generate a markdown table from the report sample columns."""
+    logger.info(f'Report: {report}')
     column_samples = {}
 
     for col in report.columns:
@@ -125,18 +130,29 @@ def main():
 
     dotenv.load_dotenv()
 
+<<<<<<< Updated upstream
     # === CKAN setup ===
     ckan = CKANClient(
         base_url=os.getenv('HDX_URL'),
         api_token=os.getenv('HDX_KEY'),
     )
+=======
+    ckan = CKANClient(base_url=config.HDX_URL, api_token=config.HDX_KEY)
+    logger.info(f'CKAN client: {ckan}')
+>>>>>>> Stashed changes
 
     RESOURCE_ID = 'e031354c-cd95-471b-a7f4-1a87d30981f7'
     resource = ckan.resource_show(RESOURCE_ID)
 
+<<<<<<< Updated upstream
     if resource is None:
         logger.error('Resource %s not found', RESOURCE_ID)
         sys.exit(1)
+=======
+        # if resource.get('sdd_report') and not config.RERUN:
+        #     logger.info('SDD report already exists. Skipping.')
+        #     return True, 'Already processed'
+>>>>>>> Stashed changes
 
     download_url = resource.get('download_url')
     file_name = resource.get('name', 'unknown_dataset.csv')
@@ -150,9 +166,18 @@ def main():
     sampler = DataSampler()
     dfs = sampler.sample_from_url(download_url)
 
+<<<<<<< Updated upstream
     output_dir = 'reports'
     os.makedirs(output_dir, exist_ok=True)
     output_file = os.path.join(output_dir, f'{file_name}_sdd_report.json')
+=======
+        # Directly update CKAN (no file saving)
+        logger.info(f'Updating resource fields: {reports} and {sensitivity}')
+        ckan.update_resource_fields(
+            resource_id,
+            {'sdd_report': json.dumps(reports, indent=2), 'sensitive': sensitivity},
+        )
+>>>>>>> Stashed changes
 
     reports = []
     for sheet_name, df in dfs.items():
@@ -196,4 +221,25 @@ def main():
 
 
 if __name__ == '__main__':
+<<<<<<< Updated upstream
     main()
+=======
+    if not config.WORKER_ENABLED:
+        logger.info('WORKER_ENABLED is false. Sleeping indefinitely...')
+        from time import sleep
+
+        while True:
+            sleep(3600)
+    else:
+        # event_bus.hdx_listen(
+        #     event_processor,
+        #     allowed_event_types={'resource-data-changed'},
+        #     max_iterations=10_000,
+        # )
+        with open('events.json', 'r') as f:
+            events = json.load(f)
+        for event in events:
+            event_processor(event)
+            logger.info(f'Processed event: {event}')
+            logger.info(f'Processed event: {event}')
+>>>>>>> Stashed changes
