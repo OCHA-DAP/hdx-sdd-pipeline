@@ -177,3 +177,15 @@ def test_from_json_with_non_pii(sample_non_pii):
     report = SDDReport.from_json(data)
     assert report.non_pii.sensitivity == 'HIGH'
     assert isinstance(report.non_pii, NonPIIReport)
+
+
+def test_pii_column_report_to_dict():
+    report = PIIColumnReport(
+        column_name='email',
+        sample_values=['a@example.com', 'b@example.com'],
+        pii={'entity_type': 'email_address', 'sensitive': True},
+    )
+    assert report.to_dict() is not None
+    assert report.to_dict()['column_name'] == 'email'
+    assert report.to_dict()['sample_values'] == ['a@example.com', 'b@example.com']
+    assert report.to_dict()['pii'] == {'entity_type': 'email_address', 'sensitive': True}
