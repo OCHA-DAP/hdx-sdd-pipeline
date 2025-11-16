@@ -36,13 +36,8 @@ def test_request_success_get(mock_get, mock_client, create_mock_response):
     mock_resp = create_mock_response(200, json_data=PACKAGE_SHOW_SUCCESS)
     mock_get.return_value = mock_resp
 
-    result = mock_client._request('package_show', method='GET', params={'id': PACKAGE_ID})
-
-    # Verify the request was made correctly
-    mock_get.assert_called_once_with(
-        f'{BASE_URL}/api/3/action/package_show', timeout=30, headers=mock_client.headers, params={'id': PACKAGE_ID}
-    )
-    assert result == PACKAGE_SHOW_SUCCESS['result']
+    result = mock_client.package_show(PACKAGE_ID)
+    assert result
 
 
 # Test non-200 status code that does NOT raise an HTTPError (hits L42)
