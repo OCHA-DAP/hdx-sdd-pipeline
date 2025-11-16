@@ -46,7 +46,7 @@ def table_markdown(report: SDDReport) -> str:
     column_samples = {}
     for col in report.columns:
         key = (
-            f"{col.column_name} - {col.pii.get('entity_type')}"
+            f'{col.column_name} - {col.pii.get("entity_type")}'
             if col.pii.get('entity_type') != 'None'
             else col.column_name
         )
@@ -153,7 +153,7 @@ def event_processor(event):
 
         elapsed = datetime.datetime.now() - start_time
         logger.info(
-            f'Finished processing resource {resource_id} ({file_name}) ' f'in {elapsed}. Sensitivity: {sensitivity}'
+            f'Finished processing resource {resource_id} ({file_name}) in {elapsed}. Sensitivity: {sensitivity}'
         )
 
         return True, f'Processed successfully ({sensitivity})'

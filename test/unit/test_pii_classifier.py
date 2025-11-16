@@ -1,7 +1,6 @@
 import pytest
 import pandas as pd
-from unittest.mock import patch, MagicMock, ANY  # Import ANY for flexible assertions
-from typing import Any, List
+from unittest.mock import patch, MagicMock
 
 # NOTE: Adjust import path if needed
 from classifiers.pii_classifier import PIIClassifier
@@ -75,8 +74,7 @@ def pii_classifier_instance():
         patch('classifiers.pii_classifier.BaseClassifier', MockBaseClassifier),
         patch(MOCK_PII_ENTITIES_PATH, MOCK_PII_ENTITIES),
     ):  # Mock the entity list
-
-        classifier = PIIClassifier(model_name="pii-model-v1")
+        classifier = PIIClassifier(model_name='pii-model-v1')
 
         # 2. Critical Fix: Manually replace inherited methods with MagicMocks
         # This allows test configuration (return_value, side_effect) and assertion
@@ -132,16 +130,16 @@ def test_classify_column_non_alphanumeric(pii_classifier_instance, mock_report):
 
 
 @pytest.mark.parametrize(
-    "raw_prediction, expected_entity",
+    'raw_prediction, expected_entity',
     [
-        ("Prediction: NAME identified.", 'NAME'),
-        ("The column contains a SSN number.", 'SSN'),
-        ("It looks like an email.", 'EMAIL'),
+        ('Prediction: NAME identified.', 'NAME'),
+        ('The column contains a SSN number.', 'SSN'),
+        ('It looks like an email.', 'EMAIL'),
         # FIX #1: This test case should now pass due to MOCK_PII_ENTITIES update
-        ("IP address detected.", 'IP ADDRESS'),
+        ('IP address detected.', 'IP ADDRESS'),
         ("It's an age field.", 'AGE'),  # Test AGE last/priority logic
-        ("No PII found here, just none.", 'None'),
-        ("This is undetermined", 'UNDETERMINED'),
+        ('No PII found here, just none.', 'None'),
+        ('This is undetermined', 'UNDETERMINED'),
     ],
 )
 @patch('classifiers.pii_classifier.PIIColumnReport', MockPIIColumnReport)
@@ -181,7 +179,7 @@ def test_classify_column_exception_handling(mock_logger, pii_classifier_instance
 
     # 1. Configure Mocks
     pii_classifier_instance._has_alphanumeric.return_value = True
-    mock_error = RuntimeError("LLM connection failed")
+    mock_error = RuntimeError('LLM connection failed')
     pii_classifier_instance._run_prompt.side_effect = mock_error
 
     # 2. Execute

@@ -1,7 +1,6 @@
 import pytest
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch
 import requests
-import os
 from pathlib import Path
 
 # Fixtures imported from conftest.py: mock_client, create_mock_response
@@ -246,7 +245,6 @@ def test_download_resource_no_url(mock_resource_show, mock_client):
 def test_download_resource_file_download_failure(
     mock_get_download, mock_mkdir, mock_resource_show, mock_client, create_mock_response
 ):
-
     # 1. Mock the API call to return a valid URL
     mock_resource_show.return_value = RESOURCE_SHOW_SUCCESS['result']
 

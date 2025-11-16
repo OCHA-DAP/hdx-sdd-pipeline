@@ -1,5 +1,4 @@
 from utils.prompt_manager import PromptManager
-import pandas as pd
 import pytest
 
 prompt_manager = PromptManager()

@@ -30,7 +30,7 @@ def create_mock_response():
             mock_resp.json.return_value = json_data
         else:
             # If no JSON data, simulate a failure if .json() is called unexpectedly
-            mock_resp.json.side_effect = ValueError("No JSON data in mock response")
+            mock_resp.json.side_effect = ValueError('No JSON data in mock response')
 
         if raise_for_status_exc:
             # Configure to raise an exception when raise_for_status() is called

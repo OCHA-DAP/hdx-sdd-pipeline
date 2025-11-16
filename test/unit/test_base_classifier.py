@@ -1,5 +1,5 @@
 import pytest
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch
 from typing import Dict, Any
 
 # NOTE: Adjust this import path if your test file is not in a location
@@ -18,9 +18,9 @@ class MockPromptManager:
         pass
 
     def get_prompt(self, prompt_name: str, version: str, context: Dict[str, Any]) -> str:
-        if prompt_name == "error_prompt":
-            raise Exception("Mock Prompt Manager Error")
-        return f"Rendered prompt for {prompt_name}"
+        if prompt_name == 'error_prompt':
+            raise Exception('Mock Prompt Manager Error')
+        return f'Rendered prompt for {prompt_name}'
 
 
 class MockAzureOpenAIStrategy:
@@ -31,7 +31,7 @@ class MockAzureOpenAIStrategy:
 
     def generate(self, prompt: str, max_new_tokens: int) -> tuple:
         """Simulates non-JSON generation."""
-        return "Non-JSON Prediction", 10, 50  # prediction, completion_tokens, prompt_tokens
+        return 'Non-JSON Prediction', 10, 50  # prediction, completion_tokens, prompt_tokens
 
     def generate_json(self, prompt: str, max_new_tokens: int) -> tuple:
         """Simulates JSON generation."""
@@ -51,9 +51,8 @@ def base_classifier_instance():
 
     # Patch the external classes that BaseClassifier instantiates
     with patch(PROMPT_MANAGER_PATH, MockPromptManager), patch(AZURE_OPENAI_PATH, MockAzureOpenAIStrategy):
-
         # Instantiate BaseClassifier (it will use the mocked classes)
-        classifier = BaseClassifier(model_name="mock_model")
+        classifier = BaseClassifier(model_name='mock_model')
         yield classifier
 
 
@@ -69,10 +68,10 @@ DEBUG_CONFIG_PATH = 'classifiers.base_classifier.DEBUG'
 def test_base_classifier_init(base_classifier_instance):
     """Test successful initialization and attribute assignment."""
     classifier = base_classifier_instance
-    assert classifier.model_name == "mock_model"
+    assert classifier.model_name == 'mock_model'
     assert isinstance(classifier.prompt_manager, MockPromptManager)
     assert isinstance(classifier.model, MockAzureOpenAIStrategy)
-    assert classifier.model.model_name == "mock_model"
+    assert classifier.model.model_name == 'mock_model'
 
 
 # =====================================================================
@@ -82,9 +81,9 @@ def test_base_classifier_init(base_classifier_instance):
 
 def test_standardize_output_string_raw(base_classifier_instance):
     """Test output standardization with a string raw model output."""
-    raw_output = "   Sensitive Result \n "
+    raw_output = '   Sensitive Result \n '
     standardized = base_classifier_instance._standardize_output(
-        classification_type="Pii", value="Found", raw_model_output=raw_output
+        classification_type='Pii', value='Found', raw_model_output=raw_output
     )
     assert standardized == {
         'classification_type': 'Pii',
@@ -95,14 +94,14 @@ def test_standardize_output_string_raw(base_classifier_instance):
 
 def test_standardize_output_non_string_raw(base_classifier_instance):
     """Test output standardization with a non-string raw model output (e.g., dict)."""
-    raw_output = {"json": "data"}
+    raw_output = {'json': 'data'}
     standardized = base_classifier_instance._standardize_output(
-        classification_type="Topic", value="Finance", raw_model_output=raw_output
+        classification_type='Topic', value='Finance', raw_model_output=raw_output
     )
     assert standardized == {
         'classification_type': 'Topic',
         'value': 'Finance',
-        'raw_model_output': {"json": "data"},  # Should not be stripped
+        'raw_model_output': {'json': 'data'},  # Should not be stripped
     }
 
 
@@ -116,10 +115,10 @@ def test_run_prompt_non_json_success(base_classifier_instance):
     """Test successful non-JSON generation (calls model.generate)."""
 
     prediction, comp_tokens, prompt_tokens = base_classifier_instance._run_prompt(
-        prompt_name="test_prompt", context={"data": 123}, json_response_format=False
+        prompt_name='test_prompt', context={'data': 123}, json_response_format=False
     )
 
-    assert prediction == "Non-JSON Prediction"
+    assert prediction == 'Non-JSON Prediction'
     assert comp_tokens == 10
     assert prompt_tokens == 50
 
@@ -129,7 +128,7 @@ def test_run_prompt_json_success(base_classifier_instance):
     """Test successful JSON generation (calls model.generate_json)."""
 
     prediction, comp_tokens, prompt_tokens = base_classifier_instance._run_prompt(
-        prompt_name="test_prompt", context={"data": 123}, json_response_format=True
+        prompt_name='test_prompt', context={'data': 123}, json_response_format=True
     )
 
     assert prediction == '{"result": "JSON Prediction"}'
@@ -142,7 +141,7 @@ def test_run_prompt_debug_mode(base_classifier_instance):
     """Test when the DEBUG flag is True (short-circuits model call)."""
 
     prediction, comp_tokens, prompt_tokens = base_classifier_instance._run_prompt(
-        prompt_name="test_prompt", context={"data": 123}
+        prompt_name='test_prompt', context={'data': 123}
     )
 
     assert prediction == 'DEBUG_MODE'
@@ -155,7 +154,8 @@ def test_run_prompt_prompt_manager_error(base_classifier_instance):
     """Test exception handling during prompt rendering."""
 
     prediction, comp_tokens, prompt_tokens = base_classifier_instance._run_prompt(
-        prompt_name="error_prompt", context={}  # MockPromptManager raises exception for this name
+        prompt_name='error_prompt',
+        context={},  # MockPromptManager raises exception for this name
     )
 
     assert prediction == 'ERROR_GENERATION'
@@ -170,32 +170,32 @@ def test_run_prompt_prompt_manager_error(base_classifier_instance):
 
 def test_map_sensitivity_non_sensitive(base_classifier_instance):
     """Test mapping to NON_SENSITIVE."""
-    assert base_classifier_instance._map_sensitivity("This data is non_sensitive.") == 'NON_SENSITIVE'
+    assert base_classifier_instance._map_sensitivity('This data is non_sensitive.') == 'NON_SENSITIVE'
 
 
 def test_map_sensitivity_medium_sensitive(base_classifier_instance):
     """Test mapping to MEDIUM_SENSITIVE."""
-    assert base_classifier_instance._map_sensitivity("Result: MEDIUM_sensitive") == 'MEDIUM_SENSITIVE'
+    assert base_classifier_instance._map_sensitivity('Result: MEDIUM_sensitive') == 'MEDIUM_SENSITIVE'
 
 
 def test_map_sensitivity_moderate_sensitive(base_classifier_instance):
     """Test mapping to MODERATE_SENSITIVE."""
-    assert base_classifier_instance._map_sensitivity("moderate_sensitive") == 'MODERATE_SENSITIVE'
+    assert base_classifier_instance._map_sensitivity('moderate_sensitive') == 'MODERATE_SENSITIVE'
 
 
 def test_map_sensitivity_high_sensitive(base_classifier_instance):
     """Test mapping to HIGH_SENSITIVE."""
-    assert base_classifier_instance._map_sensitivity("high_sensitive") == 'HIGH_SENSITIVE'
+    assert base_classifier_instance._map_sensitivity('high_sensitive') == 'HIGH_SENSITIVE'
 
 
 def test_map_sensitivity_severe_sensitive(base_classifier_instance):
     """Test mapping to SEVERE_SENSITIVE."""
-    assert base_classifier_instance._map_sensitivity("Alert: severe_sensitive information found.") == 'SEVERE_SENSITIVE'
+    assert base_classifier_instance._map_sensitivity('Alert: severe_sensitive information found.') == 'SEVERE_SENSITIVE'
 
 
 def test_map_sensitivity_undetermined(base_classifier_instance):
     """Test mapping to UNDETERMINED if no keyword is found."""
-    assert base_classifier_instance._map_sensitivity("This is some random text.") == 'UNDETERMINED'
+    assert base_classifier_instance._map_sensitivity('This is some random text.') == 'UNDETERMINED'
 
 
 # =====================================================================
@@ -205,27 +205,26 @@ def test_map_sensitivity_undetermined(base_classifier_instance):
 
 def test_has_alphanumeric_with_letters_and_digits():
     """Test a list containing both letters and digits."""
-    values = ["abc", "123", "$%^"]
+    values = ['abc', '123', '$%^']
     assert BaseClassifier._has_alphanumeric(values) is True
 
 
 def test_has_alphanumeric_with_mixed_types():
     """Test a list containing mixed types, including numbers and bools."""
-    values = [42, "hello", True]
+    values = [42, 'hello', True]
     assert BaseClassifier._has_alphanumeric(values) is True
 
 
 def test_has_alphanumeric_only_digits():
     """Test a list containing only numeric values (digits)."""
-    values = ["1", 2, "3.0"]
+    values = ['1', 2, '3.0']
     assert BaseClassifier._has_alphanumeric(values) is True
 
 
 def test_has_alphanumeric_only_punctuation_and_whitespace():
     """Test a list containing only non-alphanumeric characters."""
-    values = ["!", "$%^", " ", "  \t\n", "...", None]  # None is converted to 'None', which has letters
     # The check includes 'None' which converts to string "None", which has letters
-    assert BaseClassifier._has_alphanumeric(["!", "$%^", " ", "  \t\n", "..."]) is False
+    assert BaseClassifier._has_alphanumeric(['!', '$%^', ' ', '  \t\n', '...']) is False
 
 
 def test_has_alphanumeric_empty_list():

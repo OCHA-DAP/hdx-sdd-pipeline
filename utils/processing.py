@@ -17,7 +17,7 @@ class DataSampler:
         """Check if the URL points to a supported file type."""
         url_lower = url.lower()
         if not any(url_lower.endswith(ext) for ext in self.SUPPORTED_EXTENSIONS):
-            raise ValueError(f"Unsupported file type. Only {', '.join(self.SUPPORTED_EXTENSIONS)} are supported.")
+            raise ValueError(f'Unsupported file type. Only {", ".join(self.SUPPORTED_EXTENSIONS)} are supported.')
         return url_lower
 
     def _load_from_url(self, url: str) -> Dict[str, pd.DataFrame]:

@@ -1,6 +1,6 @@
 import pytest
 from unittest.mock import patch, MagicMock
-from typing import Dict, Any, Optional
+from typing import Any, Optional
 
 # NOTE: Assuming the correct relative path for the class being tested.
 from classifiers.non_pii_classifier import NonPIIClassifier
@@ -50,7 +50,7 @@ def non_pii_classifier_instance():
 
     # Patch the BaseClassifier class that NonPIIClassifier inherits from
     with patch('classifiers.non_pii_classifier.BaseClassifier', MockBaseClassifier):
-        classifier = NonPIIClassifier(model_name="mock-non-pii-model")
+        classifier = NonPIIClassifier(model_name='mock-non-pii-model')
 
         # 🧪 CRITICAL FIX: Manually replace the instance's _run_prompt method
         # with a fresh MagicMock object. This bypasses the tricky method binding.
@@ -79,13 +79,13 @@ TEST_VERSION = 'v1'
 
 
 @pytest.mark.parametrize(
-    "raw_pred, expected",
+    'raw_pred, expected',
     [
-        ("This is the high_sensitive result.", "HIGH_SENSITIVE"),
-        ("First line is moderate_sensitive\nsecond line is ignored", "MODERATE_SENSITIVE"),
-        ("non_sensitive is good to go.", "NON_SENSITIVE"),
-        ("Unknown classification level here.", "UNDETERMINED"),
-        ("\n\nhigh_sensitive but after newlines", "UNDETERMINED"),  # Newlines make the first split element empty
+        ('This is the high_sensitive result.', 'HIGH_SENSITIVE'),
+        ('First line is moderate_sensitive\nsecond line is ignored', 'MODERATE_SENSITIVE'),
+        ('non_sensitive is good to go.', 'NON_SENSITIVE'),
+        ('Unknown classification level here.', 'UNDETERMINED'),
+        ('\n\nhigh_sensitive but after newlines', 'UNDETERMINED'),  # Newlines make the first split element empty
     ],
 )
 def test_format_prediction(non_pii_classifier_instance, raw_pred, expected):
@@ -95,7 +95,7 @@ def test_format_prediction(non_pii_classifier_instance, raw_pred, expected):
 
 def test_format_prediction_only_first_line_is_considered(non_pii_classifier_instance):
     """Ensure only the first line determines the classification."""
-    raw_pred = "UNDETERMINED\n\nbut the second line contains: high_sensitive"
+    raw_pred = 'UNDETERMINED\n\nbut the second line contains: high_sensitive'
     assert non_pii_classifier_instance.format_prediction(raw_pred) == 'UNDETERMINED'
 
 
@@ -136,7 +136,7 @@ def test_classify_success(non_pii_classifier_instance, mock_report):
     """Test the complete successful classification flow."""
 
     # Mock _run_prompt to return a successful prediction
-    llm_prediction = "The table contains high_sensitive information."
+    llm_prediction = 'The table contains high_sensitive information.'
     comp_tokens_llm = 50
     prompt_tokens_llm = 100
 
@@ -179,7 +179,7 @@ def test_classify_exception_handling(mock_logger, non_pii_classifier_instance, m
     """Test the exception handling path returns the report and logs the error."""
 
     # Mock _run_prompt to raise an exception
-    mock_error = RuntimeError("LLM service failed")
+    mock_error = RuntimeError('LLM service failed')
     # Set side_effect on the mock object instance attribute
     non_pii_classifier_instance._run_prompt.side_effect = mock_error
 
