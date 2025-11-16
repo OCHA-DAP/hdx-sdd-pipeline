@@ -86,11 +86,11 @@ def determine_sensitivity(reports: list) -> str:
     pii_sensitive = [r.get('pii_sensitive') for r in reports]
     non_pii_sensitive = [r.get('non_pii_sensitive') for r in reports]
 
-    if True in pii_sensitive and True in non_pii_sensitive:
+    if any(pii_sensitive) and any(non_pii_sensitive):
         return 'sensitive-pii-and-non-pii'
-    if True in pii_sensitive and True not in non_pii_sensitive:
+    if any(pii_sensitive) and not any(non_pii_sensitive):
         return 'sensitive-pii'
-    if True not in pii_sensitive and True in non_pii_sensitive:
+    if not any(pii_sensitive) and any(non_pii_sensitive):
         return 'sensitive-non-pii'
     return 'not-sensitive'
 
