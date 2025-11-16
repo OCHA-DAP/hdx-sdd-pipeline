@@ -122,7 +122,7 @@ def event_processor(event):
         isp = load_isp_info(file_name)
 
         sampler = DataSampler()
-        dfs = sampler.sample_from_url(download_url)
+        dfs = sampler.sample(download_url)
 
         reports = []
         for sheet_name, df in dfs.items():

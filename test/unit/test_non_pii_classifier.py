@@ -1,11 +1,49 @@
+# test/unit/test_non_pii_classifier.py
+
 import pytest
 from unittest.mock import patch, MagicMock
 from typing import Any, Optional
 
-# NOTE: Assuming the correct relative path for the class being tested.
+# Assuming the correct relative path for the class being tested.
 from classifiers.non_pii_classifier import NonPIIClassifier
 
+# ... (rest of your imports) ...
+
+
 # --- Mock Classes for Dependencies ---
+# ... (MockNonPIIReport, MockSDDReport remain the same) ...
+
+
+# Assuming you place MockAzureOpenAIStrategy in conftest.py,
+# you might need to import it here or define it if conftest is not picked up reliably.
+# For simplicity, if your tests are in subdirectories, define it here:
+class MockAzureOpenAIStrategy:
+    # ... (definition from conftest.py above) ...
+    def __init__(self, model_name: str):
+        self.model = model_name
+        self.model_name = model_name
+        self.client = MagicMock()
+
+    def generate(self, prompt: str, temperature: float = 0.3, max_new_tokens: int = 200) -> tuple[str, int, int]:
+        return 'mock_generated_text', 1, 1
+
+    def generate_json(self, prompt: str, temperature: float = 0.3, max_new_tokens: int = 200) -> tuple[dict, int, int]:
+        return {'mock_key': 'mock_value'}, 1, 1
+
+    def get_azure_config(self) -> dict[str, str]:
+        return {'endpoint': 'mock_endpoint', 'model': self.model}
+
+
+class MockBaseClassifier:
+    """
+    Mock the inherited BaseClassifier.
+    NOTE: The actual BaseClassifier's __init__ will use AzureOpenAIStrategy.
+    """
+
+    def __init__(self, model_name: str):
+        self.model_name = model_name
+        # The key is that the real BaseClassifier calls the strategy's __init__ here.
+        # We need to patch the strategy before this mock is called.
 
 
 class MockNonPIIReport:
@@ -31,32 +69,27 @@ class MockSDDReport:
         self.non_pii_reports.append(report)
 
 
-class MockBaseClassifier:
-    """
-    Mock the inherited BaseClassifier.
-    We no longer try to set _run_prompt here; we set it directly on the instance in the fixture.
-    """
-
-    def __init__(self, model_name: str):
-        self.model_name = model_name
-
-
 # --- Fixtures ---
 
 
 @pytest.fixture
+# This fixture needs to be wrapped by the strategy patch.
 def non_pii_classifier_instance():
-    """Fixture to create NonPIIClassifier with mocked BaseClassifier inheritance."""
+    """Fixture to create NonPIIClassifier with mocked BaseClassifier inheritance and Azure Strategy."""
 
     # Patch the BaseClassifier class that NonPIIClassifier inherits from
     with patch('classifiers.non_pii_classifier.BaseClassifier', MockBaseClassifier):
-        classifier = NonPIIClassifier(model_name='mock-non-pii-model')
+        # 💡 THE CRITICAL PATCH: Replace the real AzureOpenAIStrategy
+        # where the BaseClassifier would import/use it.
+        # Based on the error trace (llm_model/azure_strategy.py),
+        # the path should be: 'llm_model.azure_strategy.AzureOpenAIStrategy'
+        with patch('llm_model.azure_strategy.AzureOpenAIStrategy', MockAzureOpenAIStrategy):
+            classifier = NonPIIClassifier(model_name='mock-non-pii-model')
 
-        # 🧪 CRITICAL FIX: Manually replace the instance's _run_prompt method
-        # with a fresh MagicMock object. This bypasses the tricky method binding.
-        classifier._run_prompt = MagicMock()
+            # This line is correct for mocking the prompt running logic inside the classifier.
+            classifier._run_prompt = MagicMock()
 
-        yield classifier
+            yield classifier
 
 
 @pytest.fixture

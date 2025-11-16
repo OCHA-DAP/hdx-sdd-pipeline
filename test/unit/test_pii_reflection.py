@@ -3,6 +3,27 @@ import logging
 from unittest.mock import patch
 
 from classifiers.pii_reflection_classifier import PIIReflectionClassifier
+import pytest
+from unittest.mock import patch, MagicMock
+
+
+# --- Mock Azure Strategy (same as in the PIIClassifier tests) ---
+class MockAzureOpenAIStrategy:
+    """Mock to replace AzureOpenAIStrategy during CI/unit testing."""
+
+    def __init__(self, model_name: str):
+        self.model = model_name
+        self.model_name = model_name
+        self.client = MagicMock()
+
+    def generate(self, prompt: str, temperature: float = 0.3, max_new_tokens: int = 200):
+        return 'mock_generated_text', 1, 1
+
+    def generate_json(self, prompt: str, temperature: float = 0.3, max_new_tokens: int = 200):
+        return {'mock_key': 'mock_value'}, 1, 1
+
+    def get_azure_config(self):
+        return {'endpoint': 'mock_endpoint', 'model': self.model}
 
 
 # Mock SDDReport and its behavior
@@ -26,9 +47,18 @@ class MockReport:
 
 @pytest.fixture
 def classifier():
-    c = PIIReflectionClassifier(model_name='mock_model')
-    c.model_name = 'mock_model'
-    return c
+    """
+    Fixture to create PIIReflectionClassifier with Azure strategy mocked out.
+    """
+    with patch('llm_model.azure_strategy.AzureOpenAIStrategy', MockAzureOpenAIStrategy):
+        from classifiers.pii_reflection_classifier import PIIReflectionClassifier
+
+        c = PIIReflectionClassifier(model_name='mock_model')
+
+        # OPTIONAL:
+        # Replace _run_prompt with a MagicMock so tests can patch it cleanly
+        c._run_prompt = MagicMock()
+        return c
 
 
 def test_classify_column_none_entity(classifier):

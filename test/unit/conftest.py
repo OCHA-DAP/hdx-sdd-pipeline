@@ -14,6 +14,36 @@ from pathlib import Path
 from utils.ckan import CKANClient
 
 
+# --- New Mock for AzureOpenAIStrategy ---
+
+
+class MockAzureOpenAIStrategy:
+    """
+    Mock to replace AzureOpenAIStrategy during CI/unit testing.
+    It prevents the use of environment variables and mocks the generation methods.
+    """
+
+    def __init__(self, model_name: str):
+        # Initialize without requiring any environment variables
+        self.model = model_name
+        self.model_name = model_name
+        self.client = MagicMock()  # Ensure a client exists if downstream code checks it
+
+    def generate(self, prompt: str, temperature: float = 0.3, max_new_tokens: int = 200) -> tuple[str, int, int]:
+        """Mock method for standard text generation."""
+        # Return a standard mock response: (content, completion_tokens, prompt_tokens)
+        return 'mock_generated_text', 1, 1
+
+    def generate_json(self, prompt: str, temperature: float = 0.3, max_new_tokens: int = 200) -> tuple[dict, int, int]:
+        """Mock method for JSON generation."""
+        # Return a standard mock JSON response: (content_dict, completion_tokens, prompt_tokens)
+        return {'mock_key': 'mock_value'}, 1, 1
+
+    def get_azure_config(self) -> dict[str, str]:
+        """Mock config getter."""
+        return {'endpoint': 'mock_endpoint', 'model': self.model}
+
+
 # Helper function to create a mock response object
 @pytest.fixture
 def create_mock_response():

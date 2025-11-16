@@ -13,7 +13,7 @@ def test_init_datasampler():
 
 
 def test_download_file():
-    dfs = sampler.sample_from_url(test_url_csv)
+    dfs = sampler.sample(test_url_csv)
     assert dfs is not None
     assert len(dfs) == 1
     assert dfs['sheet1'] is not None
@@ -32,7 +32,7 @@ def test_concatenate_header():
 
 
 def test_concatenate_header_nan():
-    dfs = sampler.sample_from_url('test/unit/downloads/multicolumn_sample_nan.xlsx')
+    dfs = sampler.sample('test/unit/downloads/multicolumn_sample_nan.xlsx')
     assert dfs.get('Sheet1') is not None
     columns = dfs.get('Sheet1').columns.tolist()
     assert 'test | test header 1 | test subheader 1' in columns
@@ -42,12 +42,12 @@ def test_concatenate_header_nan():
 
 def test_concatenate_header_multitable():
     with pytest.raises(ValueError):
-        sampler.sample_from_url('test/unit/downloads/multitable.xlsx')
+        sampler.sample('test/unit/downloads/multitable.xlsx')
 
 
 def test_unsupported_file_type():
     with pytest.raises(ValueError):
-        sampler.sample_from_url('test/unit/downloads/unsupported.txt')
+        sampler.sample('test/unit/downloads/unsupported.txt')
 
 
 def test_empty_dataframe():

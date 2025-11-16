@@ -5,10 +5,31 @@ from unittest.mock import patch, MagicMock
 # NOTE: Adjust import path if needed
 from classifiers.pii_classifier import PIIClassifier
 
+
+# --- New Mock Strategy Class ---
+# Assuming this is defined either here or in conftest.py and is accessible.
+# If defined in conftest.py, you would need to import it here.
+class MockAzureOpenAIStrategy:
+    """Mock to replace AzureOpenAIStrategy during CI/unit testing."""
+
+    def __init__(self, model_name: str):
+        self.model = model_name
+        self.model_name = model_name
+        self.client = MagicMock()
+
+    def generate(self, prompt: str, temperature: float = 0.3, max_new_tokens: int = 200) -> tuple[str, int, int]:
+        return 'mock_generated_text', 1, 1
+
+    def generate_json(self, prompt: str, temperature: float = 0.3, max_new_tokens: int = 200) -> tuple[dict, int, int]:
+        return {'mock_key': 'mock_value'}, 1, 1
+
+    def get_azure_config(self) -> dict[str, str]:
+        return {'endpoint': 'mock_endpoint', 'model': self.model}
+
+
 # --- Test Utilities and Mock Data ---
 
 # Define a fixture for the PII Entities List used in the classifier
-# FIX #1: Changed IP_ADDRESS to IP ADDRESS to match prediction pattern 'IP address detected.'
 MOCK_PII_ENTITIES = ['NAME', 'SSN', 'EMAIL', 'IP ADDRESS', 'AGE']
 MOCK_PII_ENTITIES_PATH = 'classifiers.pii_classifier.PII_ENTITIES_LIST'
 
@@ -16,6 +37,7 @@ MOCK_PII_ENTITIES_PATH = 'classifiers.pii_classifier.PII_ENTITIES_LIST'
 
 
 class MockPIIColumnReport:
+    # ... (contents remain the same) ...
     """Mock the PIIColumnReport data model to capture initialization arguments."""
 
     def __init__(self, **kwargs):
@@ -23,6 +45,7 @@ class MockPIIColumnReport:
 
 
 class MockSDDReport:
+    # ... (contents remain the same) ...
     """Mock the SDDReport data model for PII classification."""
 
     def __init__(self, **kwargs):
@@ -38,6 +61,7 @@ class MockSDDReport:
 
 
 class MockBaseClassifier:
+    # ... (contents remain the same) ...
     """Mock the inherited BaseClassifier, replacing LLM/utility methods with Mocks."""
 
     def __init__(self, model_name: str):
@@ -45,6 +69,33 @@ class MockBaseClassifier:
         # These methods will be replaced by MagicMocks in the fixture
         self._run_prompt = lambda *args, **kwargs: None
         self._has_alphanumeric = lambda *args, **kwargs: True
+
+
+# --- Fixtures ---
+
+
+@pytest.fixture
+def pii_classifier_instance():
+    """
+    Fixture to create PIIClassifier instance with mocked inheritance and
+    dependencies, ensuring MagicMock access to inherited methods.
+    """
+
+    # 1. Patch the BaseClassifier class
+    with (
+        patch('classifiers.pii_classifier.BaseClassifier', MockBaseClassifier),
+        patch(MOCK_PII_ENTITIES_PATH, MOCK_PII_ENTITIES),
+        # 💡 CRITICAL FIX: Patch the AzureOpenAIStrategy to avoid environment variable errors.
+        # Patching path assumes BaseClassifier imports the strategy from llm_model.azure_strategy
+        patch('llm_model.azure_strategy.AzureOpenAIStrategy', MockAzureOpenAIStrategy),
+    ):
+        classifier = PIIClassifier(model_name='pii-model-v1')
+
+        # 2. Critical Fix: Manually replace inherited methods with MagicMocks
+        classifier._run_prompt = MagicMock()
+        classifier._has_alphanumeric = MagicMock()
+
+        yield classifier
 
 
 # --- Fixtures ---
@@ -60,28 +111,6 @@ def sample_df() -> pd.DataFrame:
 def mock_report():
     """Fixture for a fresh MockSDDReport instance."""
     return MockSDDReport(completion_tokens=5, prompt_tokens=15)
-
-
-@pytest.fixture
-def pii_classifier_instance():
-    """
-    Fixture to create PIIClassifier instance with mocked inheritance and
-    dependencies, ensuring MagicMock access to inherited methods.
-    """
-
-    # 1. Patch the BaseClassifier class
-    with (
-        patch('classifiers.pii_classifier.BaseClassifier', MockBaseClassifier),
-        patch(MOCK_PII_ENTITIES_PATH, MOCK_PII_ENTITIES),
-    ):  # Mock the entity list
-        classifier = PIIClassifier(model_name='pii-model-v1')
-
-        # 2. Critical Fix: Manually replace inherited methods with MagicMocks
-        # This allows test configuration (return_value, side_effect) and assertion
-        classifier._run_prompt = MagicMock()
-        classifier._has_alphanumeric = MagicMock()
-
-        yield classifier
 
 
 # =====================================================================
