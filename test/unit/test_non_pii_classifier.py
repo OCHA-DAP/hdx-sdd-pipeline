@@ -9,6 +9,24 @@ from classifiers.non_pii_classifier import NonPIIClassifier
 # --- Mock Classes for Dependencies ---
 
 
+class MockAzureOpenAIStrategy:
+    """Mock to replace AzureOpenAIStrategy during CI/unit testing."""
+
+    def __init__(self, model_name: str):
+        self.model = model_name
+        self.model_name = model_name
+        self.client = MagicMock()
+
+    def generate(self, _prompt: str, _temperature: float = 0.3, _max_new_tokens: int = 200):
+        return 'mock_generated_text', 1, 1
+
+    def generate_json(self, _prompt: str, _temperature: float = 0.3, _max_new_tokens: int = 200):
+        return {'mock_key': 'mock_value'}, 1, 1
+
+    def get_azure_config(self):
+        return {'endpoint': 'mock_endpoint', 'model': self.model}
+
+
 class MockBaseClassifier:
     def __init__(self, model_name: str):
         self.model_name = model_name
@@ -39,10 +57,12 @@ class MockSDDReport:
 @pytest.fixture
 def non_pii_classifier_instance():
     """
-    This fixture automatically uses the MockAzureOpenAIStrategy
-    because conftest.py patches it globally.
+    Fixture to create NonPIIClassifier with Azure strategy mocked out.
     """
-    with patch('classifiers.non_pii_classifier.BaseClassifier', MockBaseClassifier):
+    with (
+        patch('classifiers.non_pii_classifier.BaseClassifier', MockBaseClassifier),
+        patch('classifiers.base_classifier.AzureOpenAIStrategy', MockAzureOpenAIStrategy),
+    ):
         classifier = NonPIIClassifier(model_name='mock-non-pii-model')
         classifier._run_prompt = MagicMock()
         return classifier

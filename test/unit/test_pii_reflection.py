@@ -12,10 +12,10 @@ class MockAzureOpenAIStrategy:
         self.model_name = model_name
         self.client = MagicMock()
 
-    def generate(self, prompt: str, temperature: float = 0.3, max_new_tokens: int = 200):
+    def generate(self, _prompt: str, _temperature: float = 0.3, _max_new_tokens: int = 200):
         return 'mock_generated_text', 1, 1
 
-    def generate_json(self, prompt: str, temperature: float = 0.3, max_new_tokens: int = 200):
+    def generate_json(self, _prompt: str, _temperature: float = 0.3, _max_new_tokens: int = 200):
         return {'mock_key': 'mock_value'}, 1, 1
 
     def get_azure_config(self):
@@ -46,7 +46,7 @@ def classifier():
     """
     Fixture to create PIIReflectionClassifier with Azure strategy mocked out.
     """
-    with patch('llm_model.azure_strategy.AzureOpenAIStrategy', MockAzureOpenAIStrategy):
+    with patch('classifiers.base_classifier.AzureOpenAIStrategy', MockAzureOpenAIStrategy):
         from classifiers.pii_reflection_classifier import PIIReflectionClassifier
 
         c = PIIReflectionClassifier(model_name='mock_model')

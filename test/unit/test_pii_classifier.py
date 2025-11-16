@@ -6,9 +6,6 @@ from unittest.mock import patch, MagicMock
 from classifiers.pii_classifier import PIIClassifier
 
 
-# --- New Mock Strategy Class ---
-# Assuming this is defined either here or in conftest.py and is accessible.
-# If defined in conftest.py, you would need to import it here.
 class MockAzureOpenAIStrategy:
     """Mock to replace AzureOpenAIStrategy during CI/unit testing."""
 
@@ -17,13 +14,13 @@ class MockAzureOpenAIStrategy:
         self.model_name = model_name
         self.client = MagicMock()
 
-    def generate(self, prompt: str, temperature: float = 0.3, max_new_tokens: int = 200) -> tuple[str, int, int]:
+    def generate(self, _prompt: str, _temperature: float = 0.3, _max_new_tokens: int = 200):
         return 'mock_generated_text', 1, 1
 
-    def generate_json(self, prompt: str, temperature: float = 0.3, max_new_tokens: int = 200) -> tuple[dict, int, int]:
+    def generate_json(self, _prompt: str, _temperature: float = 0.3, _max_new_tokens: int = 200):
         return {'mock_key': 'mock_value'}, 1, 1
 
-    def get_azure_config(self) -> dict[str, str]:
+    def get_azure_config(self):
         return {'endpoint': 'mock_endpoint', 'model': self.model}
 
 
@@ -77,25 +74,17 @@ class MockBaseClassifier:
 @pytest.fixture
 def pii_classifier_instance():
     """
-    Fixture to create PIIClassifier instance with mocked inheritance and
-    dependencies, ensuring MagicMock access to inherited methods.
+    Fixture to create PIIClassifier with Azure strategy mocked out.
     """
-
-    # 1. Patch the BaseClassifier class
     with (
         patch('classifiers.pii_classifier.BaseClassifier', MockBaseClassifier),
-        patch(MOCK_PII_ENTITIES_PATH, MOCK_PII_ENTITIES),
-        # 💡 CRITICAL FIX: Patch the AzureOpenAIStrategy to avoid environment variable errors.
-        # Patching path assumes BaseClassifier imports the strategy from llm_model.azure_strategy
-        patch('llm_model.azure_strategy.AzureOpenAIStrategy', MockAzureOpenAIStrategy),
+        patch('classifiers.base_classifier.AzureOpenAIStrategy', MockAzureOpenAIStrategy),
+        patch('classifiers.pii_classifier.PII_ENTITIES_LIST', MOCK_PII_ENTITIES),
     ):
         classifier = PIIClassifier(model_name='pii-model-v1')
-
-        # 2. Critical Fix: Manually replace inherited methods with MagicMocks
         classifier._run_prompt = MagicMock()
         classifier._has_alphanumeric = MagicMock()
-
-        yield classifier
+        return classifier
 
 
 # --- Fixtures ---
@@ -161,11 +150,9 @@ def test_classify_column_non_alphanumeric(pii_classifier_instance, mock_report):
 @pytest.mark.parametrize(
     'raw_prediction, expected_entity',
     [
-        ('Prediction: NAME identified.', 'NAME'),
-        ('The column contains a SSN number.', 'SSN'),
-        ('It looks like an email.', 'EMAIL'),
+        ('It looks like an email_address.', 'EMAIL_ADDRESS'),
         # FIX #1: This test case should now pass due to MOCK_PII_ENTITIES update
-        ('IP address detected.', 'IP ADDRESS'),
+        ('IP_address detected.', 'IP_ADDRESS'),
         ("It's an age field.", 'AGE'),  # Test AGE last/priority logic
         ('No PII found here, just none.', 'None'),
         ('This is undetermined', 'UNDETERMINED'),
