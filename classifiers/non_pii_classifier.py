@@ -54,10 +54,10 @@ class NonPIIClassifier(BaseClassifier):
                 NonPIIReport(
                     model_name=self.model_name,
                     isp_used=isp_name,
-                    sensitivity=prediction['sensitivity'],
-                    sensitive_columns=prediction['sensitive_columns'],
-                    cited_isp_rules=prediction['cited_isp_rules'],
-                    explanation=prediction['explanation'],
+                    sensitivity=prediction.get('sensitivity', 'UNDETERMINED'),
+                    sensitive_columns=prediction.get('sensitive_columns', []),
+                    cited_isp_rules=prediction.get('cited_isp_rules', []),
+                    explanation=prediction.get('explanation', ''),
                 )
             )
             return report
