@@ -134,6 +134,8 @@ class SDDReport:
                 isp_used=non_pii_data.get('isp_used', ''),
                 sensitivity=non_pii_data.get('sensitivity', ''),
                 explanation=non_pii_data.get('explanation', ''),
+                sensitive_columns=non_pii_data.get('sensitive_columns', []),
+                cited_isp_rules=non_pii_data.get('cited_isp_rules', []),
             )
 
         # Build the SDDReport instance
