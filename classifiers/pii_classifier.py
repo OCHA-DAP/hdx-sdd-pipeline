@@ -28,7 +28,7 @@ class PIIClassifier(BaseClassifier):
         k: int = 5,
         version: str = 'v0',
         report: Optional[SDDReport] = None,
-    ) -> None:
+    ) -> SDDReport:
         """
         Detect PII entity type in a column and add a PIIColumnReport to the report.
         Updates report.completion_tokens and report.prompt_tokens.
@@ -50,7 +50,7 @@ class PIIClassifier(BaseClassifier):
                     },
                 )
             )
-            return
+            return report
 
         context = {'column_name': column_name, 'sample_values': sample_values}
 
@@ -75,7 +75,7 @@ class PIIClassifier(BaseClassifier):
                     },
                 )
             )
-            return report  # This should be `return` not `return report` since it's a void function
+            return report
 
         # Normalize prediction
         prediction_lower = prediction.lower() if isinstance(prediction, str) else ''

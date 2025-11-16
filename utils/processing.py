@@ -43,7 +43,8 @@ class DataSampler:
 
         if header_end_row is None:
             # Fallback: treat first row as header
-            raise ValueError('No fully populated header row found')
+            print('No fully populated header row found')
+            header_end_row = 0
 
         # Extract header block and fill missing cells
         header_block = df.iloc[: header_end_row + 1].fillna('').astype(str)
