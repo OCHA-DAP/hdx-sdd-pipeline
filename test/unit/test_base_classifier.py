@@ -1,14 +1,7 @@
 import pytest
 from unittest.mock import patch
 from typing import Dict, Any
-
-# NOTE: Adjust this import path if your test file is not in a location
-# where it can import the module correctly (e.g., if you need to mock the path).
-# Assuming src/classifiers/base_classifier.py is importable as this path:
 from classifiers.base_classifier import BaseClassifier
-
-
-# --- Mock Classes for Dependencies ---
 
 
 class MockPromptManager:

@@ -46,7 +46,7 @@ def table_markdown(report: SDDReport) -> str:
     column_samples = {}
     for col in report.columns:
         key = (
-            f'{col.column_name} - {col.pii.get("entity_type")}'
+            f"{col.column_name} - {col.pii.get('entity_type', 'None')}"
             if col.pii.get('entity_type') != 'None'
             else col.column_name
         )
