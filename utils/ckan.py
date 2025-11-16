@@ -61,6 +61,8 @@ class CKANClient:
 
     def resource_show(self, resource_id: str) -> Optional[dict]:
         """Fetch details about a resource."""
+        if not isinstance(resource_id, str):
+            raise ValueError('resource_id must be a string')
         print('Fetching resource: %s', resource_id)
         return self._request('resource_show', params={'id': resource_id})
 
