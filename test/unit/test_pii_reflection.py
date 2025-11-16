@@ -1,9 +1,5 @@
 import pytest
 import logging
-from unittest.mock import patch
-
-from classifiers.pii_reflection_classifier import PIIReflectionClassifier
-import pytest
 from unittest.mock import patch, MagicMock
 
 

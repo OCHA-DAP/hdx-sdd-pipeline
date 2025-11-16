@@ -17,7 +17,7 @@ class CKANClient:
         api_token: Optional[str] = None,
     ):
         # --- Configuration ---
-        self.base_url = base_url or os.getenv('CKAN_URL')
+        self.base_url = base_url or os.getenv('HDX_URL')
         self.api_token = api_token or os.getenv('HDX_KEY')
         self.project_root = Path(__file__).resolve().parent.parent
         self.headers = {'Authorization': self.api_token} if self.api_token else {}
