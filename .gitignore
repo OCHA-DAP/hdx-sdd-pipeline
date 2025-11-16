@@ -234,3 +234,5 @@ logging.conf
 .DS_Store
 # Do include test/unit/downloads/
 !test/unit/downloads/
+
+to_remove.py
