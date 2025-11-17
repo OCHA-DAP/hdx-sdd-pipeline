@@ -32,6 +32,10 @@ class Config:
     DOWNLOAD_DIR: str = os.getenv('DOWNLOAD_DIR', '/tmp/download')
     OUTPUT_DIR: str = os.getenv('OUTPUT_DIR', '/tmp/reports')
 
+    # Azure endpoints
+    AZURE_OPENAI_ENDPOINT: str = os.getenv('AZURE_OPENAI_ENDPOINT', '')
+    AZURE_OPENAI_API_KEY: str = os.getenv('AZURE_OPENAI_API_KEY', '')
+
 
 def get_config() -> Config:
     """Return config object for current environment."""

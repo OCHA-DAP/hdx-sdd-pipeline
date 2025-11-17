@@ -10,11 +10,11 @@ class AzureOpenAIStrategy:
     Strategy for using OpenAI models through Azure API.
     """
 
-    def __init__(self, model_name: str):
+    def __init__(self, model_name: str, azure_endpoint: str, api_key: str):
         load_dotenv()
         # Azure-specific configuration
-        self.azure_endpoint = os.getenv('AZURE_OPENAI_ENDPOINT')
-        self.api_key = os.getenv('AZURE_OPENAI_API_KEY')
+        self.azure_endpoint = azure_endpoint
+        self.api_key = api_key
         self.client = None
         self.model = model_name
         self._setup_client()

@@ -74,9 +74,21 @@ def process_sheet(df, sheet_name, file_name, download_url, resource_id, isp):
         n_columns=len(df.columns),
     )
 
-    report = PIIClassifier(model_name=config.PII_DETECT_MODEL).classify_df(df, report)
-    report = PIIReflectionClassifier(model_name=config.PII_REFLECT_MODEL).classify_df(table_markdown(report), report)
-    report = NonPIIClassifier(model_name=config.NON_PII_DETECT_MODEL).classify(table_markdown(report), report, isp)
+    report = PIIClassifier(
+        model_name=config.PII_DETECT_MODEL,
+        azure_endpoint=config.AZURE_OPENAI_ENDPOINT,
+        api_key=config.AZURE_OPENAI_API_KEY,
+    ).classify_df(df, report)
+    report = PIIReflectionClassifier(
+        model_name=config.PII_REFLECT_MODEL,
+        azure_endpoint=config.AZURE_OPENAI_ENDPOINT,
+        api_key=config.AZURE_OPENAI_API_KEY,
+    ).classify_df(table_markdown(report), report)
+    report = NonPIIClassifier(
+        model_name=config.NON_PII_DETECT_MODEL,
+        azure_endpoint=config.AZURE_OPENAI_ENDPOINT,
+        api_key=config.AZURE_OPENAI_API_KEY,
+    ).classify(table_markdown(report), report, isp)
 
     return report.to_dict()
 

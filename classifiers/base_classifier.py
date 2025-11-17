@@ -26,10 +26,10 @@ class BaseClassifier:
         'severe_sensitive': 'SEVERE_SENSITIVE',
     }
 
-    def __init__(self, model_name: str):
+    def __init__(self, model_name: str, azure_endpoint: str, api_key: str):
         self.model_name = model_name
         self.prompt_manager = PromptManager()
-        self.model = AzureOpenAIStrategy(model_name=model_name)
+        self.model = AzureOpenAIStrategy(model_name=model_name, azure_endpoint=azure_endpoint, api_key=api_key)
 
     # ---------------------------------------------------------------------
     # 🧰 Helper Methods
