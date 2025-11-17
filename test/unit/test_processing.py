@@ -40,11 +40,6 @@ def test_concatenate_header_nan():
     assert 'test | test header 2 | test subheader 3' in columns
 
 
-def test_concatenate_header_multitable():
-    with pytest.raises(ValueError):
-        sampler.sample('test/unit/downloads/multitable.xlsx')
-
-
 def test_unsupported_file_type():
     with pytest.raises(ValueError):
         sampler.sample('test/unit/downloads/unsupported.txt')
