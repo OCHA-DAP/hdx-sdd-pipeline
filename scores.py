@@ -9,7 +9,6 @@ the results as a JSON file.
 
 import json
 import sys
-from pathlib import Path
 import pandas as pd
 from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score
 
@@ -59,7 +58,7 @@ def calculate_metrics(df: pd.DataFrame):
 
 def main():
     if len(sys.argv) != 4:
-        print("Usage: python calculate_scores.py <groundtruth.json> <predictions.json> <llm_model>")
+        print('Usage: python calculate_scores.py <groundtruth.json> <predictions.json> <llm_model>')
         sys.exit(1)
 
     gt_file = sys.argv[1]
@@ -78,10 +77,10 @@ def main():
     }
 
     # Generate output filename
-    output_file = f"research/results/test_results/{llm_model}_scores.json"
+    output_file = f'research/results/test_results/{llm_model}_scores.json'
     with open(output_file, 'w', encoding='utf-8') as f:
         json.dump(metrics, f, indent=2)
-    print(f"Metrics saved to {output_file}")
+    print(f'Metrics saved to {output_file}')
 
 
 if __name__ == '__main__':
