@@ -12,9 +12,11 @@ from classifiers.non_pii_classifier import NonPIIClassifier
 class MockAzureOpenAIStrategy:
     """Mock to replace AzureOpenAIStrategy during CI/unit testing."""
 
-    def __init__(self, model_name: str):
+    def __init__(self, model_name: str, azure_endpoint: str, api_key: str):
         self.model = model_name
         self.model_name = model_name
+        self.azure_endpoint = azure_endpoint
+        self.api_key = api_key
         self.client = MagicMock()
 
     def generate(self, _prompt: str, _temperature: float = 0.3, _max_new_tokens: int = 200):
@@ -28,8 +30,10 @@ class MockAzureOpenAIStrategy:
 
 
 class MockBaseClassifier:
-    def __init__(self, model_name: str):
+    def __init__(self, model_name: str, azure_endpoint: str, api_key: str):
         self.model_name = model_name
+        self.azure_endpoint = azure_endpoint
+        self.api_key = api_key
 
 
 class MockNonPIIReport:
@@ -63,7 +67,9 @@ def non_pii_classifier_instance():
         patch('classifiers.non_pii_classifier.BaseClassifier', MockBaseClassifier),
         patch('classifiers.base_classifier.AzureOpenAIStrategy', MockAzureOpenAIStrategy),
     ):
-        classifier = NonPIIClassifier(model_name='mock-non-pii-model')
+        classifier = NonPIIClassifier(
+            model_name='mock-non-pii-model', azure_endpoint='mock_endpoint', api_key='mock_api_key'
+        )
         classifier._run_prompt = MagicMock()
         return classifier
 

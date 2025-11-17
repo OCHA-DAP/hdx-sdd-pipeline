@@ -19,8 +19,10 @@ class MockPromptManager:
 class MockAzureOpenAIStrategy:
     """Mock AzureOpenAIStrategy class with generate methods."""
 
-    def __init__(self, model_name: str):
+    def __init__(self, model_name: str, azure_endpoint: str, api_key: str):
         self.model_name = model_name
+        self.azure_endpoint = azure_endpoint
+        self.api_key = api_key
 
     def generate(self, prompt: str, max_new_tokens: int) -> tuple:
         """Simulates non-JSON generation."""
@@ -45,7 +47,7 @@ def base_classifier_instance():
     # Patch the external classes that BaseClassifier instantiates
     with patch(PROMPT_MANAGER_PATH, MockPromptManager), patch(AZURE_OPENAI_PATH, MockAzureOpenAIStrategy):
         # Instantiate BaseClassifier (it will use the mocked classes)
-        classifier = BaseClassifier(model_name='mock_model')
+        classifier = BaseClassifier(model_name='mock_model', azure_endpoint='mock_endpoint', api_key='mock_api_key')
         yield classifier
 
 
