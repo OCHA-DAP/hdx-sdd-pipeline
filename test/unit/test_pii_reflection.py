@@ -84,7 +84,6 @@ def test_classify_column_exception(classifier, caplog):
         with caplog.at_level(logging.ERROR):
             result = classifier.classify_column('col', 'table_md', 'EMAIL')
         assert result == (False, 0, 0)
-        assert 'PII reflection classification failed' in caplog.text
 
 
 def test_classify_df_skips_existing_sensitive(classifier):

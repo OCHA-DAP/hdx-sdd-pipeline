@@ -1,6 +1,25 @@
 # utils/processing.py
 from typing import Dict
 import pandas as pd
+from models.sdd_report import SDDReport
+
+
+def table_markdown(report: SDDReport) -> str:
+    """Generate a markdown table from the report sample columns."""
+    column_samples = {}
+    for col in report.columns:
+        key = (
+            f'{col.column_name} - {col.pii.get("entity_type", "None")}'
+            if col.pii.get('entity_type') != 'None'
+            else col.column_name
+        )
+        column_samples[key] = col.sample_values
+
+    max_len = max(len(values) for values in column_samples.values())
+    for key, values in column_samples.items():
+        column_samples[key] = values + [''] * (max_len - len(values))
+
+    return pd.DataFrame(column_samples).to_markdown(index=False) or ''
 
 
 class DataSampler:

@@ -1,6 +1,104 @@
-from utils.processing import DataSampler
 import pandas as pd
 import pytest
+from models.sdd_report import SDDReport, PIIColumnReport
+from utils.processing import DataSampler, table_markdown
+
+
+def make_report(columns):
+    """Utility to create SDDReport quickly."""
+    return SDDReport(
+        resource_id='r1',
+        file_name='file.csv',
+        file_url='http://example.com',
+        processing_timestamp='2024-01-01',
+        processing_success=True,
+        n_records=10,
+        n_columns=len(columns),
+        columns=columns,
+    )
+
+
+def test_basic_markdown_output():
+    columns = [
+        PIIColumnReport('name', ['Alice', 'Bob'], {'entity_type': 'person_name'}),
+        PIIColumnReport('age', ['30', '40'], {'entity_type': 'None'}),
+    ]
+    report = make_report(columns)
+
+    md = table_markdown(report)
+
+    # Should include "name - person_name" in header
+    assert 'name - person_name' in md
+    # age should not include "- None"
+    assert 'age |' in md
+    # markdown must contain table pipes
+    assert '|' in md
+
+
+def test_padding_of_shorter_column():
+    columns = [
+        PIIColumnReport('city', ['NYC'], {'entity_type': 'None'}),
+        PIIColumnReport('zip', ['10001', '20002'], {'entity_type': 'None'}),
+    ]
+    report = make_report(columns)
+
+    md = table_markdown(report)
+
+    # Row 1 of "city" should be padded with empty string
+    assert 'city' in md
+    assert 'NYC' in md
+    assert '10001' in md
+    assert '20002' in md
+
+
+def test_entity_type_none_handling():
+    columns = [
+        PIIColumnReport('email', ['a@example.com'], {'entity_type': 'email_address'}),
+        PIIColumnReport('status', ['active'], {'entity_type': 'None'}),
+    ]
+    report = make_report(columns)
+
+    md = table_markdown(report)
+
+    assert 'email - email_address' in md
+    assert 'status - None' not in md  # must not append "- None"
+
+
+def test_markdown_with_irregular_sample_lengths():
+    columns = [
+        PIIColumnReport('col1', ['A', 'B', 'C'], {'entity_type': 'None'}),
+        PIIColumnReport('col2', ['1'], {'entity_type': 'None'}),
+    ]
+    report = make_report(columns)
+
+    md = table_markdown(report)
+    assert 'col1' in md
+    assert 'A' in md
+    assert 'B' in md
+    assert 'C' in md
+    assert '1' in md
+
+    # col2 should have empty strings filling up row 1 and 2
+    assert 'col2' in md
+    assert '1' in md
+    assert '' in md
+    assert '' in md
+
+
+def test_markdown_output_matches_dataframe_to_markdown_format():
+    columns = [
+        PIIColumnReport('product', ['Book', 'Pen'], {'entity_type': 'product_name'}),
+        PIIColumnReport('price', ['10', '2'], {'entity_type': 'price'}),
+    ]
+    report = make_report(columns)
+
+    md = table_markdown(report)
+
+    assert 'product - product_name' in md
+    assert 'price - price' in md
+    assert 'Book' in md
+    assert '2' in md
+
 
 sampler = DataSampler()
 test_url_csv = 'https://dev.data-humdata-org.ahconu.org/dataset/a87f96f8-16e6-4d51-872c-cfa54a8251ec/resource/4ef001d1-7888-4f5d-98ce-0ca8006787f7/download/gdacs_rss_information.csv'

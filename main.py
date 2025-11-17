@@ -3,18 +3,17 @@
 import logging.config
 import json
 import datetime
-import pandas as pd
 from hdx_redis_lib import connect_to_hdx_event_bus, RedisConfig
 from config.config import get_config
 from models.sdd_report import SDDReport
 from utils.ckan import CKANClient
-from utils.processing import DataSampler
+from utils.processing import DataSampler, table_markdown
 from classifiers.pii_classifier import PIIClassifier
 from classifiers.non_pii_classifier import NonPIIClassifier
 from classifiers.pii_reflection_classifier import PIIReflectionClassifier
 from classifiers.readme_scan import ReadMeScanClassifier
 
-logging.config.fileConfig('logging.conf')
+logging.config.fileConfig('logging.dev.conf')
 logger = logging.getLogger(__name__)
 
 config = get_config()
@@ -41,24 +40,6 @@ def load_isp_info(file_name: str) -> dict:
     return {'default': isps.get('default')}
 
 
-def table_markdown(report: SDDReport) -> str:
-    """Generate a markdown table from the report sample columns."""
-    column_samples = {}
-    for col in report.columns:
-        key = (
-            f'{col.column_name} - {col.pii.get("entity_type", "None")}'
-            if col.pii.get('entity_type') != 'None'
-            else col.column_name
-        )
-        column_samples[key] = col.sample_values
-
-    max_len = max(len(values) for values in column_samples.values())
-    for key, values in column_samples.items():
-        column_samples[key] = values + [''] * (max_len - len(values))
-
-    return pd.DataFrame(column_samples).to_markdown(index=False) or ''
-
-
 def process_sheet(df, sheet_name, file_name, download_url, resource_id, isp):
     """Process a single sheet: PII, Reflection, and Non-PII classification."""
     logger.info('Processing sheet: %s', sheet_name)
@@ -75,8 +56,14 @@ def process_sheet(df, sheet_name, file_name, download_url, resource_id, isp):
     )
 
     report = PIIClassifier(model_name=config.PII_DETECT_MODEL).classify_df(df, report)
+    print('===============================================PIIClassifier')
+    print(report)
     report = PIIReflectionClassifier(model_name=config.PII_REFLECT_MODEL).classify_df(table_markdown(report), report)
+    print('PIIReflectionClassifier')
+    print(report)
     report = NonPIIClassifier(model_name=config.NON_PII_DETECT_MODEL).classify(table_markdown(report), report, isp)
+    print('NonPIIClassifier')
+    print(report)
 
     return report.to_dict()
 
