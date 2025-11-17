@@ -13,7 +13,7 @@
     "pii_classifier_model": null,
     "pii_reflection_model": null,
     "pii_sensitive": true,
-    "non_pii_sensitive": false,
+    "non_pii_sensitive": true,
     "columns": [
       {
         "column_name": "test",

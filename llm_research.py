@@ -2,6 +2,7 @@
 
 import json
 import pandas as pd
+import os
 import datetime
 from pathlib import Path
 from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score
@@ -74,18 +75,18 @@ def process_sheet_for_groundtruth(df, sheet_name, file_name, download_url, resou
         column_report = PIIColumnReport(
             column_name=col,
             sample_values=df[col].dropna().astype(str).head(3).tolist(),  # small sample
-            pii={"entity_type": "unknown", "sensitive": False},
+            pii={'entity_type': 'unknown', 'sensitive': False},
         )
         report.add_pii_column(column_report)
 
     # Add empty non-PII report
     non_pii_report = NonPIIReport(
-        model_name="none",
+        model_name='none',
         isp_used=list(isp.keys())[0],
-        sensitivity="none",
+        sensitivity='none',
         sensitive_columns=[],
         cited_isp_rules=[],
-        explanation="Empty groundtruth; no classification run.",
+        explanation='Empty groundtruth; no classification run.',
     )
     report.add_non_pii_report(non_pii_report)
 
@@ -103,6 +104,9 @@ def run_test_pipeline_groundtruth(test_files: list, output_dir: str):
     groundtruth_path.mkdir(exist_ok=True)
 
     for test_file in test_files:
+        if os.path.exists(groundtruth_path / f'{Path(test_file).stem}.json'):
+            print(f'Skipping {test_file} groundtruth because it already exists')
+            continue
         dfs = load_test_data(test_file)
         isp = load_isp_info(test_file)
         resource_id = Path(test_file).stem
@@ -114,11 +118,11 @@ def run_test_pipeline_groundtruth(test_files: list, output_dir: str):
             )
             reports.append(report_dict)
 
-        gt_file = groundtruth_path / f"{Path(test_file).stem}.json"
+        gt_file = groundtruth_path / f'{Path(test_file).stem}.json'
         with open(gt_file, 'w', encoding='utf-8') as f:
             json.dump(reports, f, indent=2)
 
-    print(f"Empty groundtruth reports generated at: {groundtruth_path}")
+        print(f'Empty groundtruth reports generated for {test_file} at: {groundtruth_path}')
 
 
 def run_test_pipeline(test_files: list, llm_model: str, output_dir: str):
@@ -137,25 +141,32 @@ def run_test_pipeline(test_files: list, llm_model: str, output_dir: str):
     llm_folder = output_path / llm_model
     llm_folder.mkdir(exist_ok=True)
 
+    # Check if output path already exists
+
     metrics_summary = {}
     for test_file in test_files:
-        dfs = load_test_data(test_file)
-        isp = load_isp_info(test_file)
-        resource_id = Path(test_file).stem
-        reports = []
-        for sheet_name, df in dfs.items():
-            report_dict = process_sheet_for_testing(
-                df, sheet_name, Path(test_file).name, test_file, resource_id, isp, llm_model
-            )
-            reports.append(report_dict)
+        if os.path.exists(llm_folder / f'{Path(test_file).stem}.json'):
+            print(f'Skipping {test_file} because it already exists')
+            reports = json.load(open(llm_folder / f'{Path(test_file).stem}.json', 'r'))
+            # continue
+        else:
+            dfs = load_test_data(test_file)
+            isp = load_isp_info(test_file)
+            resource_id = Path(test_file).stem
+            reports = []
+            for sheet_name, df in dfs.items():
+                report_dict = process_sheet_for_testing(
+                    df, sheet_name, Path(test_file).name, test_file, resource_id, isp, llm_model
+                )
+                reports.append(report_dict)
 
-        # Save LLM output
-        out_file = llm_folder / f"{Path(test_file).stem}.json"
-        with open(out_file, 'w', encoding='utf-8') as f:
-            json.dump(reports, f, indent=2)
+            # Save LLM output
+            out_file = llm_folder / f'{Path(test_file).stem}.json'
+            with open(out_file, 'w', encoding='utf-8') as f:
+                json.dump(reports, f, indent=2)
 
         # Evaluate metrics against ground truth
-        gt_file = groundtruth_path / f"{Path(test_file).stem}.json"
+        gt_file = groundtruth_path / f'{Path(test_file).stem}.json'
         with open(gt_file, 'r', encoding='utf-8') as f:
             gt_reports = json.load(f)
 
@@ -187,7 +198,7 @@ def run_test_pipeline(test_files: list, llm_model: str, output_dir: str):
         }
 
     # Save summary metrics
-    metrics_file = output_path / f"{llm_model}_metrics_summary.json"
+    metrics_file = output_path / f'{llm_model}_metrics_summary.json'
     with open(metrics_file, 'w', encoding='utf-8') as f:
         json.dump(metrics_summary, f, indent=2)
 
@@ -201,6 +212,6 @@ if __name__ == '__main__':
     test_files = ['research/data/data.xlsx']
     output_dir = 'research/results/test_results'
 
-    # run_test_pipeline_groundtruth(test_files, output_dir)
+    run_test_pipeline_groundtruth(test_files, output_dir)
 
     run_test_pipeline(test_files, llm_model, output_dir)
