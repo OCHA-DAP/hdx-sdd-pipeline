@@ -1,4 +1,4 @@
-# src/classifiers/pii_sensitivity_classifier.py
+# classifiers/pii_sensitivity_classifier.py
 import logging
 from typing import Any, Dict
 from tqdm import tqdm

@@ -46,7 +46,7 @@ def table_markdown(report: SDDReport) -> str:
     column_samples = {}
     for col in report.columns:
         key = (
-            f"{col.column_name} - {col.pii.get('entity_type')}"
+            f'{col.column_name} - {col.pii.get("entity_type", "None")}'
             if col.pii.get('entity_type') != 'None'
             else col.column_name
         )
@@ -74,9 +74,21 @@ def process_sheet(df, sheet_name, file_name, download_url, resource_id, isp):
         n_columns=len(df.columns),
     )
 
-    report = PIIClassifier(model_name=config.PII_DETECT_MODEL).classify_df(df, report)
-    report = PIIReflectionClassifier(model_name=config.PII_REFLECT_MODEL).classify_df(table_markdown(report), report)
-    report = NonPIIClassifier(model_name=config.NON_PII_DETECT_MODEL).classify(table_markdown(report), report, isp)
+    report = PIIClassifier(
+        model_name=config.PII_DETECT_MODEL,
+        azure_endpoint=config.AZURE_OPENAI_ENDPOINT,
+        api_key=config.AZURE_OPENAI_API_KEY,
+    ).classify_df(df, report)
+    report = PIIReflectionClassifier(
+        model_name=config.PII_REFLECT_MODEL,
+        azure_endpoint=config.AZURE_OPENAI_ENDPOINT,
+        api_key=config.AZURE_OPENAI_API_KEY,
+    ).classify_df(table_markdown(report), report)
+    report = NonPIIClassifier(
+        model_name=config.NON_PII_DETECT_MODEL,
+        azure_endpoint=config.AZURE_OPENAI_ENDPOINT,
+        api_key=config.AZURE_OPENAI_API_KEY,
+    ).classify(table_markdown(report), report, isp)
 
     return report.to_dict()
 
@@ -86,11 +98,11 @@ def determine_sensitivity(reports: list) -> str:
     pii_sensitive = [r.get('pii_sensitive') for r in reports]
     non_pii_sensitive = [r.get('non_pii_sensitive') for r in reports]
 
-    if True in pii_sensitive and True in non_pii_sensitive:
+    if any(pii_sensitive) and any(non_pii_sensitive):
         return 'sensitive-pii-and-non-pii'
-    if True in pii_sensitive and True not in non_pii_sensitive:
+    if any(pii_sensitive) and not any(non_pii_sensitive):
         return 'sensitive-pii'
-    if True not in pii_sensitive and True in non_pii_sensitive:
+    if not any(pii_sensitive) and any(non_pii_sensitive):
         return 'sensitive-non-pii'
     return 'not-sensitive'
 
@@ -122,7 +134,7 @@ def event_processor(event):
         isp = load_isp_info(file_name)
 
         sampler = DataSampler()
-        dfs = sampler.sample_from_url(download_url)
+        dfs = sampler.sample(download_url)
 
         reports = []
         for sheet_name, df in dfs.items():
@@ -153,7 +165,7 @@ def event_processor(event):
 
         elapsed = datetime.datetime.now() - start_time
         logger.info(
-            f'Finished processing resource {resource_id} ({file_name}) ' f'in {elapsed}. Sensitivity: {sensitivity}'
+            f'Finished processing resource {resource_id} ({file_name}) in {elapsed}. Sensitivity: {sensitivity}'
         )
 
         return True, f'Processed successfully ({sensitivity})'

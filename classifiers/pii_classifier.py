@@ -1,5 +1,3 @@
-"""classifiers/pii_classifier.py: Handles detection of PII entities."""
-
 import logging
 from typing import Any, List, Dict, Optional
 import pandas as pd
@@ -30,7 +28,7 @@ class PIIClassifier(BaseClassifier):
         k: int = 5,
         version: str = 'v0',
         report: Optional[SDDReport] = None,
-    ) -> None:
+    ) -> SDDReport:
         """
         Detect PII entity type in a column and add a PIIColumnReport to the report.
         Updates report.completion_tokens and report.prompt_tokens.
@@ -52,7 +50,7 @@ class PIIClassifier(BaseClassifier):
                     },
                 )
             )
-            return
+            return report
 
         context = {'column_name': column_name, 'sample_values': sample_values}
 
@@ -109,5 +107,8 @@ class PIIClassifier(BaseClassifier):
             # TODO: Check if the column is already classified
             sample_values = df[column].dropna().astype(str).tolist()
             self._classify_column(column_name=column, sample_values=sample_values, report=report)
-            report.pii_classifier_model = self.model_name
+
+        # 🐛 FIX: Moved model assignment outside the loop so it runs even if df is empty
+        report.pii_classifier_model = self.model_name
+
         return report

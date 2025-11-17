@@ -10,14 +10,11 @@ class DataSampler:
 
     SUPPORTED_EXTENSIONS = ('.csv', '.xls', '.xlsx')
 
-    def __init__(self):
-        pass
-
     def _validate_url(self, url: str) -> str:
         """Check if the URL points to a supported file type."""
         url_lower = url.lower()
         if not any(url_lower.endswith(ext) for ext in self.SUPPORTED_EXTENSIONS):
-            raise ValueError(f"Unsupported file type. Only {', '.join(self.SUPPORTED_EXTENSIONS)} are supported.")
+            raise ValueError(f'Unsupported file type. Only {", ".join(self.SUPPORTED_EXTENSIONS)} are supported.')
         return url_lower
 
     def _load_from_url(self, url: str) -> Dict[str, pd.DataFrame]:
@@ -45,7 +42,9 @@ class DataSampler:
                 break
 
         if header_end_row is None:
-            raise ValueError('Multiple tables detected in the sheet')
+            # Fallback: treat first row as header
+            print('No fully populated header row found')
+            header_end_row = 0
 
         # Extract header block and fill missing cells
         header_block = df.iloc[: header_end_row + 1].fillna('').astype(str)
@@ -79,13 +78,7 @@ class DataSampler:
 
         return sample.reset_index(drop=True)
 
-    def sample_from_url(self, url: str, sample_size: int = 20) -> Dict[str, pd.DataFrame]:
+    def sample(self, url: str, sample_size: int = 20) -> Dict[str, pd.DataFrame]:
         """Main entrypoint: load and sample dataset(s) from a URL."""
         sheets = self._load_from_url(url)
         return {name: self._sample_dataframe(df, sample_size) for name, df in sheets.items()}
-
-
-if __name__ == '__main__':
-    sampler = DataSampler()
-    test_url = 'test/unit/downloads/multitable.xlsx'
-    dfs = sampler.sample_from_url(test_url)

@@ -68,10 +68,6 @@ class CKANClient:
 
     def update_resource_fields(self, resource_id: str, fields: Dict[str, Any]) -> Optional[dict]:
         """Update one or more fields of a CKAN resource."""
-        if not isinstance(fields, dict):
-            raise ValueError('fields must be a dictionary')
-        if not isinstance(resource_id, str):
-            raise ValueError('resource_id must be a string')
         if not self.api_token:
             raise EnvironmentError('CKAN_API_TOKEN is required to update resources')
 

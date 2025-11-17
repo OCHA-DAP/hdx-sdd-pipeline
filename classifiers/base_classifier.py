@@ -26,10 +26,10 @@ class BaseClassifier:
         'severe_sensitive': 'SEVERE_SENSITIVE',
     }
 
-    def __init__(self, model_name: str):
+    def __init__(self, model_name: str, azure_endpoint: str, api_key: str):
         self.model_name = model_name
         self.prompt_manager = PromptManager()
-        self.model = AzureOpenAIStrategy(model_name=model_name)
+        self.model = AzureOpenAIStrategy(model_name=model_name, azure_endpoint=azure_endpoint, api_key=api_key)
 
     # ---------------------------------------------------------------------
     # 🧰 Helper Methods
@@ -56,7 +56,7 @@ class BaseClassifier:
         version: str = 'v0',
         max_new_tokens: int = 256,
         json_response_format: bool = False,
-    ) -> str:
+    ) -> tuple[Any, int, int]:
         """Render a Jinja prompt and run the model."""
         try:
             prompt = self.prompt_manager.get_prompt(prompt_name=prompt_name, version=version, context=context)

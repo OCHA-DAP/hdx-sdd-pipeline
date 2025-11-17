@@ -28,8 +28,8 @@ class NonPIIClassifier(BaseClassifier):
         report: SDDReport,
         isp: Optional[Dict[str, Any]] = None,
         max_new_tokens: int = 512,
-        version: str = 'v0',
-    ) -> Dict[str, Any]:
+        version: str = 'v1',
+    ) -> SDDReport:
         """Classify the sensitivity level of non-PII sensitive data."""
         if isp is None:
             raise ValueError('ISP is required')
@@ -40,17 +40,24 @@ class NonPIIClassifier(BaseClassifier):
             if report.non_pii is not None:
                 return report
             prediction, completion_tokens, prompt_tokens = self._run_prompt(
-                'non_pii_detection', context, version, max_new_tokens
+                'non_pii_detection',
+                context,
+                version,
+                max_new_tokens,
+                json_response_format=True,
             )
-            report.completion_tokens += completion_tokens
-            report.prompt_tokens += prompt_tokens
-            pred_level = self.format_prediction(prediction)
+            if isinstance(completion_tokens, int):
+                report.completion_tokens += completion_tokens
+            if isinstance(prompt_tokens, int):
+                report.prompt_tokens += prompt_tokens
             report.add_non_pii_report(
                 NonPIIReport(
                     model_name=self.model_name,
                     isp_used=isp_name,
-                    sensitivity=pred_level,
-                    explanation=prediction,
+                    sensitivity=prediction.get('sensitivity', 'UNDETERMINED'),
+                    sensitive_columns=prediction.get('sensitive_columns', []),
+                    cited_isp_rules=prediction.get('cited_isp_rules', []),
+                    explanation=prediction.get('explanation', ''),
                 )
             )
             return report

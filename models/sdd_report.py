@@ -1,7 +1,6 @@
 from dataclasses import dataclass, field, asdict
 from typing import List, Dict, Any, Optional, Union
 import json
-from datetime import datetime
 
 
 # Entity Types for PII Classification
@@ -38,6 +37,8 @@ class NonPIIReport:
     model_name: str
     isp_used: str
     sensitivity: str
+    sensitive_columns: List[str]
+    cited_isp_rules: List[str]
     explanation: str
 
     def to_dict(self) -> Dict[str, Any]:
@@ -77,7 +78,14 @@ class SDDReport:
         """Adds a new non-PII report to the SDD."""
         self.non_pii = non_pii_report
         # If the non-PII report mentions sensitivity, set the non_pii_sensitive flag to True
-        if non_pii_report.sensitivity.lower() in ['high', 'high_sensitive']:
+        if non_pii_report.sensitivity.lower() in [
+            'high',
+            'high_sensitive',
+            'moderate',
+            'moderate_sensitive',
+            'severe',
+            'severe_sensitive',
+        ]:
             self.non_pii_sensitive = True
 
     def update_pii_column(self, column_name: str, entity_type: str = None, sensitive: bool = None):
@@ -126,6 +134,8 @@ class SDDReport:
                 isp_used=non_pii_data.get('isp_used', ''),
                 sensitivity=non_pii_data.get('sensitivity', ''),
                 explanation=non_pii_data.get('explanation', ''),
+                sensitive_columns=non_pii_data.get('sensitive_columns', []),
+                cited_isp_rules=non_pii_data.get('cited_isp_rules', []),
             )
 
         # Build the SDDReport instance
@@ -148,43 +158,3 @@ class SDDReport:
         )
 
         return report
-
-
-# ---------------------------
-# Example usage
-# ---------------------------
-if __name__ == '__main__':
-    # Sample metadata
-    metadata = {'isp_used': 'default'}
-
-    # Create the SDD report
-    report = SDDReport(
-        resource_id='1234567890',
-        file_name='example.csv',
-        file_url='https://example.com/example.csv',
-        processing_timestamp=datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
-        processing_success=True,
-        n_records=100,
-        n_columns=10,
-    )
-
-    # Add PII column reports
-    report.add_pii_column(
-        PIIColumnReport(
-            column_name='email_address',
-            sample_values=['john@example.com', 'jane@company.com'],
-            pii={'entity_type': 'email_address', 'sensitive': True},
-        )
-    )
-
-    # Add Non-PII report
-    report.add_non_pii_report(
-        NonPIIReport(
-            model_name='gpt-4.1-nano',
-            sensitivity='LOW',
-            explanation='The table contains email addresses, which are considered sensitive data.',
-        )
-    )
-
-    # Print the JSON output
-    print(report.to_json(indent=2))

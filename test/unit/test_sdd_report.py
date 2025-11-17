@@ -25,6 +25,8 @@ def sample_non_pii():
         isp_used='default',
         sensitivity='HIGH',
         explanation='Test explanation',
+        sensitive_columns=['email'],
+        cited_isp_rules=['email is sensitive'],
     )
 
 
@@ -112,7 +114,14 @@ def test_add_non_pii_report_low_sensitivity():
         n_records=0,
         n_columns=0,
     )
-    non_pii = NonPIIReport(model_name='m', isp_used='default', sensitivity='LOW', explanation='none')
+    non_pii = NonPIIReport(
+        model_name='m',
+        isp_used='default',
+        sensitivity='LOW',
+        explanation='none',
+        sensitive_columns=[],
+        cited_isp_rules=[],
+    )
     report.add_non_pii_report(non_pii)
     assert report.non_pii_sensitive is False
 
@@ -177,3 +186,15 @@ def test_from_json_with_non_pii(sample_non_pii):
     report = SDDReport.from_json(data)
     assert report.non_pii.sensitivity == 'HIGH'
     assert isinstance(report.non_pii, NonPIIReport)
+
+
+def test_pii_column_report_to_dict():
+    report = PIIColumnReport(
+        column_name='email',
+        sample_values=['a@example.com', 'b@example.com'],
+        pii={'entity_type': 'email_address', 'sensitive': True},
+    )
+    assert report.to_dict() is not None
+    assert report.to_dict()['column_name'] == 'email'
+    assert report.to_dict()['sample_values'] == ['a@example.com', 'b@example.com']
+    assert report.to_dict()['pii'] == {'entity_type': 'email_address', 'sensitive': True}
