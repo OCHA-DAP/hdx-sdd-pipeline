@@ -27,6 +27,19 @@ def load_isp_info(file_name: str) -> dict:
     return {'default': isps.get('default')}
 
 
+def init_report(df, sheet_name, file_name, download_url, resource_id):
+    return SDDReport(
+        resource_id=resource_id,
+        file_name=file_name,
+        file_url=download_url,
+        sheet_name=sheet_name,
+        processing_timestamp=datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+        processing_success=True,
+        n_records=len(df),
+        n_columns=len(df.columns),
+    )
+
+
 def load_test_data(test_file: str):
     """Load CSV or Excel test datasets. Returns dict of sheet_name -> DataFrame."""
     if test_file.endswith('.csv'):
@@ -39,16 +52,7 @@ def load_test_data(test_file: str):
 
 def process_sheet_for_testing(df, sheet_name, file_name, download_url, resource_id, isp, llm_model: str):
     """Process a single sheet using the specified LLM model for all classifiers."""
-    report = SDDReport(
-        resource_id=resource_id,
-        file_name=file_name,
-        file_url=download_url,
-        sheet_name=sheet_name,
-        processing_timestamp=datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
-        processing_success=True,
-        n_records=len(df),
-        n_columns=len(df.columns),
-    )
+    report = init_report(df, sheet_name, file_name, download_url, resource_id)
 
     report = PIIClassifier(model_name=llm_model).classify_df(df, report)
     report = PIIReflectionClassifier(model_name=llm_model).classify_df(table_markdown(report), report)
@@ -59,16 +63,7 @@ def process_sheet_for_testing(df, sheet_name, file_name, download_url, resource_
 
 def process_sheet_for_groundtruth(df, sheet_name, file_name, download_url, resource_id, isp):
     """Create empty ground truth SDDReport (no LLM classification)."""
-    report = SDDReport(
-        resource_id=resource_id,
-        file_name=file_name,
-        file_url=download_url,
-        sheet_name=sheet_name,
-        processing_timestamp=datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
-        processing_success=True,
-        n_records=len(df),
-        n_columns=len(df.columns),
-    )
+    report = init_report(df, sheet_name, file_name, download_url, resource_id)
 
     # Add empty PII column reports for all columns
     for col in df.columns:
@@ -147,7 +142,8 @@ def run_test_pipeline(test_files: list, llm_model: str, output_dir: str):
     for test_file in test_files:
         if os.path.exists(llm_folder / f'{Path(test_file).stem}.json'):
             print(f'Skipping {test_file} because it already exists')
-            reports = json.load(open(llm_folder / f'{Path(test_file).stem}.json', 'r'))
+            with open(llm_folder / f'{Path(test_file).stem}.json', 'r') as f:
+                reports = json.load(f)
             # continue
         else:
             dfs = load_test_data(test_file)
@@ -185,15 +181,15 @@ def run_test_pipeline(test_files: list, llm_model: str, output_dir: str):
         metrics_summary[Path(test_file).stem] = {
             'pii_sensitive': {
                 'accuracy': accuracy_score(df_metrics['pii_true'], df_metrics['pii_pred']),
-                'precision': precision_score(df_metrics['pii_true'], df_metrics['pii_pred']),
-                'recall': recall_score(df_metrics['pii_true'], df_metrics['pii_pred']),
-                'f1': f1_score(df_metrics['pii_true'], df_metrics['pii_pred']),
+                'precision': precision_score(df_metrics['pii_true'], df_metrics['pii_pred'], zero_division=0),
+                'recall': recall_score(df_metrics['pii_true'], df_metrics['pii_pred'], zero_division=0),
+                'f1': f1_score(df_metrics['pii_true'], df_metrics['pii_pred'], zero_division=0),
             },
             'non_pii_sensitive': {
                 'accuracy': accuracy_score(df_metrics['non_pii_true'], df_metrics['non_pii_pred']),
-                'precision': precision_score(df_metrics['non_pii_true'], df_metrics['non_pii_pred']),
-                'recall': recall_score(df_metrics['non_pii_true'], df_metrics['non_pii_pred']),
-                'f1': f1_score(df_metrics['non_pii_true'], df_metrics['non_pii_pred']),
+                'precision': precision_score(df_metrics['non_pii_true'], df_metrics['non_pii_pred'], zero_division=0),
+                'recall': recall_score(df_metrics['non_pii_true'], df_metrics['non_pii_pred'], zero_division=0),
+                'f1': f1_score(df_metrics['non_pii_true'], df_metrics['non_pii_pred'], zero_division=0),
             },
         }
 
