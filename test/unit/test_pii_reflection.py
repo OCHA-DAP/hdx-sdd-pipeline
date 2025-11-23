@@ -1,5 +1,4 @@
 import pytest
-import logging
 from unittest.mock import patch, MagicMock
 
 
