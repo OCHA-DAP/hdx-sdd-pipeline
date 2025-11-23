@@ -89,22 +89,28 @@ def test_classify_column_success(classifier):
         assert result == ('SENSITIVE', 5, 10)
 
 
-def test_classify_column_error_generation_string(classifier, caplog):
+@patch('classifiers.pii_reflection_classifier.logger')
+def test_classify_column_error_generation_string(mock_logger, classifier):
     """Ensure classify_column raises RuntimeError when ERROR_GENERATION is in prediction."""
     with patch.object(classifier, '_run_prompt', return_value=('ERROR_GENERATION', 0, 0)):
-        with caplog.at_level(logging.ERROR):
-            with pytest.raises(RuntimeError, match='Azure generation returned error'):
-                classifier.classify_column('col', 'table_md', 'EMAIL')
-        assert 'Azure generation returned error' in caplog.text
+        with pytest.raises(RuntimeError, match='Azure generation returned error'):
+            classifier.classify_column('col', 'table_md', 'EMAIL')
+        # Verify logger.error was called
+        mock_logger.error.assert_called_once()
+        error_call = mock_logger.error.call_args[0][0]
+        assert 'Azure generation returned error' in error_call
 
 
-def test_classify_column_exception(classifier, caplog):
+@patch('classifiers.pii_reflection_classifier.logger')
+def test_classify_column_exception(mock_logger, classifier):
     """Ensure classify_column raises RuntimeError on exceptions."""
     with patch.object(classifier, '_run_prompt', side_effect=RuntimeError('prompt failed')):
-        with caplog.at_level(logging.ERROR):
-            with pytest.raises(RuntimeError, match='PII reflection classification failed'):
-                classifier.classify_column('col', 'table_md', 'EMAIL')
-        assert 'PII reflection classification failed' in caplog.text
+        with pytest.raises(RuntimeError, match='PII reflection classification failed'):
+            classifier.classify_column('col', 'table_md', 'EMAIL')
+        # Verify logger.exception was called
+        mock_logger.exception.assert_called_once()
+        error_call = mock_logger.exception.call_args[0][0]
+        assert 'PII reflection classification failed' in error_call
 
 
 def test_classify_df_skips_existing_sensitive(classifier):
