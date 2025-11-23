@@ -32,6 +32,8 @@ class Config:
     DOWNLOAD_DIR: str = os.getenv('DOWNLOAD_DIR', '/tmp/download')
     OUTPUT_DIR: str = os.getenv('OUTPUT_DIR', '/tmp/reports')
 
+    LOCAL: bool = os.getenv('LOCAL', 'false').lower() == 'true'
+
 
 def get_config() -> Config:
     """Return config object for current environment."""

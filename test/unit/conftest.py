@@ -52,6 +52,6 @@ def mock_client():
         {'HDX_URL': 'http://mock-ckan.org', 'HDX_KEY': 'mock-token'},
         clear=True,
     ):
-        client = CKANClient()
+        client = CKANClient(base_url='http://mock-ckan.org', api_token='mock-token')
         client.project_root = Path('/tmp/mock-project-root')
         return client
