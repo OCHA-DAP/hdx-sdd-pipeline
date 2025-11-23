@@ -40,14 +40,17 @@ class DataSampler:
         """Load CSV/XLS/XLSX from a URL into a dictionary of DataFrames keyed by sheet name."""
         url = self._validate_url(url)
 
-        if url.endswith('.csv'):
-            df = pd.read_csv(url, header=None)
-            df = self._concatenate_header(df)
-            return {'sheet1': df}
+        try:
+            if url.endswith('.csv'):
+                df = pd.read_csv(url, header=None, nrows=200)
+                df = self._concatenate_header(df)
+                return {'sheet1': df}
 
-        # Excel files: can contain multiple sheets
-        df_dict = pd.read_excel(url, sheet_name=None, nrows=200, header=None)
-        return {sheet_name: self._concatenate_header(df) for sheet_name, df in df_dict.items()}
+            # Excel files: can contain multiple sheets
+            df_dict = pd.read_excel(url, sheet_name=None, nrows=200, header=None)
+            return {sheet_name: self._concatenate_header(df) for sheet_name, df in df_dict.items()}
+        except Exception as e:
+            raise RuntimeError(f'Failed to load data from URL {url}: {str(e)}') from e
 
     def _concatenate_header(self, df: pd.DataFrame) -> pd.DataFrame:
         """

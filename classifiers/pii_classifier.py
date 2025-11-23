@@ -6,6 +6,7 @@ from tqdm import tqdm
 from .base_classifier import BaseClassifier
 from models.sdd_report import SDDReport, PIIColumnReport
 from utils.main_config import PII_ENTITIES_LIST
+from utils.error_constants import ERROR_SOURCE_PII_CLASSIFICATION
 
 logger = logging.getLogger(__name__)
 
@@ -60,12 +61,30 @@ class PIIClassifier(BaseClassifier):
                 'pii_detection', context, version, max_new_tokens=8
             )
 
+            # Check for error indicators in prediction
+            if isinstance(prediction, str) and 'ERROR_GENERATION' in prediction:
+                error_msg = f'PII classification failed for column {column_name}: Azure generation returned error'
+                logger.error(error_msg)
+                report.set_error(ERROR_SOURCE_PII_CLASSIFICATION, error_msg)
+                report.add_pii_column(
+                    PIIColumnReport(
+                        column_name=column_name,
+                        sample_values=sample_values[:k],
+                        pii={
+                            'entity_type': 'ERROR',
+                        },
+                    )
+                )
+                return report
+
             # Update token counts
             report.completion_tokens += completion_tokens
             report.prompt_tokens += prompt_tokens
 
         except Exception as e:
-            logger.exception('PII classification failed for column %s: %s', column_name, str(e))
+            error_msg = f'PII classification failed for column {column_name}: {str(e)}'
+            logger.exception(error_msg)
+            report.set_error(ERROR_SOURCE_PII_CLASSIFICATION, error_msg)
             report.add_pii_column(
                 PIIColumnReport(
                     column_name=column_name,

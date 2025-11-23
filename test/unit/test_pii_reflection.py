@@ -7,9 +7,11 @@ from unittest.mock import patch, MagicMock
 class MockAzureOpenAIStrategy:
     """Mock to replace AzureOpenAIStrategy during CI/unit testing."""
 
-    def __init__(self, model_name: str):
+    def __init__(self, model_name: str, azure_endpoint: str, api_key: str):
         self.model = model_name
         self.model_name = model_name
+        self.azure_endpoint = azure_endpoint
+        self.api_key = api_key
         self.client = MagicMock()
 
     def generate(self, _prompt: str, _temperature: float = 0.3, _max_new_tokens: int = 200):
@@ -36,9 +38,18 @@ class MockReport:
         self.prompt_tokens = 0
         self.updated = []
         self.pii_reflection_model = None
+        self.processing_success = True
+        self.error_source = None
+        self.error_message = None
 
     def update_pii_column(self, column_name, entity_type, sensitive):
         self.updated.append((column_name, entity_type, sensitive))
+
+    def set_error(self, error_source: str, error_message: str):
+        """Mock set_error method."""
+        self.processing_success = False
+        self.error_source = error_source
+        self.error_message = error_message
 
 
 @pytest.fixture
@@ -49,7 +60,7 @@ def classifier():
     with patch('classifiers.base_classifier.AzureOpenAIStrategy', MockAzureOpenAIStrategy):
         from classifiers.pii_reflection_classifier import PIIReflectionClassifier
 
-        c = PIIReflectionClassifier(model_name='mock_model')
+        c = PIIReflectionClassifier(model_name='mock_model', azure_endpoint='mock_endpoint', api_key='mock_api_key')
 
         # OPTIONAL:
         # Replace _run_prompt with a MagicMock so tests can patch it cleanly
@@ -78,12 +89,22 @@ def test_classify_column_success(classifier):
         assert result == ('SENSITIVE', 5, 10)
 
 
+def test_classify_column_error_generation_string(classifier, caplog):
+    """Ensure classify_column raises RuntimeError when ERROR_GENERATION is in prediction."""
+    with patch.object(classifier, '_run_prompt', return_value=('ERROR_GENERATION', 0, 0)):
+        with caplog.at_level(logging.ERROR):
+            with pytest.raises(RuntimeError, match='Azure generation returned error'):
+                classifier.classify_column('col', 'table_md', 'EMAIL')
+        assert 'Azure generation returned error' in caplog.text
+
+
 def test_classify_column_exception(classifier, caplog):
-    """Ensure classify_column handles exceptions and logs them."""
+    """Ensure classify_column raises RuntimeError on exceptions."""
     with patch.object(classifier, '_run_prompt', side_effect=RuntimeError('prompt failed')):
         with caplog.at_level(logging.ERROR):
-            result = classifier.classify_column('col', 'table_md', 'EMAIL')
-        assert result == (False, 0, 0)
+            with pytest.raises(RuntimeError, match='PII reflection classification failed'):
+                classifier.classify_column('col', 'table_md', 'EMAIL')
+        assert 'PII reflection classification failed' in caplog.text
 
 
 def test_classify_df_skips_existing_sensitive(classifier):
@@ -94,6 +115,24 @@ def test_classify_df_skips_existing_sensitive(classifier):
     result = classifier.classify_df('table_md', report)
     assert report.updated == []
     assert result == report
+    # Model is only set when processing columns, so if all are skipped, it won't be set
+    # This is the current behavior - model is set inside the loop
+    assert result.pii_reflection_model is None
+
+
+def test_classify_df_stops_on_existing_error(classifier):
+    """Ensure classify_df stops processing if report already has an error."""
+    mock_cols = [MockColumn('col1', 'EMAIL', None)]
+    report = MockReport(mock_cols)
+    report.processing_success = False
+    report.error_source = 'pii_classification'
+    report.error_message = 'Previous error'
+
+    result = classifier.classify_df('table_md', report)
+
+    # Should return early without processing
+    assert report.updated == []
+    assert result.pii_reflection_model is None
 
 
 def test_classify_df_error_entity_type(classifier):
@@ -136,12 +175,18 @@ def test_classify_df_runs_prompt_and_updates(classifier, prediction, expected):
 
 
 def test_classify_df_handles_prompt_failure(classifier):
-    """Ensure classify_df handles classify_column returning False."""
+    """Ensure classify_df handles classify_column raising RuntimeError."""
+    from utils.error_constants import ERROR_SOURCE_PII_REFLECTION
+
     mock_cols = [MockColumn('col1', 'EMAIL', None)]
     report = MockReport(mock_cols)
 
-    with patch.object(classifier, 'classify_column', return_value=(False, 0, 0)):
+    with patch.object(classifier, 'classify_column', side_effect=RuntimeError('prompt failed')):
         result = classifier.classify_df('table_md', report)
 
-    assert report.updated == [('col1', 'EMAIL', False)]
-    assert result.pii_reflection_model == 'mock_model'
+    # Verify error was set on report
+    assert report.processing_success is False
+    assert report.error_source == ERROR_SOURCE_PII_REFLECTION
+    assert report.error_message is not None
+    assert 'prompt failed' in report.error_message
+    assert result.pii_reflection_model is None  # Model not set when error occurs

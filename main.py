@@ -8,6 +8,11 @@ from config.config import get_config
 from models.sdd_report import SDDReport
 from utils.ckan import CKANClient
 from utils.processing import DataSampler, table_markdown
+from utils.error_constants import (
+    ERROR_SOURCE_DATA_SAMPLING,
+    ERROR_SOURCE_PROCESSING,
+    ERROR_SOURCE_README_SCAN,
+)
 from classifiers.pii_classifier import PIIClassifier
 from classifiers.non_pii_classifier import NonPIIClassifier
 from classifiers.pii_reflection_classifier import PIIReflectionClassifier
@@ -55,17 +60,46 @@ def process_sheet(df, sheet_name, file_name, download_url, resource_id, isp):
         n_columns=len(df.columns),
     )
 
-    report = PIIClassifier(model_name=config.PII_DETECT_MODEL).classify_df(df, report)
-    print('===============================================PIIClassifier')
-    print(report)
-    report = PIIReflectionClassifier(model_name=config.PII_REFLECT_MODEL).classify_df(table_markdown(report), report)
-    print('PIIReflectionClassifier')
-    print(report)
-    report = NonPIIClassifier(model_name=config.NON_PII_DETECT_MODEL).classify(table_markdown(report), report, isp)
-    print('NonPIIClassifier')
-    print(report)
+    try:
+        # Stop processing if report already has an error
+        if not report.processing_success:
+            return report.to_dict()
 
-    return report.to_dict()
+        report = PIIClassifier(
+            model_name=config.PII_DETECT_MODEL,
+            azure_endpoint=config.AZURE_OPENAI_ENDPOINT,
+            api_key=config.AZURE_OPENAI_API_KEY,
+        ).classify_df(df, report)
+
+        # Stop processing if PII classification failed
+        if not report.processing_success:
+            return report.to_dict()
+
+        report = PIIReflectionClassifier(
+            model_name=config.PII_REFLECT_MODEL,
+            azure_endpoint=config.AZURE_OPENAI_ENDPOINT,
+            api_key=config.AZURE_OPENAI_API_KEY,
+        ).classify_df(table_markdown(report), report)
+
+        # Stop processing if PII reflection failed
+        if not report.processing_success:
+            return report.to_dict()
+
+        report = NonPIIClassifier(
+            model_name=config.NON_PII_DETECT_MODEL,
+            azure_endpoint=config.AZURE_OPENAI_ENDPOINT,
+            api_key=config.AZURE_OPENAI_API_KEY,
+        ).classify(table_markdown(report), report, isp)
+
+        return report.to_dict()
+
+    except Exception as e:
+        # Catch any unexpected errors during processing
+        error_msg = f'Unexpected error processing sheet {sheet_name}: {str(e)}'
+        logger.exception(error_msg)
+        if report.processing_success:  # Only set if not already set by a classifier
+            report.set_error(ERROR_SOURCE_PROCESSING, error_msg)
+        return report.to_dict()
 
 
 def determine_sensitivity(reports: list) -> str:
@@ -109,34 +143,95 @@ def event_processor(event):
         isp = load_isp_info(file_name)
 
         sampler = DataSampler()
-        dfs = sampler.sample(download_url)
-
-        reports = []
-        for sheet_name, df in dfs.items():
-            if any(k in sheet_name.lower() for k in ['readme', 'instrucciones', 'instructions', 'metadata']):
-                readme_string = df.to_string()
-                report, completion_tokens, prompt_tokens = ReadMeScanClassifier(
-                    model_name=config.README_SCAN_MODEL
-                ).classify_readme(readme_string)
-                reports.append(
-                    {
-                        'sheet_name': sheet_name,
-                        'completion_tokens': completion_tokens,
-                        'prompt_tokens': prompt_tokens,
-                        'pii_sensitive': report.get('contains_pii', False),
-                        'report': report,
-                    }
-                )
-            else:
-                reports.append(process_sheet(df, sheet_name, file_name, download_url, resource_id, isp))
+        try:
+            dfs = sampler.sample(download_url)
+        except Exception as e:
+            error_msg = f'Failed to sample data from {download_url}: {str(e)}'
+            logger.exception(error_msg)
+            # Create an error report for the resource
+            error_report = SDDReport(
+                resource_id=resource_id,
+                file_name=file_name,
+                file_url=download_url,
+                sheet_name=None,
+                processing_timestamp=datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+                processing_success=False,
+                n_records=0,
+                n_columns=0,
+            )
+            error_report.set_error(ERROR_SOURCE_DATA_SAMPLING, error_msg)
+            reports = [error_report.to_dict()]
+        else:
+            reports = []
+            for sheet_name, df in dfs.items():
+                try:
+                    if any(k in sheet_name.lower() for k in ['readme', 'instrucciones', 'instructions', 'metadata']):
+                        readme_string = df.to_string()
+                        try:
+                            report, completion_tokens, prompt_tokens = ReadMeScanClassifier(
+                                model_name=config.README_SCAN_MODEL,
+                                azure_endpoint=config.AZURE_OPENAI_ENDPOINT,
+                                api_key=config.AZURE_OPENAI_API_KEY,
+                            ).classify_readme(readme_string)
+                            reports.append(
+                                {
+                                    'sheet_name': sheet_name,
+                                    'completion_tokens': completion_tokens,
+                                    'prompt_tokens': prompt_tokens,
+                                    'pii_sensitive': report.get('contains_pii', False),
+                                    'report': report,
+                                }
+                            )
+                        except Exception as e:
+                            error_msg = f'ReadMe scan failed for sheet {sheet_name}: {str(e)}'
+                            logger.exception(error_msg)
+                            # Create error report for this sheet
+                            error_report = SDDReport(
+                                resource_id=resource_id,
+                                file_name=file_name,
+                                file_url=download_url,
+                                sheet_name=sheet_name,
+                                processing_timestamp=datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+                                processing_success=False,
+                                n_records=len(df),
+                                n_columns=len(df.columns),
+                            )
+                            error_report.set_error(ERROR_SOURCE_README_SCAN, error_msg)
+                            reports.append(error_report.to_dict())
+                    else:
+                        reports.append(process_sheet(df, sheet_name, file_name, download_url, resource_id, isp))
+                except Exception as e:
+                    # Catch any unexpected errors for individual sheets
+                    error_msg = f'Unexpected error processing sheet {sheet_name}: {str(e)}'
+                    logger.exception(error_msg)
+                    # Create error report for this sheet
+                    error_report = SDDReport(
+                        resource_id=resource_id,
+                        file_name=file_name,
+                        file_url=download_url,
+                        sheet_name=sheet_name,
+                        processing_timestamp=datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+                        processing_success=False,
+                        n_records=len(df) if df is not None else 0,
+                        n_columns=len(df.columns) if df is not None else 0,
+                    )
+                    error_report.set_error(ERROR_SOURCE_PROCESSING, error_msg)
+                    reports.append(error_report.to_dict())
 
         sensitivity = determine_sensitivity(reports)
 
         # Directly update CKAN (no file saving)
-        ckan.update_resource_fields(
-            resource_id,
-            {'sdd_report': json.dumps(reports, indent=2), 'sensitive': sensitivity},
-        )
+        try:
+            ckan.update_resource_fields(
+                resource_id,
+                {'sdd_report': json.dumps(reports, indent=2), 'sensitive': sensitivity},
+            )
+        except Exception as e:
+            error_msg = f'Failed to update CKAN resource {resource_id}: {str(e)}'
+            logger.exception(error_msg)
+            # Note: We don't set error on reports here since they're already processed
+            # The error is logged and we return False to indicate the event processing failed
+            return False, error_msg
 
         elapsed = datetime.datetime.now() - start_time
         logger.info(
