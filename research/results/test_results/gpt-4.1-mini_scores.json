@@ -1,5 +1,5 @@
 {
-  "research/results/test_results/gpt-4.1-mini/data.json": {
+  "/Users/liangtelkamp/Documents/GitHub/hdx-ssd-pipeline/research/results/test_results/gpt-4.1-mini/data.json": {
     "pii_columns": {
       "accuracy": 1.0,
       "precision": 1.0,

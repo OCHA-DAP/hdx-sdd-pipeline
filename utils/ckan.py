@@ -1,6 +1,5 @@
 """utils/ckan.py: CKAN API client and utilities."""
 
-import os
 from pathlib import Path
 from typing import Optional, Dict, Any
 import requests

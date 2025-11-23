@@ -1,10 +1,10 @@
 {
   "data": {
-    "aggregated_column_level": {
-      "accuracy": 0.875,
-      "precision": 0.5,
+    "pii_sensitivity": {
+      "accuracy": 1.0,
+      "precision": 1.0,
       "recall": 1.0,
-      "f1": 0.6666666666666666
+      "f1": 1.0
     }
   }
 }

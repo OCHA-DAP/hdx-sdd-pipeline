@@ -5,6 +5,11 @@ calculate_scores.py
 Calculate aggregated PII and non-PII sensitivity metrics given
 a ground truth JSON file and a predicted JSON file, and save
 the results as a JSON file.
+
+python llm_research_scores.py
+    research/results/test_results/groundtruth/data.json
+    research/results/test_results/gpt-4.1-mini/data.json
+    gpt-4.1-mini
 """
 
 import json
@@ -58,7 +63,7 @@ def calculate_metrics(df: pd.DataFrame):
 
 def main():
     if len(sys.argv) != 4:
-        print('Usage: python calculate_scores.py <groundtruth.json> <predictions.json> <llm_model>')
+        print('Usage: python llm_research_scores.py <groundtruth.json> <predictions.json> <llm_model>')
         sys.exit(1)
 
     gt_file = sys.argv[1]
