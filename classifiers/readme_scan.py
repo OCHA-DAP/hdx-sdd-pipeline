@@ -2,6 +2,7 @@
 import logging
 from typing import Any
 from .base_classifier import BaseClassifier
+from utils.error_constants import ERROR_SOURCE_README_SCAN
 
 logger = logging.getLogger(__name__)
 
@@ -18,7 +19,15 @@ class ReadMeScanClassifier(BaseClassifier):
             prediction, completion_tokens, prompt_tokens = self._run_prompt(
                 'readme_scan', context, version='v0', max_new_tokens=256, json_response_format=True
             )
+
+            # Check for error indicators
+            if isinstance(prediction, dict) and 'error' in prediction:
+                error_msg = f'ReadMe scan failed: {prediction.get("error", "Unknown error")}'
+                logger.error(error_msg)
+                raise RuntimeError(error_msg)
+
             return prediction, completion_tokens, prompt_tokens
         except Exception as e:
-            logger.exception('ReadMe scan classification failed: %s', str(e))
-            return False, 0, 0
+            error_msg = f'ReadMe scan classification failed: {str(e)}'
+            logger.exception(error_msg)
+            raise RuntimeError(error_msg) from e

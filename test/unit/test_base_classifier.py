@@ -146,16 +146,13 @@ def test_run_prompt_debug_mode(base_classifier_instance):
 
 @patch(DEBUG_CONFIG_PATH, False)  # Ensure DEBUG mode is off
 def test_run_prompt_prompt_manager_error(base_classifier_instance):
-    """Test exception handling during prompt rendering."""
+    """Test exception handling during prompt rendering raises RuntimeError."""
 
-    prediction, comp_tokens, prompt_tokens = base_classifier_instance._run_prompt(
-        prompt_name='error_prompt',
-        context={},  # MockPromptManager raises exception for this name
-    )
-
-    assert prediction == 'ERROR_GENERATION'
-    assert comp_tokens == 0
-    assert prompt_tokens == 0
+    with pytest.raises(RuntimeError, match='Prompt rendering failed'):
+        base_classifier_instance._run_prompt(
+            prompt_name='error_prompt',
+            context={},  # MockPromptManager raises exception for this name
+        )
 
 
 # =====================================================================

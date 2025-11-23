@@ -50,9 +50,18 @@ class MockSDDReport:
         self.completion_tokens = completion_tokens
         self.prompt_tokens = prompt_tokens
         self.non_pii_reports = []
+        self.processing_success = True
+        self.error_source = None
+        self.error_message = None
 
     def add_non_pii_report(self, report: MockNonPIIReport):
         self.non_pii_reports.append(report)
+
+    def set_error(self, error_source: str, error_message: str):
+        """Mock set_error method."""
+        self.processing_success = False
+        self.error_source = error_source
+        self.error_message = error_message
 
 
 # --- Fixtures ---
@@ -185,7 +194,8 @@ def test_classify_success(non_pii_classifier_instance, mock_report):
 
 @patch('classifiers.non_pii_classifier.logger')
 def test_classify_exception_handling(mock_logger, non_pii_classifier_instance, mock_report):
-    """Test the exception handling path returns the report and logs the error."""
+    """Test the exception handling path sets error on report and logs the error."""
+    from utils.error_constants import ERROR_SOURCE_NON_PII_CLASSIFICATION
 
     # Mock _run_prompt to raise an exception
     mock_error = RuntimeError('LLM service failed')
@@ -202,7 +212,51 @@ def test_classify_exception_handling(mock_logger, non_pii_classifier_instance, m
     # Assert the original report instance is returned
     assert result_report is mock_report
 
+    # Assert error was set on report
+    assert mock_report.processing_success is False
+    assert mock_report.error_source == ERROR_SOURCE_NON_PII_CLASSIFICATION
+    assert 'LLM service failed' in mock_report.error_message
+
     # Assert the exception was logged
     mock_logger.exception.assert_called_once()
     log_message = mock_logger.exception.call_args[0][0]
     assert 'Non-PII table sensitivity classification failed' in log_message
+
+
+def test_classify_stops_on_existing_error(non_pii_classifier_instance, mock_report):
+    """Test that classify stops processing if report already has an error."""
+    mock_report.processing_success = False
+    mock_report.error_source = 'pii_classification'
+    mock_report.error_message = 'Previous error'
+
+    result_report = non_pii_classifier_instance.classify(
+        table_markdown=TEST_TABLE,
+        report=mock_report,
+        isp=TEST_ISP,
+    )
+
+    # Should return early without calling _run_prompt
+    non_pii_classifier_instance._run_prompt.assert_not_called()
+    assert result_report is mock_report
+
+
+def test_classify_error_in_prediction_dict(non_pii_classifier_instance, mock_report):
+    """Test that classify handles error in prediction dictionary."""
+    from utils.error_constants import ERROR_SOURCE_NON_PII_CLASSIFICATION
+
+    # Mock _run_prompt to return a dict with 'error' key
+    # Note: The prediction is the first element of the tuple
+    non_pii_classifier_instance._run_prompt.return_value = ({'error': 'JSON parsing failed'}, 0, 0)
+
+    result_report = non_pii_classifier_instance.classify(
+        table_markdown=TEST_TABLE,
+        report=mock_report,
+        isp=TEST_ISP,
+    )
+
+    # Assert error was set on report
+    assert mock_report.processing_success is False
+    assert mock_report.error_source == ERROR_SOURCE_NON_PII_CLASSIFICATION
+    assert mock_report.error_message is not None
+    assert 'JSON parsing failed' in mock_report.error_message
+    assert result_report is mock_report
