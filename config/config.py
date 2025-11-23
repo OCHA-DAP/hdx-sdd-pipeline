@@ -29,7 +29,7 @@ class Config:
     README_SCAN_MODEL: str = os.getenv('README_SCAN_MODEL', 'readme-scan-v1')
 
     # Directories
-    DOWNLOAD_DIR: str = os.getenv('DOWNLOAD_DIR', '/tmp/download')
+    DOWNLOAD_DIR: str = os.getenv('DOWNLOAD_DIR', 'downloads')
     OUTPUT_DIR: str = os.getenv('OUTPUT_DIR', '/tmp/reports')
 
     LOCAL: bool = os.getenv('LOCAL', 'false').lower() == 'true'
