@@ -2,7 +2,6 @@
 import logging
 from typing import Any
 from .base_classifier import BaseClassifier
-from utils.error_constants import ERROR_SOURCE_README_SCAN
 
 logger = logging.getLogger(__name__)
 

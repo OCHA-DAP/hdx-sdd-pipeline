@@ -5,10 +5,6 @@ from typing import Any, Dict
 from llm_model import AzureOpenAIStrategy
 from utils.prompt_manager import PromptManager
 from utils.main_config import DEBUG
-from utils.error_constants import (
-    ERROR_SOURCE_AZURE_GENERATION,
-    ERROR_SOURCE_AZURE_JSON_GENERATION,
-)
 
 logger = logging.getLogger(__name__)
 
@@ -66,7 +62,8 @@ class BaseClassifier:
 
         Raises:
             RuntimeError: If prompt rendering fails (with ERROR_SOURCE_PROMPT_RENDERING context)
-            RuntimeError: If Azure generation fails (with ERROR_SOURCE_AZURE_GENERATION or ERROR_SOURCE_AZURE_JSON_GENERATION context)
+            RuntimeError: If Azure generation fails (with ERROR_SOURCE_AZURE_GENERATION or
+            ERROR_SOURCE_AZURE_JSON_GENERATION context)
         """
         try:
             prompt = self.prompt_manager.get_prompt(prompt_name=prompt_name, version=version, context=context)
