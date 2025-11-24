@@ -1,4 +1,4 @@
-"""test_pipeline.py: Offline testing of SDD classifiers for a single LLM."""
+"""llm_research.py: Offline testing of SDD classifiers for a single LLM."""
 
 import json
 import os
@@ -54,9 +54,21 @@ def process_sheet_for_testing(df, sheet_name, file_name, download_url, resource_
     """Process a single sheet using the specified LLM model for all classifiers."""
     report = init_report(df, sheet_name, file_name, download_url, resource_id)
 
-    report = PIIClassifier(model_name=llm_model).classify_df(df, report)
-    report = PIIReflectionClassifier(model_name=llm_model).classify_df(table_markdown(report), report)
-    report = NonPIIClassifier(model_name=llm_model).classify(table_markdown(report), report, isp)
+    report = PIIClassifier(
+        model_name=llm_model,
+        azure_endpoint=config.AZURE_OPENAI_ENDPOINT,
+        api_key=config.AZURE_OPENAI_API_KEY,
+    ).classify_df(df, report)
+    report = PIIReflectionClassifier(
+        model_name=llm_model,
+        azure_endpoint=config.AZURE_OPENAI_ENDPOINT,
+        api_key=config.AZURE_OPENAI_API_KEY,
+    ).classify_df(table_markdown(report), report)
+    report = NonPIIClassifier(
+        model_name=llm_model,
+        azure_endpoint=config.AZURE_OPENAI_ENDPOINT,
+        api_key=config.AZURE_OPENAI_API_KEY,
+    ).classify(table_markdown(report), report, isp)
 
     return report.to_dict()
 
