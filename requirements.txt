@@ -6,3 +6,4 @@ jinja2
 openpyxl
 python-json-logger>=2.0.7
 openai
+tabulate
