@@ -129,5 +129,5 @@ class PIIClassifier(BaseClassifier):
 
         # 🐛 FIX: Moved model assignment outside the loop so it runs even if df is empty
         report.pii_classifier_model = self.model_name
-
+        logger.info('PII classification successful')
         return report

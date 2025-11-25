@@ -86,9 +86,11 @@ class PIIReflectionClassifier(BaseClassifier):
                     column_name=column.column_name, entity_type=column.pii.get('entity_type'), sensitive=pred
                 )
                 report.pii_reflection_model = self.model_name
+            logger.info('PII reflection classification successful')
             return report
         except Exception as e:
             error_msg = f'PII reflection classification failed: {str(e)}'
             logger.exception(error_msg)
             report.set_error(ERROR_SOURCE_PII_REFLECTION, error_msg)
+            logger.error('PII reflection classification failed')
             return report

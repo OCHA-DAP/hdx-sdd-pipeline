@@ -3,6 +3,10 @@ import json
 from dotenv import load_dotenv
 from openai import AzureOpenAI
 
+import logging
+
+logger = logging.getLogger(__name__)
+
 
 class AzureOpenAIStrategy:
     """
@@ -31,9 +35,10 @@ class AzureOpenAIStrategy:
             self.client = AzureOpenAI(
                 api_version='2024-12-01-preview', azure_endpoint=self.azure_endpoint, api_key=self.api_key
             )
+            logger.info('Azure OpenAI client initialized successfully')
 
         except Exception as e:
-            raise Exception(f'Error initializing Azure OpenAI client: {e}')
+            logger.error(f'Error initializing Azure OpenAI client: {e}')
 
     def generate(self, prompt: str, temperature: float = 0.3, max_new_tokens: int = 200) -> tuple[str, int, int]:
         """Generate text using Azure OpenAI API."""
@@ -47,11 +52,12 @@ class AzureOpenAIStrategy:
                 model=self.model,
                 temperature=temperature,
             )
+            logger.info('Azure OpenAI text generation successful')
 
             return response.choices[0].message.content, response.usage.completion_tokens, response.usage.prompt_tokens
 
         except Exception as e:
-            raise RuntimeError(f'Azure OpenAI text generation failed: {str(e)}') from e
+            logger.error(f'Azure OpenAI text generation failed: {str(e)}')
 
     def generate_json(self, prompt: str, temperature: float = 0.3, max_new_tokens: int = 200) -> tuple[dict, int, int]:
         """Generate JSON using Azure OpenAI API."""
@@ -66,15 +72,16 @@ class AzureOpenAIStrategy:
                 temperature=temperature,
                 response_format={'type': 'json_object'},
             )
+            logger.info('Azure OpenAI JSON generation successful')
             return (
                 json.loads(json_response.choices[0].message.content),
                 json_response.usage.completion_tokens,
                 json_response.usage.prompt_tokens,
             )
         except json.JSONDecodeError as e:
-            raise RuntimeError(f'Azure OpenAI JSON generation failed: Invalid JSON response - {str(e)}') from e
+            logger.error(f'Azure OpenAI JSON generation failed: Invalid JSON response - {str(e)}')
         except Exception as e:
-            raise RuntimeError(f'Azure OpenAI JSON generation failed: {str(e)}') from e
+            logger.error(f'Azure OpenAI JSON generation failed: {str(e)}')
 
     def get_azure_config(self) -> dict[str, str]:
         """Get Azure configuration details."""
@@ -87,6 +94,3 @@ class AzureOpenAIStrategy:
 if __name__ == '__main__':
     model = AzureOpenAIStrategy(model_name='gpt-4o-mini')
     response = model.generate('What is the capital of France?')
-    test = 'test'
-    HALLO = 'hallo'
-    print(response)

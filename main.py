@@ -1,25 +1,25 @@
 """main.py: HDX SDD pipeline listener and event processor."""
 
-import logging.config
-logging.config.fileConfig('logging.conf')
-
-import json
-import datetime
-import pandas as pd
-from hdx_redis_lib import connect_to_hdx_event_bus, RedisConfig
-from config.config import get_config
-from models.sdd_report import SDDReport
-from utils.ckan import CKANClient
-from utils.processing import DataSampler
 from utils.error_constants import (
     ERROR_SOURCE_DATA_SAMPLING,
     ERROR_SOURCE_PROCESSING,
     ERROR_SOURCE_README_SCAN,
 )
+import json
+import datetime
+import pandas as pd
+from hdx_redis_lib import connect_to_hdx_event_bus, RedisConfig
+from config.config import get_config
 from classifiers.pii_classifier import PIIClassifier
 from classifiers.non_pii_classifier import NonPIIClassifier
 from classifiers.pii_reflection_classifier import PIIReflectionClassifier
 from classifiers.readme_scan import ReadMeScanClassifier
+from models.sdd_report import SDDReport
+from utils.ckan import CKANClient
+from utils.processing import DataSampler
+import logging.config
+
+logging.config.fileConfig('logging.conf')
 
 
 logger = logging.getLogger(__name__)

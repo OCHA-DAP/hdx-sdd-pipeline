@@ -3,6 +3,9 @@
 import os
 from jinja2 import Environment, FileSystemLoader, select_autoescape
 from utils.main_config import PII_ENTITIES_LIST
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 class PromptManager:
@@ -21,7 +24,8 @@ class PromptManager:
         """List all available versions for a given prompt."""
         prompt_dir = os.path.join(self.base_path, prompt_name)
         if not os.path.isdir(prompt_dir):
-            raise FileNotFoundError(f'Prompt {prompt_name} not found.')
+            logger.error(f'Prompt {prompt_name} not found.')
+
         return sorted([f.replace('.jinja', '') for f in os.listdir(prompt_dir) if f.endswith('.jinja')])
 
     def get_prompt(self, prompt_name: str, version: str, context: dict) -> str:
@@ -33,6 +37,7 @@ class PromptManager:
         try:
             context['PII_ENTITIES_LIST'] = PII_ENTITIES_LIST
             template = self.env.get_template(template_path)
+            logger.info(f'Template found for {prompt_name} version {version}')
+            return template.render(context)
         except Exception as e:
-            raise FileNotFoundError(f'Template not found for {prompt_name} version {version}: {e}')
-        return template.render(context)
+            logger.error(f'Template not found for {prompt_name} version {version}: {e}')

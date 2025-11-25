@@ -33,16 +33,19 @@ class NonPIIClassifier(BaseClassifier):
     ) -> SDDReport:
         """Classify the sensitivity level of non-PII sensitive data."""
         if isp is None:
-            raise ValueError('ISP is required')
+            logger.error('ISP is required')
+            return report
         isp_name = list(isp.keys())[0]
         context = {'table_markdown': table_markdown, 'isp': isp[isp_name]}
 
         # Stop processing if there's already an error
         if not report.processing_success:
+            logger.error('Processing failed')
             return report
 
         try:
             if report.non_pii is not None:
+                logger.warning('Non-PII report already exists')
                 return report
             prediction, completion_tokens, prompt_tokens = self._run_prompt(
                 'non_pii_detection',
@@ -73,6 +76,7 @@ class NonPIIClassifier(BaseClassifier):
                     explanation=prediction.get('explanation', ''),
                 )
             )
+            logger.info('Non-PII classification successful')
             return report
         except Exception as e:
             error_msg = f'Non-PII table sensitivity classification failed: {str(e)}'

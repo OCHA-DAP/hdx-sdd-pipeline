@@ -1,6 +1,9 @@
 # utils/processing.py
 from typing import Dict
 import pandas as pd
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 class DataSampler:
@@ -14,7 +17,8 @@ class DataSampler:
         """Check if the URL points to a supported file type."""
         url_lower = url.lower()
         if not any(url_lower.endswith(ext) for ext in self.SUPPORTED_EXTENSIONS):
-            raise ValueError(f'Unsupported file type. Only {", ".join(self.SUPPORTED_EXTENSIONS)} are supported.')
+            logger.error(f'Unsupported file type. Only {", ".join(self.SUPPORTED_EXTENSIONS)} are supported.')
+            return None
         return url_lower
 
     def _load_from_url(self, url: str) -> Dict[str, pd.DataFrame]:
@@ -31,7 +35,7 @@ class DataSampler:
             df_dict = pd.read_excel(url, sheet_name=None, nrows=200, header=None)
             return {sheet_name: self._concatenate_header(df) for sheet_name, df in df_dict.items()}
         except Exception as e:
-            raise RuntimeError(f'Failed to load data from URL {url}: {str(e)}') from e
+            logger.error(f'Failed to load data from URL {url}: {str(e)}')
 
     def _concatenate_header(self, df: pd.DataFrame) -> pd.DataFrame:
         """
@@ -46,7 +50,7 @@ class DataSampler:
 
         if header_end_row is None:
             # Fallback: treat first row as header
-            print('No fully populated header row found')
+            logger.warning('No fully populated header row found')
             header_end_row = 0
 
         # Extract header block and fill missing cells
@@ -64,6 +68,7 @@ class DataSampler:
     def _sample_dataframe(self, df: pd.DataFrame, sample_size: int = 20) -> pd.DataFrame:
         """Return a random sample of rows, preferring complete rows if available."""
         if df.empty:
+            logger.warning('DataFrame is empty')
             return df
 
         n = min(sample_size, len(df))
@@ -73,6 +78,7 @@ class DataSampler:
         if len(complete_rows) >= n:
             sample = complete_rows.sample(n=n, random_state=42)
         else:
+            logger.warning('Fewer than {n} complete rows to sample, using incomplete rows as fallback')
             needed = n - len(complete_rows)
             incomplete_rows = incomplete_rows.assign(null_count=incomplete_rows.isna().sum(axis=1))
             incomplete_rows = incomplete_rows.sort_values('null_count')
@@ -83,5 +89,9 @@ class DataSampler:
 
     def sample(self, url: str, sample_size: int = 20) -> Dict[str, pd.DataFrame]:
         """Main entrypoint: load and sample dataset(s) from a URL."""
+        logger.info(f'Sampling data from URL: {url}')
         sheets = self._load_from_url(url)
-        return {name: self._sample_dataframe(df, sample_size) for name, df in sheets.items()}
+        logger.info(f'Loaded {len(sheets)} sheets from URL: {url}')
+        sampled_sheets = {name: self._sample_dataframe(df, sample_size) for name, df in sheets.items()}
+        logger.info(f'Sampled {len(sampled_sheets)} sheets from URL: {url}')
+        return sampled_sheets

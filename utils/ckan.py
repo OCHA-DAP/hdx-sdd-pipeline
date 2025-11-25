@@ -8,6 +8,7 @@ import logging
 
 logger = logging.getLogger(__name__)
 
+
 class CKANClient:
     """
     A client for interacting with the CKAN API.
@@ -37,7 +38,6 @@ class CKANClient:
             else:
                 response = requests.post(url, timeout=30, headers=self.headers, **kwargs)
             response.raise_for_status()
-            # Print request 200 or error
             if response.status_code == 200:
                 logger.info('CKAN request successful')
             else:

@@ -24,9 +24,10 @@ class ReadMeScanClassifier(BaseClassifier):
                 error_msg = f'ReadMe scan failed: {prediction.get("error", "Unknown error")}'
                 logger.error(error_msg)
                 raise RuntimeError(error_msg)
-
+            logger.info('ReadMe scan classification successful')
             return prediction, completion_tokens, prompt_tokens
         except Exception as e:
             error_msg = f'ReadMe scan classification failed: {str(e)}'
             logger.exception(error_msg)
-            raise RuntimeError(error_msg) from e
+            logger.error('ReadMe scan classification failed')
+            return None
