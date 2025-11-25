@@ -41,14 +41,14 @@ class CKANClient:
             if response.status_code == 200:
                 logger.info('CKAN request successful')
             else:
-                logger.info('CKAN request failed: %s', response.status_code)
+                logger.error('CKAN request failed: %s', response.status_code)
             data = response.json()
         except (requests.RequestException, ValueError) as e:
-            logger.info('CKAN request failed: %s', e)
+            logger.error('CKAN request failed: %s', e)
             return None
 
         if data.get('success') is not True:
-            logger.info('CKAN API returned error: %s', data.get('error'))
+            logger.error('CKAN API returned error: %s', data.get('error'))
             return None
 
         return data['result']
@@ -81,7 +81,7 @@ class CKANClient:
             logger.info('Resource %s updated successfully', resource_id)
             return updated_resource
         else:
-            logger.info('Failed to update resource %s', resource_id)
+            logger.error('Failed to update resource %s', resource_id)
             return None
 
     def remove_resource_field(self, resource_id: str, field_name: str) -> Optional[dict]:
@@ -119,7 +119,7 @@ class CKANClient:
             response.raise_for_status()
             file_path.write_bytes(response.content)
         except requests.RequestException as e:
-            logger.info('Failed to download file: %s', e)
+            logger.error('Failed to download file: %s', e)
             raise RuntimeError(f'Failed to download file from {url}') from e
 
         logger.info('File saved to: %s', file_path)
