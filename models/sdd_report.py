@@ -66,6 +66,8 @@ class SDDReport:
     non_pii_sensitive: bool = False
     columns: List[PIIColumnReport] = field(default_factory=list)
     non_pii: Optional[NonPIIReport] = None
+    error_source: Optional[str] = None
+    error_message: Optional[str] = None
 
     def add_pii_column(self, column_report: PIIColumnReport):
         """Adds a new PII column report to the SDD."""
@@ -102,6 +104,18 @@ class SDDReport:
                     # Update the report-level flag if any column is sensitive
                     self.pii_sensitive = any(col.pii.get('sensitive', False) for col in self.columns)
                 break
+
+    def set_error(self, error_source: str, error_message: str):
+        """
+        Set error information on the report and mark processing as unsuccessful.
+
+        Args:
+            error_source: Where the error occurred (e.g., 'azure_generation', 'pii_classification', 'data_sampling')
+            error_message: The error message or description
+        """
+        self.processing_success = False
+        self.error_source = error_source
+        self.error_message = error_message
 
     def to_dict(self) -> Dict[str, Any]:
         """Convert the SDDReport to a nested dictionary based on all fields."""
@@ -155,6 +169,8 @@ class SDDReport:
             non_pii=non_pii,
             completion_tokens=data.get('completion_tokens', 0),
             prompt_tokens=data.get('prompt_tokens', 0),
+            error_source=data.get('error_source'),
+            error_message=data.get('error_message'),
         )
 
         return report

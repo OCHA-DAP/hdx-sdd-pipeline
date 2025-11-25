@@ -57,22 +57,41 @@ class BaseClassifier:
         max_new_tokens: int = 256,
         json_response_format: bool = False,
     ) -> tuple[Any, int, int]:
-        """Render a Jinja prompt and run the model."""
+        """
+        Render a Jinja prompt and run the model.
+
+        Raises:
+            RuntimeError: If prompt rendering fails (with ERROR_SOURCE_PROMPT_RENDERING context)
+            RuntimeError: If Azure generation fails (with ERROR_SOURCE_AZURE_GENERATION or
+            ERROR_SOURCE_AZURE_JSON_GENERATION context)
+        """
         try:
             prompt = self.prompt_manager.get_prompt(prompt_name=prompt_name, version=version, context=context)
         except Exception as e:
-            print(e)
-            return 'ERROR_GENERATION', 0, 0
+            error_msg = f'Prompt rendering failed for {prompt_name} (v{version}): {str(e)}'
+            logger.exception(error_msg)
+            raise RuntimeError(error_msg) from e
 
         if DEBUG:
             return 'DEBUG_MODE', 0, 0
-        if json_response_format:
-            prediction, completion_tokens, prompt_tokens = self.model.generate_json(
-                prompt, max_new_tokens=max_new_tokens
-            )
-        else:
-            prediction, completion_tokens, prompt_tokens = self.model.generate(prompt, max_new_tokens=max_new_tokens)
-        return prediction, completion_tokens, prompt_tokens
+
+        try:
+            if json_response_format:
+                prediction, completion_tokens, prompt_tokens = self.model.generate_json(
+                    prompt, max_new_tokens=max_new_tokens
+                )
+            else:
+                prediction, completion_tokens, prompt_tokens = self.model.generate(
+                    prompt, max_new_tokens=max_new_tokens
+                )
+            return prediction, completion_tokens, prompt_tokens
+        except RuntimeError:
+            # Re-raise RuntimeError from Azure (already has context)
+            raise
+        except Exception as e:
+            error_msg = f'Azure generation failed for {prompt_name}: {str(e)}'
+            logger.exception(error_msg)
+            raise RuntimeError(error_msg) from e
 
     def _map_sensitivity(self, prediction: str) -> str:
         """Map model output text to standardized sensitivity levels."""

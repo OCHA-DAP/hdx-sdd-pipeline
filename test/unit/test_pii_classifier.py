@@ -4,6 +4,7 @@ from unittest.mock import patch, MagicMock
 
 # NOTE: Adjust import path if needed
 from classifiers.pii_classifier import PIIClassifier
+from utils.error_constants import ERROR_SOURCE_PII_CLASSIFICATION
 
 
 class MockAzureOpenAIStrategy:
@@ -52,11 +53,20 @@ class MockSDDReport:
         self.prompt_tokens = kwargs.get('prompt_tokens', 0)
         self.pii_columns = []
         self.pii_classifier_model = kwargs.get('pii_classifier_model', None)  # Initialize property
+        self.processing_success = kwargs.get('processing_success', True)
+        self.error_source = kwargs.get('error_source', None)
+        self.error_message = kwargs.get('error_message', None)
         # Required for other parts of SDDReport model not being tested:
         self.non_pii = None
 
     def add_pii_column(self, report: MockPIIColumnReport):
         self.pii_columns.append(report)
+
+    def set_error(self, error_source: str, error_message: str):
+        """Mock set_error method."""
+        self.processing_success = False
+        self.error_source = error_source
+        self.error_message = error_message
 
 
 class MockBaseClassifier:
@@ -193,7 +203,7 @@ def test_classify_column_success_mapping_and_tokens(
 @patch('classifiers.pii_classifier.PIIColumnReport', MockPIIColumnReport)
 @patch('classifiers.pii_classifier.logger')
 def test_classify_column_exception_handling(mock_logger, pii_classifier_instance, mock_report):
-    """Test error handling path (L73) when _run_prompt fails."""
+    """Test error handling path when _run_prompt fails."""
 
     # 1. Configure Mocks
     pii_classifier_instance._has_alphanumeric.return_value = True
@@ -205,11 +215,38 @@ def test_classify_column_exception_handling(mock_logger, pii_classifier_instance
 
     # 3. Assertions
     # Verify exception was logged
-    mock_logger.exception.assert_called_once_with(
-        'PII classification failed for column %s: %s', 'ErrorCol', str(mock_error)
-    )
+    mock_logger.exception.assert_called_once()
+    log_message = mock_logger.exception.call_args[0][0]
+    assert 'PII classification failed for column ErrorCol' in log_message
     # Verify PIIColumnReport was added with 'ERROR'
     assert mock_report.pii_columns[0].kwargs['pii']['entity_type'] == 'ERROR'
+    # Verify error was set on report
+    assert mock_report.processing_success is False
+    assert mock_report.error_source == ERROR_SOURCE_PII_CLASSIFICATION
+    assert 'LLM connection failed' in mock_report.error_message
+
+
+@patch('classifiers.pii_classifier.PIIColumnReport', MockPIIColumnReport)
+@patch('classifiers.pii_classifier.logger')
+def test_classify_column_error_generation_string(mock_logger, pii_classifier_instance, mock_report):
+    """Test error handling when _run_prompt returns ERROR_GENERATION string."""
+
+    # 1. Configure Mocks
+    pii_classifier_instance._has_alphanumeric.return_value = True
+    pii_classifier_instance._run_prompt.return_value = ('ERROR_GENERATION', 0, 0)
+
+    # 2. Execute
+    pii_classifier_instance._classify_column('ErrorCol', ['data'], report=mock_report)
+
+    # 3. Assertions
+    # Verify PIIColumnReport was added with 'ERROR'
+    assert len(mock_report.pii_columns) == 1
+    assert mock_report.pii_columns[0].kwargs['pii']['entity_type'] == 'ERROR'
+    # Verify error was set on report
+    assert mock_report.processing_success is False
+    assert mock_report.error_source == ERROR_SOURCE_PII_CLASSIFICATION
+    assert mock_report.error_message is not None
+    assert 'Azure generation returned error' in mock_report.error_message
 
 
 # =====================================================================

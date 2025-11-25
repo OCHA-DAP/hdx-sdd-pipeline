@@ -3,6 +3,7 @@ import logging
 from typing import Any, Dict, Optional
 from models.sdd_report import SDDReport, NonPIIReport
 from .base_classifier import BaseClassifier
+from utils.error_constants import ERROR_SOURCE_NON_PII_CLASSIFICATION
 
 logger = logging.getLogger(__name__)
 
@@ -36,6 +37,10 @@ class NonPIIClassifier(BaseClassifier):
         isp_name = list(isp.keys())[0]
         context = {'table_markdown': table_markdown, 'isp': isp[isp_name]}
 
+        # Stop processing if there's already an error
+        if not report.processing_success:
+            return report
+
         try:
             if report.non_pii is not None:
                 return report
@@ -46,6 +51,14 @@ class NonPIIClassifier(BaseClassifier):
                 max_new_tokens,
                 json_response_format=True,
             )
+
+            # Check for error indicators in prediction
+            if isinstance(prediction, dict) and 'error' in prediction:
+                error_msg = f'Non-PII classification failed: {prediction.get("error", "Unknown error")}'
+                logger.error(error_msg)
+                report.set_error(ERROR_SOURCE_NON_PII_CLASSIFICATION, error_msg)
+                return report
+
             if isinstance(completion_tokens, int):
                 report.completion_tokens += completion_tokens
             if isinstance(prompt_tokens, int):
@@ -62,5 +75,7 @@ class NonPIIClassifier(BaseClassifier):
             )
             return report
         except Exception as e:
-            logger.exception('Non-PII table sensitivity classification failed: %s', str(e))
+            error_msg = f'Non-PII table sensitivity classification failed: {str(e)}'
+            logger.exception(error_msg)
+            report.set_error(ERROR_SOURCE_NON_PII_CLASSIFICATION, error_msg)
             return report
