@@ -1,8 +1,6 @@
 """main.py: HDX SDD pipeline listener and event processor."""
 
 import logging.config
-logging.config.fileConfig('logging.conf')
-
 import json
 import datetime
 import pandas as pd
@@ -21,6 +19,7 @@ from classifiers.non_pii_classifier import NonPIIClassifier
 from classifiers.pii_reflection_classifier import PIIReflectionClassifier
 from classifiers.readme_scan import ReadMeScanClassifier
 
+logging.config.fileConfig('logging.conf')
 
 logger = logging.getLogger(__name__)
 
