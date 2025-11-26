@@ -1,26 +1,23 @@
 """main.py: HDX SDD pipeline listener and event processor."""
 
 import logging.config
-import json
-import datetime
-import pandas as pd
-from hdx_redis_lib import connect_to_hdx_event_bus, RedisConfig
-from config.config import get_config
-from models.sdd_report import SDDReport
-from utils.ckan import CKANClient
-from utils.processing import DataSampler
-from utils.error_constants import (
-    ERROR_SOURCE_DATA_SAMPLING,
-    ERROR_SOURCE_PROCESSING,
-    ERROR_SOURCE_README_SCAN,
-)
-from classifiers.pii_classifier import PIIClassifier
-from classifiers.non_pii_classifier import NonPIIClassifier
-from classifiers.pii_reflection_classifier import PIIReflectionClassifier
-from classifiers.readme_scan import ReadMeScanClassifier
-
 logging.config.fileConfig('logging.conf')
 
+import json  # noqa: E402
+import datetime  # noqa: E402
+
+import pandas as pd  # noqa: E402
+from hdx_redis_lib import connect_to_hdx_event_bus, RedisConfig  # noqa: E402
+
+from config.config import get_config  # noqa: E402
+from models.sdd_report import SDDReport  # noqa: E402
+from utils.ckan import CKANClient  # noqa: E402
+from utils.processing import DataSampler  # noqa: E402
+from utils.error_constants import ERROR_SOURCE_DATA_SAMPLING, ERROR_SOURCE_PROCESSING, ERROR_SOURCE_README_SCAN  # noqa: E402
+from classifiers.pii_classifier import PIIClassifier  # noqa: E402
+from classifiers.non_pii_classifier import NonPIIClassifier  # noqa: E402
+from classifiers.pii_reflection_classifier import PIIReflectionClassifier  # noqa: E402
+from classifiers.readme_scan import ReadMeScanClassifier  # noqa: E402
 logger = logging.getLogger(__name__)
 
 config = get_config()

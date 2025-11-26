@@ -1,10 +1,9 @@
 """utils/ckan.py: CKAN API client and utilities."""
-
+import logging
 import os
 from pathlib import Path
 from typing import Optional, Dict, Any
 import requests
-import logging
 
 logger = logging.getLogger(__name__)
 
