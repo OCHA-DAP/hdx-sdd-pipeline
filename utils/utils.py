@@ -1,7 +1,7 @@
+import logging
 import pandas as pd
 from models.sdd_report import SDDReport
 from utils.exception_handler import handle_exception
-import logging
 
 logger = logging.getLogger(__name__)
 

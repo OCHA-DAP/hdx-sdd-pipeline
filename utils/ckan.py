@@ -126,5 +126,7 @@ class CKANClient:
         """Download a CKAN resource by its ID."""
         output_dir = output_dir or (self.project_root / 'resources')
         url = self._get_download_link(resource_id)
+        if not url:
+            raise ValueError('No download URL found for resource: %s', resource_id)
         filename = filename or Path(url).name
         return self._download_file(url, filename, output_dir)

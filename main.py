@@ -1,26 +1,26 @@
 """main.py: HDX SDD pipeline listener and event processor."""
 
+import json
 import logging.config
+import datetime
+
+from hdx_redis_lib import connect_to_hdx_event_bus, RedisConfig
+
+from config.config import get_config
+from models.sdd_report import SDDReport
+from utils.ckan import CKANClient
+from utils.exception_handler import handle_exception
+from utils.processing import DataSampler
+from utils.utils import report_exists_in_ckan, determine_sensitivity, table_markdown
+from classifiers.pii_classifier import PIIClassifier
+from classifiers.non_pii_classifier import NonPIIClassifier
+from classifiers.pii_reflection_classifier import PIIReflectionClassifier
+from classifiers.readme_scan import ReadMeScanClassifier
+from llm_model.azure_strategy import AzureOpenAIStrategy
+
 
 logging.config.fileConfig('logging.conf')
 
-import json  # noqa: E402
-import datetime  # noqa: E402
-
-from hdx_redis_lib import connect_to_hdx_event_bus, RedisConfig  # noqa: E402
-
-from config.config import get_config  # noqa: E402
-from models.sdd_report import SDDReport  # noqa: E402
-from utils.ckan import CKANClient  # noqa: E402
-from utils.processing import DataSampler  # noqa: E402
-from classifiers.pii_classifier import PIIClassifier  # noqa: E402
-from classifiers.non_pii_classifier import NonPIIClassifier  # noqa: E402
-from classifiers.pii_reflection_classifier import PIIReflectionClassifier  # noqa: E402
-from classifiers.readme_scan import ReadMeScanClassifier  # noqa: E402
-from utils.utils import report_exists_in_ckan, determine_sensitivity  # noqa: E402
-from llm_model.azure_strategy import AzureOpenAIStrategy  # noqa: E402
-from utils.exception_handler import handle_exception  # noqa: E402
-from utils.utils import table_markdown  # noqa: E402
 
 logger = logging.getLogger(__name__)
 
@@ -41,7 +41,7 @@ event_bus = connect_to_hdx_event_bus(
 def load_isp_info(ckan: CKANClient, package_id: str | None, file_name: str | None) -> dict:
     """Load ISP configuration and determine matching or default ISP."""
 
-    with open('data/isps.json', 'r') as f:
+    with open('data/isps.json', 'r', encoding='utf-8') as f:
         isps = json.load(f)
     if not package_id or not file_name:
         return {'default': isps.get('default')}
@@ -49,7 +49,7 @@ def load_isp_info(ckan: CKANClient, package_id: str | None, file_name: str | Non
     if package_id:
         package = ckan.package_show(package_id)
         solr_additions = package.get('solr_additions', {})
-        logger.info(f'Solr additions: {solr_additions}')
+        logger.info('Solr additions: %s', solr_additions)
 
     if solr_additions and solr_additions.get('countries'):
         country = solr_additions.get('countries')[0]
@@ -106,7 +106,7 @@ def readme_scan_classification(sdd_report, model=None):
         classifier = get_classifier(ReadMeScanClassifier, model)
     else:
         classifier = get_classifier(ReadMeScanClassifier, config.README_SCAN_MODEL)
-    return classifier.classify(table_markdown(sdd_report), sdd_report.columns)
+    return classifier.classify(table_markdown(sdd_report))
 
 
 @handle_exception
