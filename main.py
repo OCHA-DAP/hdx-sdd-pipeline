@@ -74,59 +74,69 @@ def get_classifier(classifier_cls, model_name):
 
 
 @handle_exception
-def pii_classification(df):
-    return get_classifier(PIIClassifier, config.PII_DETECT_MODEL).classify_df(df)
+def pii_classification(df, model=None):
+    if model:
+        classifier = get_classifier(PIIClassifier, model)
+    else:
+        classifier = get_classifier(PIIClassifier, config.PII_DETECT_MODEL)
+    return classifier.classify_df(df)
 
 
 @handle_exception
-def pii_reflection_classification(sdd_report):
-    return get_classifier(PIIReflectionClassifier, config.PII_REFLECT_MODEL).classify_df(
-        table_markdown(sdd_report), sdd_report.columns
-    )
+def pii_reflection_classification(sdd_report, model=None):
+    if model:
+        classifier = get_classifier(PIIReflectionClassifier, model)
+    else:
+        classifier = get_classifier(PIIReflectionClassifier, config.PII_REFLECT_MODEL)
+    return classifier.classify_df(table_markdown(sdd_report), sdd_report.columns)
 
 
 @handle_exception
-def non_pii_classification(sdd_report, isp):
-    return get_classifier(NonPIIClassifier, config.NON_PII_DETECT_MODEL).classify(
-        table_markdown(sdd_report), sdd_report, isp
-    )
+def non_pii_classification(sdd_report, isp, model=None):
+    if model:
+        classifier = get_classifier(NonPIIClassifier, model)
+    else:
+        classifier = get_classifier(NonPIIClassifier, config.NON_PII_DETECT_MODEL)
+    return classifier.classify(table_markdown(sdd_report), sdd_report, isp)
 
 
 @handle_exception
-def readme_scan_classification(sdd_report):
-    return get_classifier(ReadMeScanClassifier, config.README_SCAN_MODEL).classify(
-        table_markdown(sdd_report), sdd_report.columns
-    )
+def readme_scan_classification(sdd_report, model=None):
+    if model:
+        classifier = get_classifier(ReadMeScanClassifier, model)
+    else:
+        classifier = get_classifier(ReadMeScanClassifier, config.README_SCAN_MODEL)
+    return classifier.classify(table_markdown(sdd_report), sdd_report.columns)
 
 
 @handle_exception
-def sheet_processor(sdd_report, isp, df):
+def sheet_processor(sdd_report, isp, df, model=None):
     sheet_name = sdd_report.sheet_name
     if 'readme' in sheet_name.lower() or 'instructions' in sheet_name.lower() or 'metadata' in sheet_name.lower():
-        prediction, comp, prompt = readme_scan_classification(sdd_report)
+        prediction, comp, prompt = readme_scan_classification(sdd_report, model=model)
         sdd_report.readme = prediction
         sdd_report.completion_tokens += comp
         sdd_report.prompt_tokens += prompt
-        sdd_report.readme_model = config.README_SCAN_MODEL
+        sdd_report.readme_model = model if model else config.README_SCAN_MODEL
         return sdd_report
 
     # PII classification
-    pii_columns, comp, prompt, _ = pii_classification(df)
+    pii_columns, comp, prompt, _ = pii_classification(df, model=model)
     sdd_report.columns = pii_columns
     sdd_report.completion_tokens += comp
     sdd_report.prompt_tokens += prompt
-    sdd_report.pii_classifier_model = config.PII_DETECT_MODEL
+    sdd_report.pii_classifier_model = model if model else config.PII_DETECT_MODEL
 
     # PII reflection
-    pii_reflections, comp, prompt, _ = pii_reflection_classification(sdd_report)
+    pii_reflections, comp, prompt, _ = pii_reflection_classification(sdd_report, model=model)
     sdd_report.columns = pii_reflections
     sdd_report.completion_tokens += comp
     sdd_report.prompt_tokens += prompt
-    sdd_report.pii_reflection_model = config.PII_REFLECT_MODEL
+    sdd_report.pii_reflection_model = model if model else config.PII_REFLECT_MODEL
 
     # Non-PII classification
-    sdd_report.non_pii = non_pii_classification(sdd_report, isp)
-    sdd_report.non_pii_model = config.NON_PII_DETECT_MODEL
+    sdd_report.non_pii = non_pii_classification(sdd_report, isp, model=model)
+    sdd_report.non_pii_model = model if model else config.NON_PII_DETECT_MODEL
     return sdd_report
 
 

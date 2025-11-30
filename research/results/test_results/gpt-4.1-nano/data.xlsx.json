@@ -1,0 +1,122 @@
+[
+  {
+    "resource_id": "local",
+    "file_name": "data.xlsx",
+    "file_url": "research/data/data.xlsx",
+    "processing_timestamp": "2025-11-30 22:42:27",
+    "processing_success": true,
+    "n_records": 11,
+    "n_columns": 8,
+    "completion_tokens": 344,
+    "prompt_tokens": 3055,
+    "sheet_name": "Sheet1",
+    "pii_classifier_model": "gpt-4.1-nano",
+    "pii_reflection_model": "gpt-4.1-nano",
+    "non_pii_model": "gpt-4.1-nano",
+    "pii_sensitive": false,
+    "non_pii_sensitive": false,
+    "columns": [
+      {
+        "column_name": "test | test header 1 | test subheader 1",
+        "sample_values": [
+          "Alicia",
+          "Charlie",
+          "Bertram"
+        ],
+        "pii": {
+          "entity_type": "PERSON_NAME",
+          "sensitive": true
+        }
+      },
+      {
+        "column_name": "test | test header 1 | test subheader 2",
+        "sample_values": [
+          "5",
+          "0",
+          "9",
+          "10",
+          "2"
+        ],
+        "pii": {
+          "entity_type": "None",
+          "sensitive": false
+        }
+      },
+      {
+        "column_name": "test | test header 2 | test subheader 3",
+        "sample_values": [
+          "Amsterdam",
+          "Londen",
+          "Amsterdam"
+        ],
+        "pii": {
+          "entity_type": "GEO_COORDINATES",
+          "sensitive": false
+        }
+      },
+      {
+        "column_name": "test | test header 2 | test subheader 4",
+        "sample_values": [
+          "tv",
+          "tv",
+          "tv"
+        ],
+        "pii": {
+          "entity_type": "None",
+          "sensitive": false
+        }
+      },
+      {
+        "column_name": "test | test header 3 | test subheader 5",
+        "sample_values": [
+          "computer",
+          "computer",
+          "laptop"
+        ],
+        "pii": {
+          "entity_type": "None",
+          "sensitive": false
+        }
+      },
+      {
+        "column_name": "test | test header 3 | test subheader 6",
+        "sample_values": [],
+        "pii": {
+          "entity_type": "None",
+          "sensitive": false
+        }
+      },
+      {
+        "column_name": "test | test header 4 | test subheader 7",
+        "sample_values": [],
+        "pii": {
+          "entity_type": "None",
+          "sensitive": false
+        }
+      },
+      {
+        "column_name": "test | test header 4 | test subheader 8",
+        "sample_values": [],
+        "pii": {
+          "entity_type": "None",
+          "sensitive": false
+        }
+      }
+    ],
+    "non_pii": {
+      "model_name": "gpt-4.1-nano",
+      "isp_used": "default",
+      "sensitivity": "MODERATE_SENSITIVE",
+      "sensitive_columns": [
+        "test subheader 1 - PERSON_NAME",
+        "test subheader 3 - GEO_COORDINATES"
+      ],
+      "cited_isp_rules": [
+        "MODERATE_SENSITIVE: ['Assessment and survey data aggregated at ADM2 or ADM3', 'Disaggregated data (e.g., by age, gender) without personal identifiers', 'Access constraints data aggregated to district or county level', 'Collective site data without individual-level details', 'Public facility data with increased geographic specificity', 'Security incident reports aggregated at ADM2']"
+      ],
+      "explanation": "The table contains 'test subheader 1 - PERSON_NAME', which indicates the presence of personal names, and 'test subheader 3 - GEO_COORDINATES', which suggests geographic location data. According to the ISP, personal data such as names is classified as SEVERE_SENSITIVE, but since the data is presented in a context that appears aggregated or anonymized (no individual identifiers or detailed personal info), it aligns more closely with the 'Disaggregated data without personal identifiers' category, which is MODERATE_SENSITIVE. The GEO_COORDINATES data, if not precise or linked to individuals, also falls under the 'increased geographic specificity' but not exact coordinates, thus supporting a MODERATE_SENSITIVE classification. Therefore, the overall sensitivity level is set to MODERATE_SENSITIVE, with these columns identified as sensitive based on their content and the ISP guidance."
+    },
+    "error_source": null,
+    "error_message": null
+  }
+]

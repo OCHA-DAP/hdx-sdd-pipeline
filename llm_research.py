@@ -17,16 +17,6 @@ from classifiers.pii_reflection_classifier import PIIReflectionClassifier
 config = get_config()
 
 
-def load_isp_info(file_name: str) -> dict:
-    """Load ISP configuration and determine matching or default ISP."""
-    with open('data/isps.json', 'r') as f:
-        isps = json.load(f)
-    for isp_name, isp_data in isps.items():
-        if isp_data.get('country', '').lower() in file_name.lower():
-            return {isp_name: isp_data}
-    return {'default': isps.get('default')}
-
-
 def init_report(df, sheet_name, file_name, download_url, resource_id):
     return SDDReport(
         resource_id=resource_id,
