@@ -1,7 +1,6 @@
 # test/unit/test_non_pii_classifier.py
 
 import pytest
-import pandas as pd
 from unittest.mock import patch, MagicMock
 
 from classifiers.readme_scan import ReadMeScanClassifier

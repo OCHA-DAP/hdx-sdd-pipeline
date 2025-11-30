@@ -1,6 +1,5 @@
 import pytest
 from unittest.mock import patch
-from typing import Dict, Any
 from classifiers.base_classifier import BaseClassifier
 from test.unit.conftest import MockAzureOpenAIStrategy
 from utils.prompt_manager import PromptManager

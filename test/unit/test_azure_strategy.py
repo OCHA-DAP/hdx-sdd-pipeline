@@ -25,7 +25,7 @@ def test_get_model_type(azure_strategy):
 
 
 def test_generate_success(azure_strategy):
-    prompt = "Hello"
+    prompt = 'Hello'
     text, comp_tokens, prompt_tokens = azure_strategy.generate(prompt)
     assert text == 'mock text'
     assert comp_tokens == 5
@@ -39,8 +39,8 @@ def test_generate_json_success(azure_strategy):
         usage=MagicMock(completion_tokens=2, prompt_tokens=3),
     )
 
-    result, comp_tokens, prompt_tokens = azure_strategy.generate_json("Prompt")
-    assert result == {"key": "value"}
+    result, comp_tokens, prompt_tokens = azure_strategy.generate_json('Prompt')
+    assert result == {'key': 'value'}
     assert comp_tokens == 2
     assert prompt_tokens == 3
 

@@ -3,9 +3,6 @@ import pandas as pd
 from unittest.mock import patch, MagicMock
 
 from classifiers.pii_classifier import PIIClassifier
-from utils.error_constants import ERROR_SOURCE_PII_CLASSIFICATION
-from classifiers.pii_classifier import PIIColumnReport
-from models.sdd_report import SDDReport
 from test.unit.conftest import MockBaseClassifier, MockAzureOpenAIStrategy
 
 MOCK_PII_ENTITIES = ['NAME', 'SSN', 'EMAIL', 'IP ADDRESS', 'AGE']

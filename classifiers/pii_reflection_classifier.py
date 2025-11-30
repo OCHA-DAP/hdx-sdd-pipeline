@@ -34,7 +34,6 @@ class PIIReflectionClassifier(BaseClassifier):
         max_new_tokens: int = 12,
         version: str = 'v0',
     ) -> Tuple[str, int, int]:
-
         if entity_type == 'None':
             return 'NON_SENSITIVE', 0, 0
 
@@ -84,10 +83,10 @@ class PIIReflectionClassifier(BaseClassifier):
         total_completion = 0
         total_prompt = 0
 
-        for col in tqdm(pii_columns, desc="Reflecting on PII sensitivity"):
-            entity = col.pii.get("entity_type")
+        for col in tqdm(pii_columns, desc='Reflecting on PII sensitivity'):
+            entity = col.pii.get('entity_type')
 
-            if entity == "None":
+            if entity == 'None':
                 reflections.append(
                     PIIColumnReport(
                         column_name=col.column_name,
@@ -108,7 +107,7 @@ class PIIReflectionClassifier(BaseClassifier):
             total_prompt += prompt
 
             sensitive = False
-            if pred == "SENSITIVE":
+            if pred == 'SENSITIVE':
                 sensitive = True
 
             reflections.append(

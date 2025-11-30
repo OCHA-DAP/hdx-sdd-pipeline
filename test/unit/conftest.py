@@ -3,16 +3,13 @@ from unittest.mock import MagicMock, patch
 import requests
 import os
 from pathlib import Path
-from typing import Optional, Any
+from typing import Any
 from utils.ckan import CKANClient
 from utils.prompt_manager import PromptManager
-from llm_model.azure_strategy import AzureOpenAIStrategy
 import pandas as pd
-from dataclasses import dataclass, field
-from typing import List, Dict, Any
 from models.sdd_report import PIIColumnReport
 from utils.utils import table_markdown
-from models.sdd_report import SDDReport
+from models.sdd_report import SDDReport, NonPIIReport
 from datetime import datetime
 
 
@@ -123,7 +120,7 @@ def mock_base_classifier(mock_azure_strategy):
 
 @pytest.fixture
 def mock_non_pii_report():
-    return MockNonPIIReport(
+    return NonPIIReport(
         model_name='mock-model', isp_used='mock-isp', sensitivity='mock-sensitivity', explanation='mock-explanation'
     )
 

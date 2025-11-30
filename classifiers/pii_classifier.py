@@ -1,14 +1,12 @@
 import logging
-from typing import Any, List, Dict, Optional, Tuple
+from typing import Any, List, Tuple
 import pandas as pd
 from tqdm import tqdm
 
 from .base_classifier import BaseClassifier
 from models.sdd_report import PIIColumnReport
 from utils.main_config import PII_ENTITIES_LIST
-from utils.error_constants import ERROR_SOURCE_PII_CLASSIFICATION
 from llm_model.azure_strategy import AzureOpenAIStrategy
-from utils.exception_handler import handle_exception
 
 logger = logging.getLogger(__name__)
 
@@ -49,7 +47,6 @@ class PIIClassifier(BaseClassifier):
         k: int = 5,
         version: str = 'v0',
     ) -> Tuple[PIIColumnReport, int, int]:
-
         sample_values = [str(v) for v in sample_values[:k]]
 
         if not sample_values or any(v == '' for v in sample_values):

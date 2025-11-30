@@ -7,16 +7,12 @@ logging.config.fileConfig('logging.conf')
 import json  # noqa: E402
 import datetime  # noqa: E402
 
-import pandas as pd  # noqa: E402
 from hdx_redis_lib import connect_to_hdx_event_bus, RedisConfig  # noqa: E402
 
 from config.config import get_config  # noqa: E402
 from models.sdd_report import SDDReport  # noqa: E402
 from utils.ckan import CKANClient  # noqa: E402
 from utils.processing import DataSampler  # noqa: E402
-from utils.error_constants import (
-    ERROR_SOURCE_PROCESSING,
-)  # noqa: E402
 from classifiers.pii_classifier import PIIClassifier  # noqa: E402
 from classifiers.non_pii_classifier import NonPIIClassifier  # noqa: E402
 from classifiers.pii_reflection_classifier import PIIReflectionClassifier  # noqa: E402
@@ -42,13 +38,13 @@ event_bus = connect_to_hdx_event_bus(
 )
 
 
-def load_isp_info(ckan: CKANClient, package_id: Optional[str], file_name: Optional[str]) -> dict:
+def load_isp_info(ckan: CKANClient, package_id: str | None, file_name: str | None) -> dict:
     """Load ISP configuration and determine matching or default ISP."""
-    if not package_id or not file_name:
-        return {'default': isps.get('default')}
 
     with open('data/isps.json', 'r') as f:
         isps = json.load(f)
+    if not package_id or not file_name:
+        return {'default': isps.get('default')}
 
     if package_id:
         package = ckan.package_show(package_id)
@@ -137,7 +133,6 @@ def sheet_processor(sdd_report, isp, df):
 def event_processor(event):
     """Main event processor. Handles one HDX resource-data-changed event."""
     logger.info('Received event: %s', json.dumps(event, ensure_ascii=False, indent=2))
-    start_time = datetime.datetime.now()
 
     resource_id = event.get('resource_id')
     if not resource_id:
@@ -162,7 +157,6 @@ def event_processor(event):
     reports = []
 
     for sheet_name, df in dfs.items():
-
         sdd_report = SDDReport(
             resource_id=resource_id,
             file_name=file_name,

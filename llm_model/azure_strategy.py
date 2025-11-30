@@ -4,6 +4,8 @@ from dotenv import load_dotenv
 from openai import AzureOpenAI
 
 from utils.exception_handler import handle_exception
+
+
 class AzureOpenAIStrategy:
     """
     Strategy for using OpenAI models through Azure API.
