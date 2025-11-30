@@ -2,6 +2,7 @@
 from typing import Dict
 import pandas as pd
 from models.sdd_report import SDDReport
+from utils.exception_handler import handle_exception
 
 
 def table_markdown(report: SDDReport) -> str:
@@ -21,8 +22,6 @@ def table_markdown(report: SDDReport) -> str:
         column_samples[key] = values + [''] * (max_len - len(values))
 
     return pd.DataFrame(column_samples).to_markdown(index=False) or ''
-
-from utils.exception_handler import handle_exception
 
 
 class DataSampler:

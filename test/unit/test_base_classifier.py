@@ -9,7 +9,9 @@ from utils.prompt_manager import PromptManager
 
 @pytest.fixture
 def base_classifier_instance(mock_azure_strategy):
-    with (patch('classifiers.base_classifier.AzureOpenAIStrategy', MockAzureOpenAIStrategy),):
+    with (
+        patch('classifiers.base_classifier.AzureOpenAIStrategy', MockAzureOpenAIStrategy),
+    ):
         classifier = BaseClassifier(model=mock_azure_strategy)
         return classifier
 
