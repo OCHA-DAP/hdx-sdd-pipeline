@@ -183,7 +183,7 @@ def test_download_resource_no_url(mock_resource_show, mock_ckan_client):
     # Mock API response to show no download_url
     mock_resource_show.return_value = {'id': RESOURCE_ID, 'name': 'No Link'}
 
-    with pytest.raises(TypeError):
+    with pytest.raises(ValueError):
         mock_ckan_client.download_resource(RESOURCE_ID)
 
 
