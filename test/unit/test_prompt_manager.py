@@ -1,5 +1,6 @@
 from utils.prompt_manager import PromptManager
 import pytest
+import jinja2
 
 prompt_manager = PromptManager()
 
@@ -27,7 +28,7 @@ def test_get_prompt():
 
 
 def test_get_prompt_not_existing_version():
-    with pytest.raises(FileNotFoundError):
+    with pytest.raises(jinja2.exceptions.TemplateNotFound):
         prompt_manager.get_prompt(
             'pii_detection', 'not_existing_version', {'column_name': 'name', 'sample_values': ['John Doe']}
         )

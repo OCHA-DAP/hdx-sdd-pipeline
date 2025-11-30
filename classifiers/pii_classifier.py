@@ -1,12 +1,14 @@
 import logging
-from typing import Any, List, Dict, Optional
+from typing import Any, List, Dict, Optional, Tuple
 import pandas as pd
 from tqdm import tqdm
 
 from .base_classifier import BaseClassifier
-from models.sdd_report import SDDReport, PIIColumnReport
+from models.sdd_report import PIIColumnReport
 from utils.main_config import PII_ENTITIES_LIST
 from utils.error_constants import ERROR_SOURCE_PII_CLASSIFICATION
+from llm_model.azure_strategy import AzureOpenAIStrategy
+from utils.exception_handler import handle_exception
 
 logger = logging.getLogger(__name__)
 
@@ -15,12 +17,30 @@ DEBUG = True
 
 class PIIClassifier(BaseClassifier):
     """
-    Handles detection of PII entities from column names and sample values.
+    Returns only PIIColumnReport objects and model tokens.
     """
 
-    def _prepare_context(self, df: pd.DataFrame) -> Dict[str, Any]:
-        """Prepare context for PII classification."""
-        return df.to_dict(orient='records')
+    def __init__(self, model: AzureOpenAIStrategy):
+        super().__init__(model)
+        self.model = model
+
+    @staticmethod
+    def _normalize_prediction(pred: str) -> str:
+        if not isinstance(pred, str):
+            return 'UNDETERMINED'
+
+        pred = pred.lower()
+
+        if 'none' in pred:
+            return 'None'
+
+        # AGE lowest priority
+        entity_order = [e for e in PII_ENTITIES_LIST if e != 'AGE'] + ['AGE']
+        for e in entity_order:
+            if e.lower() in pred:
+                return e
+
+        return 'UNDETERMINED'
 
     def _classify_column(
         self,
@@ -28,106 +48,64 @@ class PIIClassifier(BaseClassifier):
         sample_values: List[Any],
         k: int = 5,
         version: str = 'v0',
-        report: Optional[SDDReport] = None,
-    ) -> SDDReport:
-        """
-        Detect PII entity type in a column and add a PIIColumnReport to the report.
-        Updates report.completion_tokens and report.prompt_tokens.
-        """
-        if report is None:
-            raise ValueError('SDDReport instance must be provided.')
+    ) -> Tuple[PIIColumnReport, int, int]:
 
-        # Limit to first k non-null values
         sample_values = [str(v) for v in sample_values[:k]]
 
-        # Handle empty or non-alphanumeric columns
-        if not self._has_alphanumeric(sample_values):
-            report.add_pii_column(
+        if not sample_values or any(v == '' for v in sample_values):
+            return (
                 PIIColumnReport(
                     column_name=column_name,
                     sample_values=sample_values,
-                    pii={
-                        'entity_type': 'None',
-                    },
-                )
+                    pii={'entity_type': 'None'},
+                ),
+                0,
+                0,
             )
-            return report
 
         context = {'column_name': column_name, 'sample_values': sample_values}
 
-        try:
-            # Run your GPT/LLM model via Azure or other strategy
-            prediction, completion_tokens, prompt_tokens = self._run_prompt(
-                'pii_detection', context, version, max_new_tokens=8
-            )
+        prediction, completion_tokens, prompt_tokens = self._run_prompt(
+            'pii_detection',
+            context,
+            version,
+            max_new_tokens=8,
+        )
 
-            # Check for error indicators in prediction
-            if isinstance(prediction, str) and 'ERROR_GENERATION' in prediction:
-                error_msg = f'PII classification failed for column {column_name}: Azure generation returned error'
-                logger.error(error_msg)
-                report.set_error(ERROR_SOURCE_PII_CLASSIFICATION, error_msg)
-                report.add_pii_column(
-                    PIIColumnReport(
-                        column_name=column_name,
-                        sample_values=sample_values[:k],
-                        pii={
-                            'entity_type': 'ERROR',
-                        },
-                    )
-                )
-                return report
+        entity = self._normalize_prediction(prediction)
 
-            # Update token counts
-            report.completion_tokens += completion_tokens
-            report.prompt_tokens += prompt_tokens
-
-        except Exception as e:
-            error_msg = f'PII classification failed for column {column_name}: {str(e)}'
-            logger.exception(error_msg)
-            report.set_error(ERROR_SOURCE_PII_CLASSIFICATION, error_msg)
-            report.add_pii_column(
-                PIIColumnReport(
-                    column_name=column_name,
-                    sample_values=sample_values[:k],
-                    pii={
-                        'entity_type': 'ERROR',
-                    },
-                )
-            )
-            return report
-
-        # Normalize prediction
-        prediction_lower = prediction.lower() if isinstance(prediction, str) else ''
-        if 'none' in prediction_lower:
-            entity_type = 'None'
-        else:
-            # Prioritize AGE last
-            entity_list = [e for e in PII_ENTITIES_LIST if e != 'AGE'] + ['AGE']
-            entity_type = 'UNDETERMINED'
-            for entity in entity_list:
-                if entity.lower() in prediction_lower:
-                    entity_type = entity
-
-        # Add PII column to report
-        report.add_pii_column(
+        return (
             PIIColumnReport(
                 column_name=column_name,
                 sample_values=sample_values,
-                pii={
-                    'entity_type': entity_type,
-                },
-            )
+                pii={'entity_type': entity},
+            ),
+            completion_tokens,
+            prompt_tokens,
         )
 
-    def classify_df(self, df: pd.DataFrame, report: SDDReport) -> SDDReport:
-        """Classify each column in a DataFrame and populate the SDD report."""
+    def classify_df(
+        self,
+        df: pd.DataFrame,
+    ) -> Tuple[List[PIIColumnReport], int, int, str]:
+        """
+        Returns:
+          - list of PIIColumnReport objects
+          - total completion tokens
+          - total prompt tokens
+          - model name
+        """
 
-        for column in tqdm(df.columns, desc='Classifying columns'):
-            # TODO: Check if the column is already classified
-            sample_values = df[column].dropna().astype(str).tolist()
-            self._classify_column(column_name=column, sample_values=sample_values, report=report)
+        pii_columns: List[PIIColumnReport] = []
+        total_completion = 0
+        total_prompt = 0
 
-        # 🐛 FIX: Moved model assignment outside the loop so it runs even if df is empty
-        report.pii_classifier_model = self.model_name
+        for column in tqdm(df.columns, desc='Classifying PII'):
+            values = df[column].dropna().astype(str).tolist()
 
-        return report
+            col_report, comp, prompt = self._classify_column(column, values)
+            pii_columns.append(col_report)
+            total_completion += comp
+            total_prompt += prompt
+
+        return pii_columns, total_completion, total_prompt, self.model.model_name

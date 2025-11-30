@@ -49,3 +49,16 @@ def test_empty_dataframe():
     df = pd.DataFrame()
     assert sampler._sample_dataframe(df) is not None
     assert len(sampler._sample_dataframe(df)) == 0
+
+
+def test_load_from_url_error():
+    with pytest.raises(FileNotFoundError):
+        sampler._load_from_url('test/unit/downloads/nonexistent.csv')
+
+
+def test_enough_rows_in_sample_dataframe():
+    df = pd.DataFrame([[1, 2, 3], [4, 5, 6], [7, 8, 9]])
+    sampler = DataSampler()
+    sample = sampler._sample_dataframe(df, sample_size=1)
+    assert sample is not None
+    assert len(sample) == 1

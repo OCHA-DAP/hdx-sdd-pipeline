@@ -2,6 +2,8 @@
 from typing import Dict
 import pandas as pd
 
+from utils.exception_handler import handle_exception
+
 
 class DataSampler:
     """
@@ -10,6 +12,7 @@ class DataSampler:
 
     SUPPORTED_EXTENSIONS = ('.csv', '.xls', '.xlsx')
 
+    @handle_exception
     def _validate_url(self, url: str) -> str:
         """Check if the URL points to a supported file type."""
         url_lower = url.lower()
@@ -17,22 +20,20 @@ class DataSampler:
             raise ValueError(f'Unsupported file type. Only {", ".join(self.SUPPORTED_EXTENSIONS)} are supported.')
         return url_lower
 
+    @handle_exception
     def _load_from_url(self, url: str) -> Dict[str, pd.DataFrame]:
         """Load CSV/XLS/XLSX from a URL into a dictionary of DataFrames keyed by sheet name."""
         url = self._validate_url(url)
+        if url.endswith('.csv'):
+            df = pd.read_csv(url, header=None, nrows=200)
+            df = self._concatenate_header(df)
+            return {'sheet1': df}
 
-        try:
-            if url.endswith('.csv'):
-                df = pd.read_csv(url, header=None, nrows=200)
-                df = self._concatenate_header(df)
-                return {'sheet1': df}
+        # Excel files: can contain multiple sheets
+        df_dict = pd.read_excel(url, sheet_name=None, nrows=200, header=None)
+        return {sheet_name: self._concatenate_header(df) for sheet_name, df in df_dict.items()}
 
-            # Excel files: can contain multiple sheets
-            df_dict = pd.read_excel(url, sheet_name=None, nrows=200, header=None)
-            return {sheet_name: self._concatenate_header(df) for sheet_name, df in df_dict.items()}
-        except Exception as e:
-            raise RuntimeError(f'Failed to load data from URL {url}: {str(e)}') from e
-
+    @handle_exception
     def _concatenate_header(self, df: pd.DataFrame) -> pd.DataFrame:
         """
         Attempts to detect header rows and flatten them into single column names.
@@ -46,7 +47,6 @@ class DataSampler:
 
         if header_end_row is None:
             # Fallback: treat first row as header
-            print('No fully populated header row found')
             header_end_row = 0
 
         # Extract header block and fill missing cells
@@ -61,6 +61,7 @@ class DataSampler:
         cleaned_df.columns = final_columns
         return cleaned_df.reset_index(drop=True)
 
+    @handle_exception
     def _sample_dataframe(self, df: pd.DataFrame, sample_size: int = 20) -> pd.DataFrame:
         """Return a random sample of rows, preferring complete rows if available."""
         if df.empty:
@@ -81,6 +82,7 @@ class DataSampler:
 
         return sample.reset_index(drop=True)
 
+    @handle_exception
     def sample(self, url: str, sample_size: int = 20) -> Dict[str, pd.DataFrame]:
         """Main entrypoint: load and sample dataset(s) from a URL."""
         sheets = self._load_from_url(url)
