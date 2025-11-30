@@ -1,94 +1,121 @@
-# classifiers/pii_sensitivity_classifier.py
 import logging
-from typing import Any, Dict
+from typing import Any, Dict, List, Tuple
 from tqdm import tqdm
 
-from models.sdd_report import SDDReport
 from .base_classifier import BaseClassifier
-from utils.error_constants import ERROR_SOURCE_PII_REFLECTION
+from llm_model.azure_strategy import AzureOpenAIStrategy
+from utils.exception_handler import handle_exception
+from models.sdd_report import PIIColumnReport
 
 logger = logging.getLogger(__name__)
 
 
 class PIIReflectionClassifier(BaseClassifier):
     """
-    Classify the sensitivity level of detected PII entities.
+    Classifies whether detected PII columns are sensitive or not.
+
+    Returns only:
+      - list of reflection results
+      - completion tokens
+      - prompt tokens
+      - model name
     """
 
+    def __init__(self, model: AzureOpenAIStrategy):
+        super().__init__(model)
+        self.model = model
+
+    @handle_exception
     def classify_column(
         self,
         column_name: str,
         table_markdown: str,
-        column_entity: str,
+        entity_type: str,
         max_new_tokens: int = 12,
         version: str = 'v0',
-    ) -> Dict[str, Any]:
-        """Classify the sensitivity level of a detected PII entity."""
-        if column_entity == 'None':
-            return self._standardize_output(
-                'PII_SENSITIVITY',
-                'NON_SENSITIVE',
-                'PII Entity = None',
-            )
+    ) -> Tuple[str, int, int]:
+        if entity_type == 'None':
+            return 'NON_SENSITIVE', 0, 0
 
-        jinja_context = {
+        ctx = {
             'column_name': column_name,
             'table_markdown': table_markdown,
-            'column_entity': column_entity,
+            'column_entity': entity_type,
         }
 
-        try:
-            prediction, completion_tokens, prompt_tokens = self._run_prompt(
-                'pii_reflection', jinja_context, version, max_new_tokens
+        prediction, completion_tokens, prompt_tokens = self._run_prompt(
+            'pii_reflection',
+            ctx,
+            version=version,
+            max_new_tokens=max_new_tokens,
+            json_response_format=False,
+        )
+
+        return prediction, completion_tokens, prompt_tokens
+
+    def classify_df(
+        self,
+        table_markdown: str,
+        pii_columns: List,
+    ) -> Tuple[List[Dict[str, Any]], int, int, str]:  # reflections  # completion tokens  # prompt tokens  # model name
+        """
+        Args:
+            table_markdown: the markdown table used for reasoning
+            pii_columns: list of PIIColumnReport from PIIClassifier
+
+        Returns:
+            (
+              [
+                {
+                  "column_name": ...,
+                  "entity_type": ...,
+                  "sensitive": bool
+                },
+                ...
+              ],
+              total_completion_tokens,
+              total_prompt_tokens,
+              model_name
             )
-            # sensitivity_level = self._map_sensitivity(prediction)
+        """
 
-            # Check for error indicators
-            if isinstance(prediction, str) and 'ERROR_GENERATION' in prediction:
-                error_msg = f'PII reflection failed for column {column_name}: Azure generation returned error'
-                logger.error(error_msg)
-                raise RuntimeError(error_msg)
+        reflections: List[PIIColumnReport] = []
+        total_completion = 0
+        total_prompt = 0
 
-            return prediction, completion_tokens, prompt_tokens
-        except Exception as e:
-            error_msg = f'PII reflection classification failed for column {column_name}: {str(e)}'
-            logger.exception(error_msg)
-            raise RuntimeError(error_msg) from e
+        for col in tqdm(pii_columns, desc='Reflecting on PII sensitivity'):
+            entity = col.pii.get('entity_type')
 
-    def classify_df(self, table_markdown: str, report: SDDReport) -> Dict[str, Any]:
-        """Classify the sensitivity level of detected PII entities."""
-        # Stop processing if there's already an error
-        if not report.processing_success:
-            return report
-
-        try:
-            for column in tqdm(report.columns, desc='Reflecting on PII entities'):
-                # Skip if no PII entity type is detected
-                if column.pii.get('sensitive') is not None:
-                    continue
-                # Skip if PII entity type is error
-                if column.pii.get('entity_type') == 'ERROR' or column.pii.get('entity_type') == 'None':
-                    pred = False
-                else:
-                    pred, completion_tokens, prompt_tokens = self.classify_column(
-                        column_name=column.column_name,
-                        table_markdown=table_markdown,
-                        column_entity=column.pii.get('entity_type'),
+            if entity == 'None':
+                reflections.append(
+                    PIIColumnReport(
+                        column_name=col.column_name,
+                        sample_values=col.sample_values,
+                        pii={'entity_type': entity, 'sensitive': False},
                     )
-                    report.completion_tokens += completion_tokens
-                    report.prompt_tokens += prompt_tokens
-                    if pred == 'SENSITIVE':
-                        pred = True
-                    elif pred == 'NON_SENSITIVE':
-                        pred = False
-
-                report.update_pii_column(
-                    column_name=column.column_name, entity_type=column.pii.get('entity_type'), sensitive=pred
                 )
-                report.pii_reflection_model = self.model_name
-            return report
-        except Exception as e:
-            error_msg = f'PII reflection classification failed: {str(e)}'
-            logger.exception(error_msg)
-            report.set_error(ERROR_SOURCE_PII_REFLECTION, error_msg)
-            return report
+                continue
+
+            pred, comp, prompt = self.classify_column(
+                column_name=col.column_name,
+                table_markdown=table_markdown,
+                entity_type=entity,
+            )
+
+            # token aggregation
+            total_completion += comp
+            total_prompt += prompt
+
+            sensitive = False
+            if pred == 'SENSITIVE':
+                sensitive = True
+
+            reflections.append(
+                PIIColumnReport(
+                    column_name=col.column_name,
+                    sample_values=col.sample_values,
+                    pii={'entity_type': entity, 'sensitive': sensitive},
+                )
+            )
+
+        return reflections, total_completion, total_prompt, self.model.model_name

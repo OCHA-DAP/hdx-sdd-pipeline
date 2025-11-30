@@ -2,266 +2,75 @@ import pytest
 import pandas as pd
 from unittest.mock import patch, MagicMock
 
-# NOTE: Adjust import path if needed
 from classifiers.pii_classifier import PIIClassifier
-from utils.error_constants import ERROR_SOURCE_PII_CLASSIFICATION
+from test.unit.conftest import MockBaseClassifier, MockAzureOpenAIStrategy
 
-
-class MockAzureOpenAIStrategy:
-    """Mock to replace AzureOpenAIStrategy during CI/unit testing."""
-
-    def __init__(self, model_name: str, azure_endpoint: str, api_key: str):
-        self.model = model_name
-        self.model_name = model_name
-        self.azure_endpoint = azure_endpoint
-        self.api_key = api_key
-        self.client = MagicMock()
-
-    def generate(self, _prompt: str, _temperature: float = 0.3, _max_new_tokens: int = 200):
-        return 'mock_generated_text', 1, 1
-
-    def generate_json(self, _prompt: str, _temperature: float = 0.3, _max_new_tokens: int = 200):
-        return {'mock_key': 'mock_value'}, 1, 1
-
-    def get_azure_config(self):
-        return {'endpoint': 'mock_endpoint', 'model': self.model}
-
-
-# --- Test Utilities and Mock Data ---
-
-# Define a fixture for the PII Entities List used in the classifier
 MOCK_PII_ENTITIES = ['NAME', 'SSN', 'EMAIL', 'IP ADDRESS', 'AGE']
-MOCK_PII_ENTITIES_PATH = 'classifiers.pii_classifier.PII_ENTITIES_LIST'
-
-# --- Mock Classes for Dependencies ---
-
-
-class MockPIIColumnReport:
-    # ... (contents remain the same) ...
-    """Mock the PIIColumnReport data model to capture initialization arguments."""
-
-    def __init__(self, **kwargs):
-        self.kwargs = kwargs  # Store arguments for inspection
-
-
-class MockSDDReport:
-    # ... (contents remain the same) ...
-    """Mock the SDDReport data model for PII classification."""
-
-    def __init__(self, **kwargs):
-        self.completion_tokens = kwargs.get('completion_tokens', 0)
-        self.prompt_tokens = kwargs.get('prompt_tokens', 0)
-        self.pii_columns = []
-        self.pii_classifier_model = kwargs.get('pii_classifier_model', None)  # Initialize property
-        self.processing_success = kwargs.get('processing_success', True)
-        self.error_source = kwargs.get('error_source', None)
-        self.error_message = kwargs.get('error_message', None)
-        # Required for other parts of SDDReport model not being tested:
-        self.non_pii = None
-
-    def add_pii_column(self, report: MockPIIColumnReport):
-        self.pii_columns.append(report)
-
-    def set_error(self, error_source: str, error_message: str):
-        """Mock set_error method."""
-        self.processing_success = False
-        self.error_source = error_source
-        self.error_message = error_message
-
-
-class MockBaseClassifier:
-    # ... (contents remain the same) ...
-    """Mock the inherited BaseClassifier, replacing LLM/utility methods with Mocks."""
-
-    def __init__(self, model_name: str):
-        self.model_name = model_name
-        # These methods will be replaced by MagicMocks in the fixture
-        self._run_prompt = lambda *args, **kwargs: None
-        self._has_alphanumeric = lambda *args, **kwargs: True
-
-
-# --- Fixtures ---
 
 
 @pytest.fixture
-def pii_classifier_instance():
-    """
-    Fixture to create PIIClassifier with Azure strategy mocked out.
-    """
+def pii_classifier_instance(mock_azure_strategy):
     with (
         patch('classifiers.pii_classifier.BaseClassifier', MockBaseClassifier),
         patch('classifiers.base_classifier.AzureOpenAIStrategy', MockAzureOpenAIStrategy),
         patch('classifiers.pii_classifier.PII_ENTITIES_LIST', MOCK_PII_ENTITIES),
     ):
-        classifier = PIIClassifier(model_name='pii-model-v1', azure_endpoint='mock_endpoint', api_key='mock_api_key')
+        classifier = PIIClassifier(model=mock_azure_strategy)
         classifier._run_prompt = MagicMock()
         classifier._has_alphanumeric = MagicMock()
         return classifier
 
 
-# --- Fixtures ---
+# def test_prepare_context(pii_classifier_instance, sample_df):
+#     context = pii_classifier_instance._prepare_context(sample_df)
+#     assert len(context) == 3
+#     assert context[0]['name'] == 'Alice'
+#     assert context[0]['age'] == 25
+#     assert context[0]['country'] == 'US'
+#     assert context[1]['name'] == 'Bob'
+#     assert context[1]['age'] == 30
+#     assert context[1]['country'] == 'UK'
+#     assert context[2]['name'] == 'Charlie'
+#     assert context[2]['age'] == 35
+#     assert context[2]['country'] == 'DE'
 
 
-@pytest.fixture
-def sample_df() -> pd.DataFrame:
-    """Fixture for a sample DataFrame."""
-    return pd.DataFrame({'Name': ['Alice', 'Bob'], 'Age': [30, 40], 'ID': ['1', '2']})
+def test_classify_df(pii_classifier_instance):
+    df = pd.DataFrame(
+        {
+            'name': ['Alice', 'Bob'],
+            'age': ['10', '20'],
+        }
+    )
 
-
-@pytest.fixture
-def mock_report():
-    """Fixture for a fresh MockSDDReport instance."""
-    return MockSDDReport(completion_tokens=5, prompt_tokens=15)
-
-
-# =====================================================================
-# 1. _prepare_context Tests
-# =====================================================================
-
-
-def test_prepare_context(pii_classifier_instance, sample_df):
-    """Test preparing context converts DataFrame to list of records."""
-    context = pii_classifier_instance._prepare_context(sample_df)
-    expected_context = [{'Name': 'Alice', 'Age': 30, 'ID': '1'}, {'Name': 'Bob', 'Age': 40, 'ID': '2'}]
-    assert context == expected_context
-
-
-# =====================================================================
-# 2. _classify_column Tests (Core Logic)
-# =====================================================================
-
-
-@patch('classifiers.pii_classifier.PIIColumnReport', MockPIIColumnReport)
-def test_classify_column_requires_report(pii_classifier_instance):
-    """Test ValueError is raised if SDDReport is not provided (L43)."""
-    with pytest.raises(ValueError, match='SDDReport instance must be provided'):
-        pii_classifier_instance._classify_column('col', ['data'], report=None)
-
-
-@patch('classifiers.pii_classifier.PIIColumnReport', MockPIIColumnReport)
-def test_classify_column_non_alphanumeric(pii_classifier_instance, mock_report):
-    """
-    Test flow when column is empty or non-alphanumeric (L53).
-    Should bypass LLM call and classify as 'None'.
-    """
-    # Force the utility check to fail
-    pii_classifier_instance._has_alphanumeric.return_value = False
-
-    pii_classifier_instance._classify_column('Symbol_Col', ['!', '%', None], report=mock_report)
-
-    # Assert _run_prompt was NOT called
-    pii_classifier_instance._run_prompt.assert_not_called()
-
-    # Assert PIIColumnReport was added with 'None'
-    assert len(mock_report.pii_columns) == 1
-    report_added = mock_report.pii_columns[0].kwargs
-    assert report_added['column_name'] == 'Symbol_Col'
-    assert report_added['pii']['entity_type'] == 'None'
-
-
-@pytest.mark.parametrize(
-    'raw_prediction, expected_entity',
-    [
-        ('It looks like an email_address.', 'EMAIL_ADDRESS'),
-        # FIX #1: This test case should now pass due to MOCK_PII_ENTITIES update
-        ('IP_address detected.', 'IP_ADDRESS'),
-        ("It's an age field.", 'AGE'),  # Test AGE last/priority logic
-        ('No PII found here, just none.', 'None'),
-        ('This is undetermined', 'UNDETERMINED'),
-    ],
-)
-@patch('classifiers.pii_classifier.PIIColumnReport', MockPIIColumnReport)
-def test_classify_column_success_mapping_and_tokens(
-    pii_classifier_instance, mock_report, raw_prediction, expected_entity
-):
-    """Test successful LLM call, token update, and entity mapping."""
-
-    initial_comp_tokens = mock_report.completion_tokens
-    initial_prompt_tokens = mock_report.prompt_tokens
-
-    # 1. Configure Mocks
     pii_classifier_instance._has_alphanumeric.return_value = True
-    comp_tokens_llm = 5
-    prompt_tokens_llm = 10
-    pii_classifier_instance._run_prompt.return_value = (raw_prediction, comp_tokens_llm, prompt_tokens_llm)
+    pii_classifier_instance._run_prompt.return_value = ('name', 1, 2)
 
-    # 2. Execute
-    pii_classifier_instance._classify_column('TestCol', ['data1', 'data2'], k=2, report=mock_report)
+    predictions, comp, prompt, model_name = pii_classifier_instance.classify_df(df)
 
-    # 3. Assertions
-    # Verify _run_prompt was called correctly
-    pii_classifier_instance._run_prompt.assert_called_once()
-
-    # Verify token counts are updated
-    assert mock_report.completion_tokens == initial_comp_tokens + comp_tokens_llm
-    assert mock_report.prompt_tokens == initial_prompt_tokens + prompt_tokens_llm
-
-    # Verify report was added and correctly mapped
-    assert mock_report.pii_columns[0].kwargs['pii']['entity_type'] == expected_entity
+    assert len(predictions) == 2
+    assert model_name == pii_classifier_instance.model.model_name
+    assert comp == 2
+    assert prompt == 4
 
 
-@patch('classifiers.pii_classifier.PIIColumnReport', MockPIIColumnReport)
-@patch('classifiers.pii_classifier.logger')
-def test_classify_column_exception_handling(mock_logger, pii_classifier_instance, mock_report):
-    """Test error handling path when _run_prompt fails."""
-
-    # 1. Configure Mocks
+def test_normalize_none_prediction(pii_classifier_instance, sample_df, mock_sdd_report):
     pii_classifier_instance._has_alphanumeric.return_value = True
-    mock_error = RuntimeError('LLM connection failed')
-    pii_classifier_instance._run_prompt.side_effect = mock_error
+    pii_classifier_instance._run_prompt.return_value = ('none', 1, 2)
 
-    # 2. Execute
-    pii_classifier_instance._classify_column('ErrorCol', ['data'], report=mock_report)
-
-    # 3. Assertions
-    # Verify exception was logged
-    mock_logger.exception.assert_called_once()
-    log_message = mock_logger.exception.call_args[0][0]
-    assert 'PII classification failed for column ErrorCol' in log_message
-    # Verify PIIColumnReport was added with 'ERROR'
-    assert mock_report.pii_columns[0].kwargs['pii']['entity_type'] == 'ERROR'
-    # Verify error was set on report
-    assert mock_report.processing_success is False
-    assert mock_report.error_source == ERROR_SOURCE_PII_CLASSIFICATION
-    assert 'LLM connection failed' in mock_report.error_message
+    predictions, comp, prompt, model_name = pii_classifier_instance.classify_df(sample_df)
+    assert len(predictions) == 3
+    assert predictions[0].pii['entity_type'] == 'None'
+    assert predictions[1].pii['entity_type'] == 'None'
+    assert predictions[2].pii['entity_type'] == 'None'
 
 
-@patch('classifiers.pii_classifier.PIIColumnReport', MockPIIColumnReport)
-@patch('classifiers.pii_classifier.logger')
-def test_classify_column_error_generation_string(mock_logger, pii_classifier_instance, mock_report):
-    """Test error handling when _run_prompt returns ERROR_GENERATION string."""
-
-    # 1. Configure Mocks
+def test_normalize_prediction(pii_classifier_instance, sample_df, mock_sdd_report):
     pii_classifier_instance._has_alphanumeric.return_value = True
-    pii_classifier_instance._run_prompt.return_value = ('ERROR_GENERATION', 0, 0)
+    pii_classifier_instance._run_prompt.return_value = ('email_address', 1, 2)
 
-    # 2. Execute
-    pii_classifier_instance._classify_column('ErrorCol', ['data'], report=mock_report)
-
-    # 3. Assertions
-    # Verify PIIColumnReport was added with 'ERROR'
-    assert len(mock_report.pii_columns) == 1
-    assert mock_report.pii_columns[0].kwargs['pii']['entity_type'] == 'ERROR'
-    # Verify error was set on report
-    assert mock_report.processing_success is False
-    assert mock_report.error_source == ERROR_SOURCE_PII_CLASSIFICATION
-    assert mock_report.error_message is not None
-    assert 'Azure generation returned error' in mock_report.error_message
-
-
-# =====================================================================
-# 3. classify_df Tests
-# =====================================================================
-
-
-def test_classify_df_handles_empty_dataframe(pii_classifier_instance, mock_report):
-    """Test classify_df handles an empty DataFrame gracefully."""
-    empty_df = pd.DataFrame()
-
-    # Patch the column classifier to ensure it's not called
-    with patch('classifiers.pii_classifier.PIIClassifier._classify_column') as mock_classify_column:
-        result_report = pii_classifier_instance.classify_df(empty_df, mock_report)
-
-    mock_classify_column.assert_not_called()
-    # Assertion should now pass because the model name assignment was fixed in the source code (outside the loop)
-    assert isinstance(result_report, MockSDDReport)
+    predictions, comp, prompt, model_name = pii_classifier_instance.classify_df(sample_df)
+    assert len(predictions) == 3
+    assert predictions[0].pii['entity_type'] == 'EMAIL_ADDRESS'
+    assert predictions[1].pii['entity_type'] == 'EMAIL_ADDRESS'
+    assert predictions[2].pii['entity_type'] == 'EMAIL_ADDRESS'

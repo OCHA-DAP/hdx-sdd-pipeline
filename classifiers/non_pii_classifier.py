@@ -1,9 +1,9 @@
 # src/classifiers/non_pii_classifier.py
 import logging
-from typing import Any, Dict, Optional
 from models.sdd_report import SDDReport, NonPIIReport
 from .base_classifier import BaseClassifier
-from utils.error_constants import ERROR_SOURCE_NON_PII_CLASSIFICATION
+from llm_model.azure_strategy import AzureOpenAIStrategy
+from utils.exception_handler import handle_exception
 
 logger = logging.getLogger(__name__)
 
@@ -11,6 +11,11 @@ logger = logging.getLogger(__name__)
 class NonPIIClassifier(BaseClassifier):
     """Classify the sensitivity level of non-PII sensitive data."""
 
+    def __init__(self, model: AzureOpenAIStrategy):
+        super().__init__(model)
+        self.model = model
+
+    @handle_exception
     def format_prediction(self, prediction: str) -> str:
         """Format the prediction of the non-PII classifier."""
         prediction = prediction.split('\n')[0]  # First line of the prediction
@@ -23,59 +28,36 @@ class NonPIIClassifier(BaseClassifier):
         else:
             return 'UNDETERMINED'
 
+    @handle_exception
     def classify(
         self,
         table_markdown: str,
         report: SDDReport,
-        isp: Optional[Dict[str, Any]] = None,
+        isp,
         max_new_tokens: int = 512,
         version: str = 'v1',
     ) -> SDDReport:
         """Classify the sensitivity level of non-PII sensitive data."""
-        if isp is None:
-            raise ValueError('ISP is required')
         isp_name = list(isp.keys())[0]
         context = {'table_markdown': table_markdown, 'isp': isp[isp_name]}
+        prediction, completion_tokens, prompt_tokens = self._run_prompt(
+            'non_pii_detection',
+            context,
+            version,
+            max_new_tokens,
+            json_response_format=True,
+        )
 
-        # Stop processing if there's already an error
-        if not report.processing_success:
-            return report
+        if isinstance(completion_tokens, int):
+            report.completion_tokens += completion_tokens
+        if isinstance(prompt_tokens, int):
+            report.prompt_tokens += prompt_tokens
 
-        try:
-            if report.non_pii is not None:
-                return report
-            prediction, completion_tokens, prompt_tokens = self._run_prompt(
-                'non_pii_detection',
-                context,
-                version,
-                max_new_tokens,
-                json_response_format=True,
-            )
-
-            # Check for error indicators in prediction
-            if isinstance(prediction, dict) and 'error' in prediction:
-                error_msg = f'Non-PII classification failed: {prediction.get("error", "Unknown error")}'
-                logger.error(error_msg)
-                report.set_error(ERROR_SOURCE_NON_PII_CLASSIFICATION, error_msg)
-                return report
-
-            if isinstance(completion_tokens, int):
-                report.completion_tokens += completion_tokens
-            if isinstance(prompt_tokens, int):
-                report.prompt_tokens += prompt_tokens
-            report.add_non_pii_report(
-                NonPIIReport(
-                    model_name=self.model_name,
-                    isp_used=isp_name,
-                    sensitivity=prediction.get('sensitivity', 'UNDETERMINED'),
-                    sensitive_columns=prediction.get('sensitive_columns', []),
-                    cited_isp_rules=prediction.get('cited_isp_rules', []),
-                    explanation=prediction.get('explanation', ''),
-                )
-            )
-            return report
-        except Exception as e:
-            error_msg = f'Non-PII table sensitivity classification failed: {str(e)}'
-            logger.exception(error_msg)
-            report.set_error(ERROR_SOURCE_NON_PII_CLASSIFICATION, error_msg)
-            return report
+        return NonPIIReport(
+            model_name=self.model.model_name,
+            isp_used=isp_name,
+            sensitivity=prediction.get('sensitivity', 'UNDETERMINED'),
+            sensitive_columns=prediction.get('sensitive_columns', []),
+            cited_isp_rules=prediction.get('cited_isp_rules', []),
+            explanation=prediction.get('explanation', ''),
+        )

@@ -236,3 +236,5 @@ logging.conf
 !test/unit/downloads/
 
 to_remove.py
+
+test/test_main.py
