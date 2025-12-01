@@ -3,7 +3,7 @@ import logging
 from typing import Any
 from .base_classifier import BaseClassifier
 from llm_model.azure_strategy import AzureOpenAIStrategy
-from utils.exception_handler import handle_exception
+from utils.exception_handler import handle_exception_wrap
 
 logger = logging.getLogger(__name__)
 
@@ -16,7 +16,7 @@ class ReadMeScanClassifier(BaseClassifier):
     def __init__(self, model: AzureOpenAIStrategy):
         super().__init__(model)
 
-    @handle_exception
+    @handle_exception_wrap
     def classify(self, readme_string: str) -> tuple[dict[str, Any], int, int]:
         """Classify the sensitivity level of detected PII entities."""
         context = {'readme_string': readme_string}

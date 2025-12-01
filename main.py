@@ -9,7 +9,7 @@ from hdx_redis_lib import connect_to_hdx_event_bus, RedisConfig
 from config.config import get_config
 from models.sdd_report import SDDReport
 from utils.ckan import CKANClient
-from utils.exception_handler import handle_exception
+from utils.exception_handler import handle_exception_wrap
 from utils.processing import DataSampler
 from utils.utils import report_exists_in_ckan, determine_sensitivity, table_markdown
 from classifiers.pii_classifier import PIIClassifier
@@ -74,7 +74,7 @@ def get_classifier(classifier_cls, model_name):
     )
 
 
-@handle_exception
+@handle_exception_wrap
 def pii_classification(df, model=None):
     if model:
         classifier = get_classifier(PIIClassifier, model)
@@ -83,7 +83,7 @@ def pii_classification(df, model=None):
     return classifier.classify_df(df)
 
 
-@handle_exception
+@handle_exception_wrap
 def pii_reflection_classification(sdd_report, model=None):
     if model:
         classifier = get_classifier(PIIReflectionClassifier, model)
@@ -92,7 +92,7 @@ def pii_reflection_classification(sdd_report, model=None):
     return classifier.classify_df(table_markdown(sdd_report), sdd_report.columns)
 
 
-@handle_exception
+@handle_exception_wrap
 def non_pii_classification(sdd_report, isp, model=None):
     if model:
         classifier = get_classifier(NonPIIClassifier, model)
@@ -101,7 +101,7 @@ def non_pii_classification(sdd_report, isp, model=None):
     return classifier.classify(table_markdown(sdd_report), sdd_report, isp)
 
 
-@handle_exception
+@handle_exception_wrap
 def readme_scan_classification(sdd_report, model=None):
     if model:
         classifier = get_classifier(ReadMeScanClassifier, model)
@@ -110,7 +110,7 @@ def readme_scan_classification(sdd_report, model=None):
     return classifier.classify(table_markdown(sdd_report))
 
 
-@handle_exception
+@handle_exception_wrap
 def sheet_processor(sdd_report, isp, df, model=None):
     sheet_name = sdd_report.sheet_name
     if 'readme' in sheet_name.lower() or 'instructions' in sheet_name.lower() or 'metadata' in sheet_name.lower():

@@ -3,7 +3,7 @@ import json
 from dotenv import load_dotenv
 from openai import AzureOpenAI
 
-from utils.exception_handler import handle_exception
+from utils.exception_handler import handle_exception_wrap
 
 
 class AzureOpenAIStrategy:
@@ -24,14 +24,14 @@ class AzureOpenAIStrategy:
         """Return the model type identifier."""
         return 'azure'
 
-    @handle_exception
+    @handle_exception_wrap
     def _setup_client(self) -> None:
         """Initialize Azure OpenAI client."""
         self.client = AzureOpenAI(
             api_version='2024-12-01-preview', azure_endpoint=self.azure_endpoint, api_key=self.api_key
         )
 
-    @handle_exception
+    @handle_exception_wrap
     def generate(self, prompt: str, temperature: float = 0.3, max_new_tokens: int = 200) -> tuple[str, int, int]:
         """Generate text using Azure OpenAI API."""
         response = self.client.chat.completions.create(
@@ -43,7 +43,7 @@ class AzureOpenAIStrategy:
 
         return response.choices[0].message.content, response.usage.completion_tokens, response.usage.prompt_tokens
 
-    @handle_exception
+    @handle_exception_wrap
     def generate_json(self, prompt: str, temperature: float = 0.3, max_new_tokens: int = 200) -> tuple[dict, int, int]:
         """Generate JSON using Azure OpenAI API."""
 
@@ -60,7 +60,7 @@ class AzureOpenAIStrategy:
             json_response.usage.prompt_tokens,
         )
 
-    @handle_exception
+    @handle_exception_wrap
     def get_azure_config(self) -> dict[str, str]:
         """Get Azure configuration details."""
         return {

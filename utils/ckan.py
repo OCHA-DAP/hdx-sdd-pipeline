@@ -5,7 +5,7 @@ from pathlib import Path
 from typing import Optional, Dict, Any
 import requests
 
-from utils.exception_handler import handle_exception
+from utils.exception_handler import handle_exception_wrap
 
 logger = logging.getLogger(__name__)
 
@@ -27,7 +27,7 @@ class CKANClient:
         self.headers = {'Authorization': self.api_token} if self.api_token else {}
 
     # --- Core request helper ---
-    @handle_exception
+    @handle_exception_wrap
     def _request(self, action: str, method: str = 'GET', **kwargs) -> Optional[dict]:
         """
         Internal helper for making CKAN API requests.
@@ -54,19 +54,19 @@ class CKANClient:
         return data['result']
 
     # --- API Methods ---
-    @handle_exception
+    @handle_exception_wrap
     def package_show(self, package_id: str) -> Optional[dict]:
         """Fetch details about a dataset (package)."""
         logger.info('Fetching package: %s', package_id)
         return self._request('package_show', params={'id': package_id})
 
-    @handle_exception
+    @handle_exception_wrap
     def resource_show(self, resource_id: str) -> Optional[dict]:
         """Fetch details about a resource."""
         logger.info('Fetching resource: %s', resource_id)
         return self._request('resource_show', params={'id': resource_id})
 
-    @handle_exception
+    @handle_exception_wrap
     def update_resource_fields(self, resource_id: str, fields: Dict[str, Any]) -> Optional[dict]:
         """Update one or more fields of a CKAN resource."""
         if not self.api_token:
@@ -83,7 +83,7 @@ class CKANClient:
             logger.error('Failed to update resource %s', resource_id)
             return None
 
-    @handle_exception
+    @handle_exception_wrap
     def remove_resource_field(self, resource_id: str, field_name: str) -> Optional[dict]:
         """
         Remove (set to None) a specific field in a CKAN resource.
@@ -95,7 +95,7 @@ class CKANClient:
         logger.info(f'Removing field {field_name} from resource {resource_id}')
         return self._request('resource_patch', method='POST', json=payload)
 
-    @handle_exception
+    @handle_exception_wrap
     def _get_download_link(self, resource_id: str) -> Optional[str]:
         """Get the download link for a resource."""
         resource = self.resource_show(resource_id)
@@ -105,7 +105,7 @@ class CKANClient:
         return None
 
     # --- File operations ---
-    @handle_exception
+    @handle_exception_wrap
     def _download_file(self, url: str, filename: str, output_dir: Path) -> Path:
         """Download a file from a URL and save it locally."""
         output_dir.mkdir(parents=True, exist_ok=True)
@@ -119,7 +119,7 @@ class CKANClient:
         logger.info('File saved to: %s', file_path)
         return file_path
 
-    @handle_exception
+    @handle_exception_wrap
     def download_resource(
         self, resource_id: str, filename: Optional[str] = None, output_dir: Optional[Path] = None
     ) -> Path:

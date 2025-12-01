@@ -1,19 +1,19 @@
 import logging
 import pandas as pd
 from models.sdd_report import SDDReport
-from utils.exception_handler import handle_exception
+from utils.exception_handler import handle_exception_wrap
 
 logger = logging.getLogger(__name__)
 
 
-@handle_exception
+@handle_exception_wrap
 def report_exists_in_ckan(ckan, resource_id):
     """Check if a report exists in CKAN."""
     resource = ckan.resource_show(resource_id)
     return resource.get('sdd_report') is not None
 
 
-@handle_exception
+@handle_exception_wrap
 def determine_sensitivity(reports: list) -> str:
     """Determine overall sensitivity from sheet-level reports."""
     pii = any(r.get('pii_sensitive') for r in reports)
@@ -28,7 +28,7 @@ def determine_sensitivity(reports: list) -> str:
     return 'not-sensitive'
 
 
-@handle_exception
+@handle_exception_wrap
 def table_markdown(report: SDDReport) -> str:
     """Generate a markdown table from the report sample columns."""
     column_samples = {}

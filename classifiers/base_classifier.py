@@ -4,7 +4,7 @@ from typing import Any, Dict
 
 from llm_model import AzureOpenAIStrategy
 from utils.prompt_manager import PromptManager
-from utils.exception_handler import handle_exception
+from utils.exception_handler import handle_exception_wrap
 
 logger = logging.getLogger(__name__)
 
@@ -32,7 +32,7 @@ class BaseClassifier:
         self.prompt_manager = PromptManager()
 
     @staticmethod
-    @handle_exception
+    @handle_exception_wrap
     def _standardize_output(
         classification_type: str,
         value: str,
@@ -46,7 +46,7 @@ class BaseClassifier:
             # 'success': success,
         }
 
-    @handle_exception
+    @handle_exception_wrap
     def _run_prompt(
         self,
         prompt_name: str,
@@ -74,7 +74,7 @@ class BaseClassifier:
             prediction, completion_tokens, prompt_tokens = self.model.generate(prompt, max_new_tokens=max_new_tokens)
         return prediction, completion_tokens, prompt_tokens
 
-    @handle_exception
+    @handle_exception_wrap
     def _map_sensitivity(self, prediction: str) -> str:
         """Map model output text to standardized sensitivity levels."""
         pred_lower = prediction.lower()

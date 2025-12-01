@@ -3,7 +3,7 @@ import logging
 from models.sdd_report import SDDReport, NonPIIReport
 from .base_classifier import BaseClassifier
 from llm_model.azure_strategy import AzureOpenAIStrategy
-from utils.exception_handler import handle_exception
+from utils.exception_handler import handle_exception_wrap
 
 logger = logging.getLogger(__name__)
 
@@ -15,7 +15,7 @@ class NonPIIClassifier(BaseClassifier):
         super().__init__(model)
         self.model = model
 
-    @handle_exception
+    @handle_exception_wrap
     def format_prediction(self, prediction: str) -> str:
         """Format the prediction of the non-PII classifier."""
         prediction = prediction.split('\n')[0]  # First line of the prediction
@@ -28,7 +28,7 @@ class NonPIIClassifier(BaseClassifier):
         else:
             return 'UNDETERMINED'
 
-    @handle_exception
+    @handle_exception_wrap
     def classify(
         self,
         table_markdown: str,

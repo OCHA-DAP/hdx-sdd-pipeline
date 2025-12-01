@@ -4,17 +4,27 @@ from functools import wraps
 logger = logging.getLogger(__name__)
 
 
-def handle_exception(func):
-    """
-    Decorator for handling exceptions in functions or class methods.
-    """
+class ContextualError(Exception):
+    """Raised to add context to an underlying exception."""
 
-    @wraps(func)
-    def wrapper(*args, **kwargs):
-        try:
-            return func(*args, **kwargs)
-        except Exception as e:
-            logger.error('Exception in %s: %s', func.__name__, e)
-            raise e
+    def __init__(self, message, original_exc=None):
+        super().__init__(message)
+        self.original_exc = original_exc
 
-    return wrapper
+
+def handle_exception_wrap(message_template='Error in {func_name}'):
+    def decorator(func):
+        @wraps(func)
+        def wrapper(*args, **kwargs):
+            try:
+                return func(*args, **kwargs)
+            except Exception as e:
+                msg = message_template.format(func_name=func.__name__)
+                # Optional: lightweight log with context (no full traceback)
+                logger.debug('%s: %s', msg, e)
+                # Wrap exception to add context and preserve traceback
+                raise ContextualError(msg, original_exc=e) from e
+
+        return wrapper
+
+    return decorator
