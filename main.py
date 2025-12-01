@@ -45,7 +45,7 @@ def get_dataset_location(ckan: CKANClient, package_id: str | None) -> str | None
     solr_additions = package.get('solr_additions', {})
     if isinstance(solr_additions, str):
         solr_additions = json.loads(solr_additions)
-    return solr_additions.get('countries', [None])[0] or ""
+    return solr_additions.get('countries', [None])[0] or ''
 
 
 def get_isp(string: str) -> dict:
@@ -54,7 +54,7 @@ def get_isp(string: str) -> dict:
     with open('data/isps.json', 'r', encoding='utf-8') as f:
         isps = json.load(f)
 
-    if not string or string.strip() == "":
+    if not string or string.strip() == '':
         return {'default': isps.get('default')}
 
     for isp_name, isp_data in isps.items():
