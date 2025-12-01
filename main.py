@@ -19,7 +19,7 @@ from classifiers.readme_scan import ReadMeScanClassifier
 from llm_model.azure_strategy import AzureOpenAIStrategy
 
 
-logging.config.fileConfig('logging.conf')
+logging.config.fileConfig('logging.dev.conf')
 
 
 logger = logging.getLogger(__name__)
@@ -38,28 +38,29 @@ event_bus = connect_to_hdx_event_bus(
 )
 
 
-def load_isp_info(ckan: CKANClient, package_id: str | None, file_name: str | None) -> dict:
+def get_dataset_location(ckan: CKANClient, package_id: str | None) -> str | None:
+    if not package_id:
+        return None
+    package = ckan.package_show(package_id)
+    solr_additions = package.get('solr_additions', {})
+    if isinstance(solr_additions, str):
+        solr_additions = json.loads(solr_additions)
+    return solr_additions.get('countries', [None])[0] or ""
+
+
+def get_isp(string: str) -> dict:
     """Load ISP configuration and determine matching or default ISP."""
 
     with open('data/isps.json', 'r', encoding='utf-8') as f:
         isps = json.load(f)
-    if not package_id or not file_name:
+
+    if not string or string.strip() == "":
         return {'default': isps.get('default')}
 
-    if package_id:
-        package = ckan.package_show(package_id)
-        solr_additions = package.get('solr_additions', {})
-        logger.info('Solr additions: %s', solr_additions)
+    for isp_name, isp_data in isps.items():
+        if isp_data.get('country', '').lower() in string.lower():
+            return {isp_name: isp_data}
 
-    if solr_additions and solr_additions.get('countries'):
-        country = solr_additions.get('countries')[0]
-        for isp_name, isp_data in isps.items():
-            if isp_data.get('country', '').lower() in country.lower():
-                return {isp_name: isp_data}
-    elif file_name:
-        for isp_name, isp_data in isps.items():
-            if isp_data.get('country', '').lower() in file_name.lower():
-                return {isp_name: isp_data}
     return {'default': isps.get('default')}
 
 
@@ -159,7 +160,13 @@ def event_processor(event):
 
     download_url = resource.get('download_url')
     file_name = resource.get('name', 'unknown_dataset.csv')
-    isp = load_isp_info(ckan, event.get('package_id'), file_name)
+    dataset_location = get_dataset_location(ckan, event.get('package_id'))
+    isp = get_isp(dataset_location)
+    # If key is default then try with filename
+    if 'default' in isp:
+        isp = get_isp(file_name)
+        if 'default' in isp:
+            logger.info('No ISP found for dataset location or filename.')
 
     sampler = DataSampler()
     dfs = sampler.sample(download_url)
