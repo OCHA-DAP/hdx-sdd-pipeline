@@ -67,7 +67,7 @@ class SlackClientWrapper():
                 text = f'[SDD Pipeline] {message}'
                 self.slack_client.chat_postMessage(channel=self.slack_channel, text=text)
             except slack_errors.SlackApiError as e:
-                # Log Slack API errors but don't raise to prevent blocking the pipelinete plici
+                # Log Slack API errors but don't raise to prevent blocking the pipeline
                 logger.error(f"Got an error: {e.response['error']}")
         else:
             logger.info(f'[instead of slack] {message}')
