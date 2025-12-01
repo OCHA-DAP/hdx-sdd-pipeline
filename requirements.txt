@@ -7,3 +7,4 @@ openpyxl
 python-json-logger>=2.0.7
 openai
 tabulate
+slack_sdk~=3.39.0

@@ -9,7 +9,7 @@ import datetime  # noqa: E402
 import pandas as pd  # noqa: E402
 from hdx_redis_lib import connect_to_hdx_event_bus, RedisConfig  # noqa: E402
 
-from config.config import get_config  # noqa: E402
+from config.config import get_config, SlackClientWrapper  # noqa: E402
 from models.sdd_report import SDDReport  # noqa: E402
 from utils.ckan import CKANClient  # noqa: E402
 from utils.processing import DataSampler  # noqa: E402
@@ -235,6 +235,27 @@ def event_processor(event):
                     error_report.set_error(ERROR_SOURCE_PROCESSING, error_msg)
                     reports.append(error_report.to_dict())
 
+        # Check for errors in reports and notify Slack
+        error_reports = [r for r in reports if not r.get('processing_success', True)]
+        if error_reports:
+            try:
+                error_messages = []
+                for report in error_reports:
+                    sheet = report.get('sheet_name', 'Unknown')
+                    error_src = report.get('error_source', 'Unknown')
+                    error_msg = report.get('error_message', 'No details')
+                    error_messages.append(
+                        f'Resource: {resource_id}, '
+                        f'File: {file_name}, '
+                        f'Sheet: {sheet}, '
+                        f'Source: {error_src}, '
+                        f'Error: {error_msg} .'
+                    )
+
+                slack_client = SlackClientWrapper()
+                slack_client.post_to_slack_channel(message='\n'.join(error_messages))
+            except Exception as e:
+                logger.error(f"Failed to send Slack notification: {e}")
         sensitivity = determine_sensitivity(reports)
 
         # Directly update CKAN (no file saving)
