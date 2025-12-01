@@ -255,7 +255,7 @@ def event_processor(event):
                 slack_client = SlackClientWrapper()
                 slack_client.post_to_slack_channel(message='\n'.join(error_messages))
             except Exception as e:
-                logger.error(f"Failed to send Slack notification: {e}")
+                logger.error(f'Failed to send Slack notification: {e}')
         sensitivity = determine_sensitivity(reports)
 
         # Directly update CKAN (no file saving)
