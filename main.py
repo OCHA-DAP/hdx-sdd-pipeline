@@ -51,6 +51,8 @@ def load_isp_info(ckan: CKANClient, package_id: str | None, file_name: str | Non
         solr_additions = package.get('solr_additions', {})
         logger.info(f'Solr additions: {solr_additions}')
 
+    if isinstance(solr_additions, str):
+        solr_additions = json.loads(solr_additions)
     if solr_additions and solr_additions.get('countries'):
         country = solr_additions.get('countries')[0]
         for isp_name, isp_data in isps.items():
