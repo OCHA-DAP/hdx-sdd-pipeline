@@ -3,6 +3,8 @@ from unittest.mock import patch
 import requests
 from pathlib import Path
 
+import utils.exception_handler
+
 # Fixtures imported from conftest.py: mock_ckan_client, create_mock_response
 # CKANClient imported via conftest.py
 
@@ -183,7 +185,7 @@ def test_download_resource_no_url(mock_resource_show, mock_ckan_client):
     # Mock API response to show no download_url
     mock_resource_show.return_value = {'id': RESOURCE_ID, 'name': 'No Link'}
 
-    with pytest.raises(ValueError):
+    with pytest.raises(utils.exception_handler.ContextualError):
         mock_ckan_client.download_resource(RESOURCE_ID)
 
 
@@ -201,5 +203,5 @@ def test_download_resource_file_download_failure(
     mock_get_download.return_value = mock_download_resp
 
     # 3. Call the method and assert RuntimeError is raised
-    with pytest.raises(requests.exceptions.HTTPError):
+    with pytest.raises(utils.exception_handler.ContextualError):
         mock_ckan_client.download_resource(RESOURCE_ID)

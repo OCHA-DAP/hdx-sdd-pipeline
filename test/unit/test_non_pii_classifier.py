@@ -7,6 +7,7 @@ from classifiers.non_pii_classifier import NonPIIClassifier
 
 from test.unit.conftest import MockBaseClassifier, MockAzureOpenAIStrategy
 from utils.error_constants import ERROR_SOURCE_NON_PII_CLASSIFICATION
+import utils.exception_handler
 
 TEST_ISP = {'mock_isp': {'config': 'data'}}
 TEST_TABLE = 'markdown_table_content'
@@ -70,7 +71,7 @@ def test_classify(non_pii_classifier_instance, sample_report, sample_table_markd
 
 def test_classify_non_dict_output(non_pii_classifier_instance, sample_report, sample_table_markdown):
     non_pii_classifier_instance._run_prompt.return_value = ({'sensitive columns found'}, 10, 20)
-    with pytest.raises(AttributeError):
+    with pytest.raises(utils.exception_handler.ContextualError):
         report = non_pii_classifier_instance.classify(sample_table_markdown, sample_report, TEST_ISP)
         assert report.error_source == ERROR_SOURCE_NON_PII_CLASSIFICATION
         assert report.error_message

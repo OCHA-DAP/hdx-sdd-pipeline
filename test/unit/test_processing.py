@@ -2,6 +2,7 @@ import pandas as pd
 import pytest
 from models.sdd_report import SDDReport, PIIColumnReport
 from utils.processing import DataSampler, table_markdown
+import utils.exception_handler
 
 
 def make_report(columns):
@@ -139,7 +140,7 @@ def test_concatenate_header_nan():
 
 
 def test_unsupported_file_type():
-    with pytest.raises(ValueError):
+    with pytest.raises(utils.exception_handler.ContextualError):
         sampler.sample('test/unit/downloads/unsupported.txt')
 
 
@@ -150,7 +151,7 @@ def test_empty_dataframe():
 
 
 def test_load_from_url_error():
-    with pytest.raises(FileNotFoundError):
+    with pytest.raises(utils.exception_handler.ContextualError):
         sampler._load_from_url('test/unit/downloads/nonexistent.csv')
 
 
