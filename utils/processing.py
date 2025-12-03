@@ -82,27 +82,34 @@ class DataSampler:
 
     @handle_exception_wrap()
     def _sample_dataframe(self, df: pd.DataFrame, sample_size: int = 20) -> pd.DataFrame:
-        """Return a random sample of rows, preferring complete rows if available."""
+        """Return a sample of rows with the most non-null values sorted to the top."""
         if df.empty:
             return df
 
-        n = min(sample_size, len(df))
-        complete_rows = df[df.notna().all(axis=1)]
-        incomplete_rows = df[df.isna().any(axis=1)]
+        # Compute null counts for ranking
+        # df = df.copy()
+        df['null_count'] = df.isna().sum(axis=1)
 
-        if len(complete_rows) >= n:
-            sample = complete_rows.sample(n=n, random_state=42)
-        else:
-            needed = n - len(complete_rows)
-            incomplete_rows = incomplete_rows.assign(null_count=incomplete_rows.isna().sum(axis=1))
-            incomplete_rows = incomplete_rows.sort_values('null_count')
-            fallback_rows = incomplete_rows.drop(columns='null_count').head(needed)
-            sample = pd.concat([complete_rows, fallback_rows]).sample(frac=1, random_state=42)
+        # Sort by completeness (fewest nulls first)
+        df_sorted = df.sort_values('null_count', ascending=True)
 
-        return sample.reset_index(drop=True)
+        # Select the top N rows
+        n = min(sample_size, len(df_sorted))
+        sample = df_sorted.head(n)
+
+        # Remove helper column before returning
+        return sample.drop(columns='null_count').reset_index(drop=True)
 
     @handle_exception_wrap()
     def sample(self, url: str, sample_size: int = 20) -> Dict[str, pd.DataFrame]:
         """Main entrypoint: load and sample dataset(s) from a URL."""
         sheets = self._load_from_url(url)
         return {name: self._sample_dataframe(df, sample_size) for name, df in sheets.items()}
+
+
+if __name__ == '__main__':
+    sampler = DataSampler()
+    sheets = sampler.sample(
+        'https://dev.data-humdata-org.ahconu.org/dataset/a4256b92-dfee-4856-b28e-81abcf1da882/resource/496d920a-56e5-4093-9588-26fbd1ea46b7/download/multicolumn_sample.xlsx'
+    )
+    print(sheets)

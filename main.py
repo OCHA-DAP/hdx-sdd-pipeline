@@ -54,10 +54,12 @@ def get_isp(input_location: str | list | None) -> dict:
     with open('data/isps.json', 'r', encoding='utf-8') as f:
         isps = json.load(f)
 
-    if not input_location or input_location.strip() == '':
+    if not input_location:
         return {'default': isps.get('default')}
 
     if isinstance(input_location, str):
+        if input_location.strip() == '':
+            return {'default': isps.get('default')}
         input_location = [input_location]
     for location in input_location:
         for isp_name, isp_data in isps.items():
@@ -138,9 +140,25 @@ def sheet_processor(sdd_report, isp, df, model=None):
     sdd_report.prompt_tokens += prompt
     sdd_report.pii_reflection_model = model if model else config.PII_REFLECT_MODEL
 
+    # Check if any column is sensitive
+    if any(column.pii.get('sensitive', True) for column in pii_reflections):
+        sdd_report.pii_sensitive = True
+
     # Non-PII classification
     sdd_report.non_pii = non_pii_classification(sdd_report, isp, model=model)
     sdd_report.non_pii_model = model if model else config.NON_PII_DETECT_MODEL
+
+    # Check if any column is sensitive
+    if sdd_report.non_pii.sensitivity.lower() in [
+        'high',
+        'high_sensitive',
+        'moderate',
+        'moderate_sensitive',
+        'severe',
+        'severe_sensitive',
+    ]:
+        sdd_report.non_pii_sensitive = True
+
     return sdd_report
 
 

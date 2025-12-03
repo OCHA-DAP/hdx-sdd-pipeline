@@ -49,7 +49,7 @@ class PIIClassifier(BaseClassifier):
     ) -> Tuple[PIIColumnReport, int, int]:
         sample_values = [str(v) for v in sample_values[:k]]
 
-        if not sample_values or any(v == '' for v in sample_values):
+        if not sample_values or any(v == '' for v in sample_values) or sample_values == []:
             return (
                 PIIColumnReport(
                     column_name=column_name,

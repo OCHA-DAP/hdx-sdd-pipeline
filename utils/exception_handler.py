@@ -22,8 +22,9 @@ def handle_exception_wrap(message_template='Error in {func_name}'):
                 msg = message_template.format(func_name=func.__name__)
                 # Optional: lightweight log with context (no full traceback)
                 logger.debug('%s: %s', msg, e)
+                logger.exception('%s: %s', msg, e)  # logs traceback too
                 # Wrap exception to add context and preserve traceback
-                raise ContextualError(msg, original_exc=e) from e
+                raise ContextualError(f'{msg}: {e}', original_exc=e) from e
 
         return wrapper
 
