@@ -1,6 +1,5 @@
 from utils.prompt_manager import PromptManager
 import pytest
-import jinja2
 import utils.exception_handler
 
 prompt_manager = PromptManager()
