@@ -16,7 +16,7 @@ class ReadMeScanClassifier(BaseClassifier):
     def __init__(self, model: AzureOpenAIStrategy):
         super().__init__(model)
 
-    @handle_exception_wrap
+    @handle_exception_wrap()
     def classify(self, readme_string: str) -> tuple[dict[str, Any], int, int]:
         """Classify the sensitivity level of detected PII entities."""
         context = {'readme_string': readme_string}

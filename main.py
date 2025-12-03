@@ -45,21 +45,24 @@ def get_dataset_location(ckan: CKANClient, package_id: str | None) -> str | None
     solr_additions = package.get('solr_additions', {})
     if isinstance(solr_additions, str):
         solr_additions = json.loads(solr_additions)
-    return solr_additions.get('countries', [None])[0] or ''
+    return solr_additions.get('countries', None)
 
 
-def get_isp(string: str) -> dict:
+def get_isp(input_location: str | list | None) -> dict:
     """Load ISP configuration and determine matching or default ISP."""
 
     with open('data/isps.json', 'r', encoding='utf-8') as f:
         isps = json.load(f)
 
-    if not string or string.strip() == '':
+    if not input_location or input_location.strip() == '':
         return {'default': isps.get('default')}
 
-    for isp_name, isp_data in isps.items():
-        if isp_data.get('country', '').lower() in string.lower():
-            return {isp_name: isp_data}
+    if isinstance(input_location, str):
+        input_location = [input_location]
+    for location in input_location:
+        for isp_name, isp_data in isps.items():
+            if isp_data.get('country', '').lower() in location.lower():
+                return {isp_name: isp_data}
 
     return {'default': isps.get('default')}
 
@@ -74,7 +77,7 @@ def get_classifier(classifier_cls, model_name):
     )
 
 
-@handle_exception_wrap
+@handle_exception_wrap()
 def pii_classification(df, model=None):
     if model:
         classifier = get_classifier(PIIClassifier, model)
@@ -83,7 +86,7 @@ def pii_classification(df, model=None):
     return classifier.classify_df(df)
 
 
-@handle_exception_wrap
+@handle_exception_wrap()
 def pii_reflection_classification(sdd_report, model=None):
     if model:
         classifier = get_classifier(PIIReflectionClassifier, model)
@@ -92,7 +95,7 @@ def pii_reflection_classification(sdd_report, model=None):
     return classifier.classify_df(table_markdown(sdd_report), sdd_report.columns)
 
 
-@handle_exception_wrap
+@handle_exception_wrap()
 def non_pii_classification(sdd_report, isp, model=None):
     if model:
         classifier = get_classifier(NonPIIClassifier, model)
@@ -101,7 +104,7 @@ def non_pii_classification(sdd_report, isp, model=None):
     return classifier.classify(table_markdown(sdd_report), sdd_report, isp)
 
 
-@handle_exception_wrap
+@handle_exception_wrap()
 def readme_scan_classification(sdd_report, model=None):
     if model:
         classifier = get_classifier(ReadMeScanClassifier, model)
@@ -110,7 +113,7 @@ def readme_scan_classification(sdd_report, model=None):
     return classifier.classify(table_markdown(sdd_report))
 
 
-@handle_exception_wrap
+@handle_exception_wrap()
 def sheet_processor(sdd_report, isp, df, model=None):
     sheet_name = sdd_report.sheet_name
     if 'readme' in sheet_name.lower() or 'instructions' in sheet_name.lower() or 'metadata' in sheet_name.lower():

@@ -18,7 +18,7 @@ class PromptManager:
             lstrip_blocks=True,
         )
 
-    @handle_exception_wrap
+    @handle_exception_wrap()
     def list_versions(self, prompt_name: str):
         """List all available versions for a given prompt."""
         prompt_dir = os.path.join(self.base_path, prompt_name)
@@ -26,7 +26,7 @@ class PromptManager:
             raise FileNotFoundError(f'Prompt {prompt_name} not found.')
         return sorted([f.replace('.jinja', '') for f in os.listdir(prompt_dir) if f.endswith('.jinja')])
 
-    @handle_exception_wrap
+    @handle_exception_wrap()
     def get_prompt(self, prompt_name: str, version: str, context: dict) -> str:
         """
         Load and render a prompt by name and version.

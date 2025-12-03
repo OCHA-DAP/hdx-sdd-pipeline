@@ -25,7 +25,7 @@ class PIIReflectionClassifier(BaseClassifier):
         super().__init__(model)
         self.model = model
 
-    @handle_exception_wrap
+    @handle_exception_wrap()
     def classify_column(
         self,
         column_name: str,

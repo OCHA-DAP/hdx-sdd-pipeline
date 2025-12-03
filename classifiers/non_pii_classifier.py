@@ -15,7 +15,7 @@ class NonPIIClassifier(BaseClassifier):
         super().__init__(model)
         self.model = model
 
-    @handle_exception_wrap
+    @handle_exception_wrap()
     def format_prediction(self, prediction: str) -> str:
         """Format the prediction of the non-PII classifier."""
         prediction = prediction.split('\n')[0]  # First line of the prediction
@@ -28,7 +28,7 @@ class NonPIIClassifier(BaseClassifier):
         else:
             return 'UNDETERMINED'
 
-    @handle_exception_wrap
+    @handle_exception_wrap()
     def classify(
         self,
         table_markdown: str,
