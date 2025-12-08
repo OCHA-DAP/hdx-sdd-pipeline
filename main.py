@@ -9,6 +9,12 @@ from hdx_redis_lib import connect_to_hdx_event_bus, RedisConfig
 from config.config import get_config
 from models.sdd_report import SDDReport
 from utils.ckan import CKANClient
+from utils.error_constants import (
+    ERROR_SOURCE_PII_CLASSIFICATION,
+    ERROR_SOURCE_PII_REFLECTION,
+    ERROR_SOURCE_NON_PII_CLASSIFICATION,
+    ERROR_SOURCE_README_SCAN,
+)
 from utils.exception_handler import handle_exception_wrap
 from utils.processing import DataSampler
 from utils.utils import report_exists_in_ckan, determine_sensitivity, table_markdown
@@ -119,34 +125,58 @@ def readme_scan_classification(sdd_report, model=None):
 def sheet_processor(sdd_report, isp, df, model=None):
     sheet_name = sdd_report.sheet_name
     if 'readme' in sheet_name.lower() or 'instructions' in sheet_name.lower() or 'metadata' in sheet_name.lower():
-        prediction, comp, prompt = readme_scan_classification(sdd_report, model=model)
-        sdd_report.readme = prediction
-        sdd_report.completion_tokens += comp
-        sdd_report.prompt_tokens += prompt
-        sdd_report.readme_model = model if model else config.README_SCAN_MODEL
-        return sdd_report
+        try:
+            prediction, comp, prompt = readme_scan_classification(sdd_report, model=model)
+            sdd_report.readme = prediction
+            sdd_report.completion_tokens += comp
+            sdd_report.prompt_tokens += prompt
+            sdd_report.readme_model = model if model else config.README_SCAN_MODEL
+            return sdd_report
+        except Exception as e:
+            logger.error(f'Error in README scan classification: {e}')
+            sdd_report.error_source = ERROR_SOURCE_README_SCAN
+            sdd_report.error_message = str(e)
+            return sdd_report
 
     # PII classification
-    pii_columns, comp, prompt, _ = pii_classification(df, model=model)
-    sdd_report.columns = pii_columns
-    sdd_report.completion_tokens += comp
-    sdd_report.prompt_tokens += prompt
-    sdd_report.pii_classifier_model = model if model else config.PII_DETECT_MODEL
+    try:
+        pii_columns, comp, prompt, _ = pii_classification(df, model=model)
+        sdd_report.columns = pii_columns
+        sdd_report.completion_tokens += comp
+        sdd_report.prompt_tokens += prompt
+        sdd_report.pii_classifier_model = model if model else config.PII_DETECT_MODEL
+    except Exception as e:
+        logger.error(f'Error in PII classification: {e}')
+        sdd_report.error_source = ERROR_SOURCE_PII_CLASSIFICATION
+        sdd_report.error_message = str(e)
+        return sdd_report
 
     # PII reflection
-    pii_reflections, comp, prompt, _ = pii_reflection_classification(sdd_report, model=model)
-    sdd_report.columns = pii_reflections
-    sdd_report.completion_tokens += comp
-    sdd_report.prompt_tokens += prompt
-    sdd_report.pii_reflection_model = model if model else config.PII_REFLECT_MODEL
+    try:
+        pii_reflections, comp, prompt, _ = pii_reflection_classification(sdd_report, model=model)
+        sdd_report.columns = pii_reflections
+        sdd_report.completion_tokens += comp
+        sdd_report.prompt_tokens += prompt
+        sdd_report.pii_reflection_model = model if model else config.PII_REFLECT_MODEL
+    except Exception as e:
+        logger.error(f'Error in PII reflection classification: {e}')
+        sdd_report.error_source = ERROR_SOURCE_PII_REFLECTION
+        sdd_report.error_message = str(e)
+        return sdd_report
 
     # Check if any column is sensitive
     if any(column.pii.get('sensitive', True) for column in pii_reflections):
         sdd_report.pii_sensitive = True
 
     # Non-PII classification
-    sdd_report.non_pii = non_pii_classification(sdd_report, isp, model=model)
-    sdd_report.non_pii_model = model if model else config.NON_PII_DETECT_MODEL
+    try:
+        sdd_report.non_pii = non_pii_classification(sdd_report, isp, model=model)
+        sdd_report.non_pii_model = model if model else config.NON_PII_DETECT_MODEL
+    except Exception as e:
+        logger.error(f'Error in Non-PII classification: {e}')
+        sdd_report.error_source = ERROR_SOURCE_NON_PII_CLASSIFICATION
+        sdd_report.error_message = str(e)
+        return sdd_report
 
     # Check if any column is sensitive
     if sdd_report.non_pii.sensitivity.lower() in [
