@@ -1,0 +1,132 @@
+[
+  {
+    "resource_id": "data",
+    "file_name": "data.xlsx",
+    "file_url": "research/data/data.xlsx",
+    "processing_timestamp": "2025-11-17 11:50:36",
+    "processing_success": true,
+    "n_records": 13,
+    "n_columns": 8,
+    "completion_tokens": 167,
+    "prompt_tokens": 3283,
+    "sheet_name": "Sheet1",
+    "pii_classifier_model": "gpt-4.1-mini",
+    "pii_reflection_model": "gpt-4.1-mini",
+    "pii_sensitive": true,
+    "non_pii_sensitive": true,
+    "columns": [
+      {
+        "column_name": "test",
+        "sample_values": [
+          "test header 1",
+          "test subheader 1",
+          "Alicia",
+          "Bertram",
+          "Charlie"
+        ],
+        "pii": {
+          "entity_type": "PERSON_NAME",
+          "sensitive": true
+        }
+      },
+      {
+        "column_name": "Unnamed: 1",
+        "sample_values": [
+          "test subheader 2",
+          "0",
+          "1",
+          "2",
+          "3"
+        ],
+        "pii": {
+          "entity_type": "None",
+          "sensitive": false
+        }
+      },
+      {
+        "column_name": "Unnamed: 2",
+        "sample_values": [
+          "test header 2",
+          "test subheader 3",
+          "Amsterdam",
+          "Amsterdam",
+          "Londen"
+        ],
+        "pii": {
+          "entity_type": "None",
+          "sensitive": false
+        }
+      },
+      {
+        "column_name": "Unnamed: 3",
+        "sample_values": [
+          "test subheader 4",
+          "tv",
+          "tv",
+          "tv"
+        ],
+        "pii": {
+          "entity_type": "None",
+          "sensitive": false
+        }
+      },
+      {
+        "column_name": "Unnamed: 4",
+        "sample_values": [
+          "test header 3",
+          "test subheader 5",
+          "computer",
+          "laptop",
+          "computer"
+        ],
+        "pii": {
+          "entity_type": "None",
+          "sensitive": false
+        }
+      },
+      {
+        "column_name": "Unnamed: 5",
+        "sample_values": [
+          "test subheader 6"
+        ],
+        "pii": {
+          "entity_type": "None",
+          "sensitive": false
+        }
+      },
+      {
+        "column_name": "Unnamed: 6",
+        "sample_values": [
+          "test header 4",
+          "test subheader 7"
+        ],
+        "pii": {
+          "entity_type": "None",
+          "sensitive": false
+        }
+      },
+      {
+        "column_name": "Unnamed: 7",
+        "sample_values": [
+          "test subheader 8"
+        ],
+        "pii": {
+          "entity_type": "None",
+          "sensitive": false
+        }
+      }
+    ],
+    "non_pii": {
+      "model_name": "gpt-4.1-mini",
+      "isp_used": "default",
+      "sensitivity": "SEVERE_SENSITIVE",
+      "sensitive_columns": [
+        "test - PERSON_NAME"
+      ],
+      "cited_isp_rules": [
+        "Personal data of beneficiaries (e.g., names, biometric data, patient records)"
+      ],
+      "explanation": "The column 'test - PERSON_NAME' contains personal names, which are explicitly categorized under SEVERE_SENSITIVE as 'Personal data of beneficiaries (e.g., names, biometric data, patient records)' in the ISP. No other columns contain data types or combinations that match other sensitivity levels. Therefore, the overall sensitivity level of the table is SEVERE_SENSITIVE based on the presence of personal names."
+    }
+  }
+]
