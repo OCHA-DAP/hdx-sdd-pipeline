@@ -3,6 +3,7 @@
 import os
 from jinja2 import Environment, FileSystemLoader, select_autoescape
 from utils.main_config import PII_ENTITIES_LIST
+from utils.exception_handler import handle_exception_wrap
 
 
 class PromptManager:
@@ -17,6 +18,7 @@ class PromptManager:
             lstrip_blocks=True,
         )
 
+    @handle_exception_wrap()
     def list_versions(self, prompt_name: str):
         """List all available versions for a given prompt."""
         prompt_dir = os.path.join(self.base_path, prompt_name)
@@ -24,15 +26,13 @@ class PromptManager:
             raise FileNotFoundError(f'Prompt {prompt_name} not found.')
         return sorted([f.replace('.jinja', '') for f in os.listdir(prompt_dir) if f.endswith('.jinja')])
 
+    @handle_exception_wrap()
     def get_prompt(self, prompt_name: str, version: str, context: dict) -> str:
         """
         Load and render a prompt by name and version.
         Example: prompt_name='classify_table', version='v2'
         """
         template_path = f'{prompt_name}/{version}.jinja'
-        try:
-            context['PII_ENTITIES_LIST'] = PII_ENTITIES_LIST
-            template = self.env.get_template(template_path)
-        except Exception as e:
-            raise FileNotFoundError(f'Template not found for {prompt_name} version {version}: {e}')
+        context['PII_ENTITIES_LIST'] = PII_ENTITIES_LIST
+        template = self.env.get_template(template_path)
         return template.render(context)

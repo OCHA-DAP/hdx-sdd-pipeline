@@ -1,6 +1,7 @@
 # utils/processing.py
 from typing import Dict
 import pandas as pd
+from utils.exception_handler import handle_exception_wrap
 
 
 class DataSampler:
@@ -10,6 +11,7 @@ class DataSampler:
 
     SUPPORTED_EXTENSIONS = ('.csv', '.xls', '.xlsx')
 
+    @handle_exception_wrap()
     def _validate_url(self, url: str) -> str:
         """Check if the URL points to a supported file type."""
         url_lower = url.lower()
@@ -17,22 +19,20 @@ class DataSampler:
             raise ValueError(f'Unsupported file type. Only {", ".join(self.SUPPORTED_EXTENSIONS)} are supported.')
         return url_lower
 
+    @handle_exception_wrap()
     def _load_from_url(self, url: str) -> Dict[str, pd.DataFrame]:
         """Load CSV/XLS/XLSX from a URL into a dictionary of DataFrames keyed by sheet name."""
         url = self._validate_url(url)
+        if url.endswith('.csv'):
+            df = pd.read_csv(url, header=None, nrows=200)
+            df = self._concatenate_header(df)
+            return {'sheet1': df}
 
-        try:
-            if url.endswith('.csv'):
-                df = pd.read_csv(url, header=None, nrows=200)
-                df = self._concatenate_header(df)
-                return {'sheet1': df}
+        # Excel files: can contain multiple sheets
+        df_dict = pd.read_excel(url, sheet_name=None, nrows=200, header=None)
+        return {sheet_name: self._concatenate_header(df) for sheet_name, df in df_dict.items()}
 
-            # Excel files: can contain multiple sheets
-            df_dict = pd.read_excel(url, sheet_name=None, nrows=200, header=None)
-            return {sheet_name: self._concatenate_header(df) for sheet_name, df in df_dict.items()}
-        except Exception as e:
-            raise RuntimeError(f'Failed to load data from URL {url}: {str(e)}') from e
-
+    @handle_exception_wrap()
     def _concatenate_header(self, df: pd.DataFrame) -> pd.DataFrame:
         """
         Attempts to detect header rows and flatten them into single column names.
@@ -46,7 +46,6 @@ class DataSampler:
 
         if header_end_row is None:
             # Fallback: treat first row as header
-            print('No fully populated header row found')
             header_end_row = 0
 
         # Extract header block and fill missing cells
@@ -61,27 +60,36 @@ class DataSampler:
         cleaned_df.columns = final_columns
         return cleaned_df.reset_index(drop=True)
 
+    @handle_exception_wrap()
     def _sample_dataframe(self, df: pd.DataFrame, sample_size: int = 20) -> pd.DataFrame:
-        """Return a random sample of rows, preferring complete rows if available."""
+        """Return a sample of rows with the most non-null values sorted to the top."""
         if df.empty:
             return df
 
-        n = min(sample_size, len(df))
-        complete_rows = df[df.notna().all(axis=1)]
-        incomplete_rows = df[df.isna().any(axis=1)]
+        # Compute null counts for ranking
+        # df = df.copy()
+        df['null_count'] = df.isna().sum(axis=1)
 
-        if len(complete_rows) >= n:
-            sample = complete_rows.sample(n=n, random_state=42)
-        else:
-            needed = n - len(complete_rows)
-            incomplete_rows = incomplete_rows.assign(null_count=incomplete_rows.isna().sum(axis=1))
-            incomplete_rows = incomplete_rows.sort_values('null_count')
-            fallback_rows = incomplete_rows.drop(columns='null_count').head(needed)
-            sample = pd.concat([complete_rows, fallback_rows]).sample(frac=1, random_state=42)
+        # Sort by completeness (fewest nulls first)
+        df_sorted = df.sort_values('null_count', ascending=True)
 
-        return sample.reset_index(drop=True)
+        # Select the top N rows
+        n = min(sample_size, len(df_sorted))
+        sample = df_sorted.head(n)
 
+        # Remove helper column before returning
+        return sample.drop(columns='null_count').reset_index(drop=True)
+
+    @handle_exception_wrap()
     def sample(self, url: str, sample_size: int = 20) -> Dict[str, pd.DataFrame]:
         """Main entrypoint: load and sample dataset(s) from a URL."""
         sheets = self._load_from_url(url)
         return {name: self._sample_dataframe(df, sample_size) for name, df in sheets.items()}
+
+
+if __name__ == '__main__':
+    sampler = DataSampler()
+    sheets = sampler.sample(
+        'https://dev.data-humdata-org.ahconu.org/dataset/a4256b92-dfee-4856-b28e-81abcf1da882/resource/496d920a-56e5-4093-9588-26fbd1ea46b7/download/multicolumn_sample.xlsx'
+    )
+    print(sheets)

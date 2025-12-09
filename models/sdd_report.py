@@ -62,6 +62,7 @@ class SDDReport:
     sheet_name: Optional[str] = None
     pii_classifier_model: Optional[str] = None
     pii_reflection_model: Optional[str] = None
+    non_pii_model: Optional[str] = None
     pii_sensitive: bool = False
     non_pii_sensitive: bool = False
     columns: List[PIIColumnReport] = field(default_factory=list)

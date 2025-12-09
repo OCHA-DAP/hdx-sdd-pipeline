@@ -2,6 +2,8 @@
 import logging
 from typing import Any
 from .base_classifier import BaseClassifier
+from llm_model.azure_strategy import AzureOpenAIStrategy
+from utils.exception_handler import handle_exception_wrap
 
 logger = logging.getLogger(__name__)
 
@@ -11,22 +13,14 @@ class ReadMeScanClassifier(BaseClassifier):
     Classify the sensitivity level of a README file.
     """
 
-    def classify_readme(self, readme_string: str) -> dict[str, Any]:
+    def __init__(self, model: AzureOpenAIStrategy):
+        super().__init__(model)
+
+    @handle_exception_wrap()
+    def classify(self, readme_string: str) -> tuple[dict[str, Any], int, int]:
         """Classify the sensitivity level of detected PII entities."""
         context = {'readme_string': readme_string}
-        try:
-            prediction, completion_tokens, prompt_tokens = self._run_prompt(
-                'readme_scan', context, version='v0', max_new_tokens=256, json_response_format=True
-            )
-
-            # Check for error indicators
-            if isinstance(prediction, dict) and 'error' in prediction:
-                error_msg = f'ReadMe scan failed: {prediction.get("error", "Unknown error")}'
-                logger.error(error_msg)
-                raise RuntimeError(error_msg)
-
-            return prediction, completion_tokens, prompt_tokens
-        except Exception as e:
-            error_msg = f'ReadMe scan classification failed: {str(e)}'
-            logger.exception(error_msg)
-            raise RuntimeError(error_msg) from e
+        prediction, completion_tokens, prompt_tokens = self._run_prompt(
+            'readme_scan', context, version='v0', max_new_tokens=256, json_response_format=True
+        )
+        return prediction, completion_tokens, prompt_tokens

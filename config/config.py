@@ -34,8 +34,8 @@ class Config:
     README_SCAN_MODEL: str = os.getenv('README_SCAN_MODEL', 'readme-scan-v1')
 
     # Directories
-    # DOWNLOAD_DIR: str = os.getenv('DOWNLOAD_DIR', '/tmp/download')
-    # OUTPUT_DIR: str = os.getenv('OUTPUT_DIR', '/tmp/reports')
+    OUTPUT_DIR: str = os.getenv('OUTPUT_DIR', '/tmp/reports')
+    DOWNLOAD_DIR: str = os.getenv('DOWNLOAD_DIR', '/tmp/download')
 
     # Azure endpoints
     AZURE_OPENAI_ENDPOINT: str = os.getenv('AZURE_OPENAI_ENDPOINT', '')
@@ -51,7 +51,7 @@ def get_config() -> Config:
     return Config()
 
 
-class SlackClientWrapper():
+class SlackClientWrapper:
     def __init__(self) -> None:
         config = get_config()
         self.slack_channel = config.HDX_SDD_SLACK_CHANNEL

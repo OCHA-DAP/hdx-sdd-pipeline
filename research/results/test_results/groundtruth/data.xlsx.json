@@ -1,0 +1,121 @@
+[
+  {
+    "resource_id": "data",
+    "file_name": "data.xlsx",
+    "file_url": "research/data/data.xlsx",
+    "processing_timestamp": "2025-11-17 11:49:33",
+    "processing_success": true,
+    "n_records": 13,
+    "n_columns": 8,
+    "completion_tokens": 0,
+    "prompt_tokens": 0,
+    "sheet_name": "Sheet1",
+    "pii_classifier_model": null,
+    "pii_reflection_model": null,
+    "pii_sensitive": true,
+    "non_pii_sensitive": true,
+    "columns": [
+      {
+        "column_name": "test",
+        "sample_values": [
+          "test header 1",
+          "test subheader 1",
+          "Alicia"
+        ],
+        "pii": {
+          "entity_type": "unknown",
+          "sensitive": true
+        }
+      },
+      {
+        "column_name": "Unnamed: 1",
+        "sample_values": [
+          "test subheader 2",
+          "0",
+          "1"
+        ],
+        "pii": {
+          "entity_type": "unknown",
+          "sensitive": false
+        }
+      },
+      {
+        "column_name": "Unnamed: 2",
+        "sample_values": [
+          "test header 2",
+          "test subheader 3",
+          "Amsterdam"
+        ],
+        "pii": {
+          "entity_type": "unknown",
+          "sensitive": false
+        }
+      },
+      {
+        "column_name": "Unnamed: 3",
+        "sample_values": [
+          "test subheader 4",
+          "tv",
+          "tv"
+        ],
+        "pii": {
+          "entity_type": "unknown",
+          "sensitive": false
+        }
+      },
+      {
+        "column_name": "Unnamed: 4",
+        "sample_values": [
+          "test header 3",
+          "test subheader 5",
+          "computer"
+        ],
+        "pii": {
+          "entity_type": "unknown",
+          "sensitive": false
+        }
+      },
+      {
+        "column_name": "Unnamed: 5",
+        "sample_values": [
+          "test subheader 6"
+        ],
+        "pii": {
+          "entity_type": "unknown",
+          "sensitive": false
+        }
+      },
+      {
+        "column_name": "Unnamed: 6",
+        "sample_values": [
+          "test header 4",
+          "test subheader 7"
+        ],
+        "pii": {
+          "entity_type": "unknown",
+          "sensitive": false
+        }
+      },
+      {
+        "column_name": "Unnamed: 7",
+        "sample_values": [
+          "test subheader 8"
+        ],
+        "pii": {
+          "entity_type": "unknown",
+          "sensitive": false
+        }
+      }
+    ],
+    "non_pii": {
+      "model_name": "none",
+      "isp_used": "default",
+      "sensitivity": "SEVERE_SENSITIVE",
+      "sensitive_columns": [
+        "test - PERSON_NAME"
+      ],
+      "cited_isp_rules": [],
+      "explanation": "Empty groundtruth; no classification run."
+    }
+  }
+]
