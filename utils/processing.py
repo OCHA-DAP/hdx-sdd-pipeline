@@ -3,6 +3,20 @@ from typing import Dict
 import pandas as pd
 from models.sdd_report import SDDReport
 from utils.exception_handler import handle_exception_wrap
+import datetime
+
+
+def init_report(df, sheet_name, file_name, download_url, resource_id):
+    return SDDReport(
+        resource_id=resource_id,
+        file_name=file_name,
+        file_url=download_url,
+        sheet_name=sheet_name,
+        processing_timestamp=datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+        processing_success=True,
+        n_records=len(df),
+        n_columns=len(df.columns),
+    )
 
 
 def table_markdown(report: SDDReport) -> str:
