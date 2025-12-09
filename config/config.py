@@ -2,7 +2,12 @@
 
 import os
 from dataclasses import dataclass
+import logging
+import slack_sdk
+import slack_sdk.errors as slack_errors
 from dotenv import load_dotenv
+
+logger = logging.getLogger(__name__)
 
 load_dotenv()
 
@@ -36,9 +41,33 @@ class Config:
     AZURE_OPENAI_ENDPOINT: str = os.getenv('AZURE_OPENAI_ENDPOINT', '')
     AZURE_OPENAI_API_KEY: str = os.getenv('AZURE_OPENAI_API_KEY', '')
 
-    LOCAL: bool = os.getenv('LOCAL', 'false').lower() == 'true'
+    # Slack
+    HDX_SDD_SLACK_CHANNEL: str = os.getenv('HDX_SDD_SLACK_CHANNEL', 'topic-sensitive-data-alerts')
+    HDX_SDD_SLACK_ACCESS_TOKEN: str = os.getenv('HDX_SDD_SLACK_ACCESS_TOKEN')
 
 
 def get_config() -> Config:
     """Return config object for current environment."""
     return Config()
+
+
+class SlackClientWrapper:
+    def __init__(self) -> None:
+        config = get_config()
+        self.slack_channel = config.HDX_SDD_SLACK_CHANNEL
+        self.slack_client = None
+        token = config.HDX_SDD_SLACK_ACCESS_TOKEN
+        if token:
+            self.slack_client = slack_sdk.WebClient(token=token)
+            logger.debug('Slack client initialized')
+
+    def post_to_slack_channel(self, message: str):
+        if self.slack_client:
+            try:
+                text = f'[SDD Pipeline] {message}'
+                self.slack_client.chat_postMessage(channel=self.slack_channel, text=text)
+            except slack_errors.SlackApiError as e:
+                # Log Slack API errors but don't raise to prevent blocking the pipeline
+                logger.error(f"Got an error: {e.response['error']}")
+        else:
+            logger.info(f'[instead of slack] {message}')
