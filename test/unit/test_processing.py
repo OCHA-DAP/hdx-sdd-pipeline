@@ -1,7 +1,8 @@
 import pandas as pd
 import pytest
 from models.sdd_report import SDDReport, PIIColumnReport
-from utils.processing import DataSampler, table_markdown
+from utils.processing import DataSampler
+from utils.utils import table_markdown
 import utils.exception_handler
 
 

@@ -40,6 +40,9 @@ def table_markdown(report: SDDReport) -> str:
         )
         column_samples[key] = col.sample_values
 
+    if not column_samples:
+        return ''
+
     max_len = max(len(values) for values in column_samples.values())
     for key, values in column_samples.items():
         column_samples[key] = values + [''] * (max_len - len(values))
