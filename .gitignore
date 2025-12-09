@@ -238,3 +238,6 @@ logging.conf
 to_remove.py
 
 test/test_main.py
+
+research/data/
+research/results/
