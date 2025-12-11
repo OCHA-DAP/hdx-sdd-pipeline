@@ -1,11 +1,10 @@
 import logging
-from typing import Any, Dict, List, Tuple
+from typing import Any, Dict, Tuple
 from tqdm import tqdm
 
 from .base_classifier import BaseClassifier
 from llm_model.azure_strategy import AzureOpenAIStrategy
 from utils.exception_handler import handle_exception_wrap
-from models.sdd_report import SDDReport
 from utils.utils import table_markdown
 
 logger = logging.getLogger(__name__)
@@ -56,11 +55,11 @@ class PIIReflectionClassifier(BaseClassifier):
 
     def classify_df(
         self,
-        sdd_report: SDDReport,
-    ) -> SDDReport:
+        sdd_report: Dict[str, Any],
+    ) -> Dict[str, Any]:
         """
         Args:
-            sdd_report: the SDDReport to classify
+            sdd_report: the dictionary to classify
         """
 
         sdd_report['pii_reflection_model'] = self.model.model_name

@@ -36,41 +36,42 @@ def pii_classifier_instance(mock_azure_strategy):
 
 
 def test_classify_df(pii_classifier_instance):
-    df = pd.DataFrame(
-        {
-            'name': ['Alice', 'Bob'],
-            'age': ['10', '20'],
-        }
-    )
+    mock_sdd_report = {
+        'completion_tokens': 0,
+        'prompt_tokens': 0,
+        'columns': [
+            {'column_name': 'name', 'sample_values': ['Alice', 'Bob']},
+            {'column_name': 'age', 'sample_values': ['10', '20']},
+        ],
+    }
 
     pii_classifier_instance._has_alphanumeric.return_value = True
     pii_classifier_instance._run_prompt.return_value = ('name', 1, 2)
 
-    predictions, comp, prompt, model_name = pii_classifier_instance.classify_df(df)
+    sdd_report = pii_classifier_instance.classify_df(mock_sdd_report)
 
-    assert len(predictions) == 2
-    assert model_name == pii_classifier_instance.model.model_name
-    assert comp == 2
-    assert prompt == 4
+    assert len(sdd_report['columns']) == 2
+    assert sdd_report['completion_tokens'] == 2
+    assert sdd_report['prompt_tokens'] == 4
 
 
-def test_normalize_none_prediction(pii_classifier_instance, sample_df, mock_sdd_report):
+def test_normalize_none_prediction(pii_classifier_instance, mock_sdd_report):
     pii_classifier_instance._has_alphanumeric.return_value = True
     pii_classifier_instance._run_prompt.return_value = ('none', 1, 2)
 
-    predictions, comp, prompt, model_name = pii_classifier_instance.classify_df(sample_df)
-    assert len(predictions) == 3
-    assert predictions[0].pii['entity_type'] == 'None'
-    assert predictions[1].pii['entity_type'] == 'None'
-    assert predictions[2].pii['entity_type'] == 'None'
+    sdd_report = pii_classifier_instance.classify_df(mock_sdd_report)
+    assert len(sdd_report['columns']) == 3
+    assert sdd_report['columns'][0]['pii']['entity_type'] == 'None'
+    assert sdd_report['columns'][1]['pii']['entity_type'] == 'None'
+    assert sdd_report['columns'][2]['pii']['entity_type'] == 'None'
 
 
 def test_normalize_prediction(pii_classifier_instance, sample_df, mock_sdd_report):
     pii_classifier_instance._has_alphanumeric.return_value = True
     pii_classifier_instance._run_prompt.return_value = ('email_address', 1, 2)
 
-    predictions, comp, prompt, model_name = pii_classifier_instance.classify_df(sample_df)
-    assert len(predictions) == 3
-    assert predictions[0].pii['entity_type'] == 'EMAIL_ADDRESS'
-    assert predictions[1].pii['entity_type'] == 'EMAIL_ADDRESS'
-    assert predictions[2].pii['entity_type'] == 'EMAIL_ADDRESS'
+    sdd_report = pii_classifier_instance.classify_df(mock_sdd_report)
+    assert len(sdd_report['columns']) == 3
+    assert sdd_report['columns'][0]['pii']['entity_type'] == 'EMAIL_ADDRESS'
+    assert sdd_report['columns'][1]['pii']['entity_type'] == 'EMAIL_ADDRESS'
+    assert sdd_report['columns'][2]['pii']['entity_type'] == 'EMAIL_ADDRESS'

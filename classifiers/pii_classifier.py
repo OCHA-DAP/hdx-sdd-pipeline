@@ -1,10 +1,8 @@
 import logging
-from typing import Any, List, Tuple
-import pandas as pd
+from typing import Any, Dict, List, Tuple
 from tqdm import tqdm
 
 from .base_classifier import BaseClassifier
-from models.sdd_report import PIIColumnReport, SDDReport
 from utils.main_config import PII_ENTITIES_LIST
 from llm_model.azure_strategy import AzureOpenAIStrategy
 
@@ -15,7 +13,7 @@ DEBUG = True
 
 class PIIClassifier(BaseClassifier):
     """
-    Returns only PIIColumnReport objects and model tokens.
+    Returns only dictionary objects and model tokens.
     """
 
     def __init__(self, model: AzureOpenAIStrategy):
@@ -46,7 +44,7 @@ class PIIClassifier(BaseClassifier):
         sample_values: List[Any],
         k: int = 5,
         version: str = 'v0',
-    ) -> Tuple[PIIColumnReport, int, int]:
+    ) -> Tuple[Dict[str, Any], int, int]:
         sample_values = [str(v) for v in sample_values[:k]]
 
         if not sample_values or any(v == '' for v in sample_values) or sample_values == []:
@@ -75,8 +73,8 @@ class PIIClassifier(BaseClassifier):
 
     def classify_df(
         self,
-        sdd_report: SDDReport,
-    ) -> SDDReport:
+        sdd_report: Dict[str, Any],
+    ) -> Dict[str, Any]:
         """
         Returns:
           - list of PIIColumnReport objects
