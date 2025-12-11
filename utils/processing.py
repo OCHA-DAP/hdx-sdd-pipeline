@@ -1,22 +1,45 @@
 # utils/processing.py
 from typing import Dict
 import pandas as pd
-from models.sdd_report import SDDReport
+from models.sdd_report import SDDReport, PIIColumnReport
 from utils.exception_handler import handle_exception_wrap
 import datetime
 
 
-def init_report(df, sheet_name, file_name, download_url, resource_id):
-    return SDDReport(
-        resource_id=resource_id,
-        file_name=file_name,
-        file_url=download_url,
-        sheet_name=sheet_name,
-        processing_timestamp=datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
-        processing_success=True,
-        n_records=len(df),
-        n_columns=len(df.columns),
-    )
+def create_report(url: str, resource_id: str = None, download_url: str = None, sample_size: int = 5):
+    sampler = DataSampler()
+    sheets = sampler.load_from_url(url)
+    sample_dict = {name: sampler._sample_dataframe(df, sample_size) for name, df in sheets.items()}
+
+    reports = []
+    for sheet_name, column_dict_with_sample_values in sample_dict.items():
+        sdd_report = SDDReport(
+            resource_id=resource_id,
+            file_name=url,
+            file_url=download_url,
+            sheet_name=sheet_name,
+            processing_timestamp=datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+            processing_success=True,
+            n_records=len(sheets[sheet_name]),
+            n_columns=len(sheets[sheet_name].columns),
+        )
+        if 'readme' in sheet_name.lower().replace(' ', ''):
+            reports.append(sdd_report.to_dict())
+            continue
+
+        # Add to columns the pii_entity TODO and sensitive False
+        column_sdd_report = []
+        for col, item in column_dict_with_sample_values.items():
+            column_sdd_report.append(
+                PIIColumnReport(
+                    column_name=col,
+                    sample_values=item,
+                    pii={'entity_type': 'TODO', 'sensitive': False},
+                )
+            )
+        sdd_report.columns = column_sdd_report
+        reports.append(sdd_report.to_dict())
+    return reports
 
 
 def table_markdown(report: SDDReport) -> str:
@@ -54,16 +77,23 @@ class DataSampler:
         return url_lower
 
     @handle_exception_wrap()
-    def _load_from_url(self, url: str) -> Dict[str, pd.DataFrame]:
+    def load_from_url(self, url: str) -> Dict[str, pd.DataFrame]:
         """Load CSV/XLS/XLSX from a URL into a dictionary of DataFrames keyed by sheet name."""
         url = self._validate_url(url)
         if url.endswith('.csv'):
             df = pd.read_csv(url, header=None, nrows=200)
+
             df = self._concatenate_header(df)
-            return {'sheet1': df}
+            # Put the most complete rows to the top
+            df_sorted = (
+                df.assign(num_nans=df.isna().sum(axis=1))
+                .sort_values('num_nans', ascending=True)
+                .drop(columns='num_nans')
+            )
+            return {'sheet1': df_sorted}
 
         # Excel files: can contain multiple sheets
-        df_dict = pd.read_excel(url, sheet_name=None, nrows=200, header=None)
+        df_dict = pd.read_excel(url, sheet_name=None, nrows=1000, header=None)
         return {sheet_name: self._concatenate_header(df) for sheet_name, df in df_dict.items()}
 
     @handle_exception_wrap()
@@ -95,35 +125,60 @@ class DataSampler:
         return cleaned_df.reset_index(drop=True)
 
     @handle_exception_wrap()
-    def _sample_dataframe(self, df: pd.DataFrame, sample_size: int = 20) -> pd.DataFrame:
-        """Return a sample of rows with the most non-null values sorted to the top."""
+    def _sample_dataframe(self, df: pd.DataFrame, sample_size: int = 10) -> dict:
+        """Return a dict of column -> sample values, using rows with the most non-null values first."""
+
         if df.empty:
-            return df
+            return {}
 
-        # Compute null counts for ranking
-        # df = df.copy()
-        df['null_count'] = df.isna().sum(axis=1)
+        # Work on a copy to avoid mutating original DF
+        df_sorted = df.copy()
 
-        # Sort by completeness (fewest nulls first)
-        df_sorted = df.sort_values('null_count', ascending=True)
+        # Add completeness score
+        df_sorted['__null_count__'] = df_sorted.isna().sum(axis=1)
 
-        # Select the top N rows
-        n = min(sample_size, len(df_sorted))
-        sample = df_sorted.head(n)
+        # Sort so best rows (fewest nulls) appear at the top
+        df_sorted = df_sorted.sort_values('__null_count__')
 
-        # Remove helper column before returning
-        return sample.drop(columns='null_count').reset_index(drop=True)
+        sample_dict = {}
+
+        for col in df.columns:  # only iterate real columns
+            col_data = df_sorted[col]
+
+            # Drop empty values (NaN or empty string)
+            non_empty = col_data.dropna()
+            non_empty = non_empty[non_empty != '']
+
+            # Take the top N most complete values
+            values = non_empty.head(sample_size).tolist()
+
+            # If the column has no usable values
+            if not values:
+                values = [''] * sample_size  # or: df[col].unique()[:sample_size]
+
+            # Pad to sample_size
+            while len(values) < sample_size:
+                values.append('')
+
+            sample_dict[col] = values
+
+        return sample_dict
 
     @handle_exception_wrap()
-    def sample(self, url: str, sample_size: int = 20) -> Dict[str, pd.DataFrame]:
+    def sample(self, url: str, sample_size: int = 5) -> Dict[str, pd.DataFrame]:
         """Main entrypoint: load and sample dataset(s) from a URL."""
-        sheets = self._load_from_url(url)
-        return {name: self._sample_dataframe(df, sample_size) for name, df in sheets.items()}
+        sheets = self.load_from_url(url)
+
+        sample_dict = {name: self._sample_dataframe(df, sample_size) for name, df in sheets.items()}
+        return sample_dict
 
 
 if __name__ == '__main__':
     sampler = DataSampler()
-    sheets = sampler.sample(
-        'https://dev.data-humdata-org.ahconu.org/dataset/a4256b92-dfee-4856-b28e-81abcf1da882/resource/496d920a-56e5-4093-9588-26fbd1ea46b7/download/multicolumn_sample.xlsx'
-    )
-    print(sheets)
+    # sheets = sampler.sample(
+    #     'https://dev.data-humdata-org.ahconu.org/dataset/a4256b92-dfee-4856-b28e-81abcf1da882/resource/496d920a-56e5-4093-9588-26fbd1ea46b7/download/multicolumn_sample.xlsx'
+    # )
+
+    sheets = sampler.sample('research/data/panama.xlsx')
+    sdd_report = create_report('research/data/panama.xlsx')
+    print(sdd_report)

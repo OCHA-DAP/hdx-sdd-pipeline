@@ -1,9 +1,10 @@
 # src/classifiers/non_pii_classifier.py
 import logging
-from models.sdd_report import SDDReport, NonPIIReport
+from typing import Dict, Any
 from .base_classifier import BaseClassifier
 from llm_model.azure_strategy import AzureOpenAIStrategy
 from utils.exception_handler import handle_exception_wrap
+from utils.utils import table_markdown
 
 logger = logging.getLogger(__name__)
 
@@ -31,15 +32,14 @@ class NonPIIClassifier(BaseClassifier):
     @handle_exception_wrap()
     def classify(
         self,
-        table_markdown: str,
-        report: SDDReport,
+        sdd_report: Dict[str, Any],
         isp,
         max_new_tokens: int = 512,
         version: str = 'v1',
-    ) -> SDDReport:
+    ) -> Dict[str, Any]:
         """Classify the sensitivity level of non-PII sensitive data."""
-        isp_name = list(isp.keys())[0]
-        context = {'table_markdown': table_markdown, 'isp': isp[isp_name]}
+        context = {'table_markdown': table_markdown(sdd_report), 'isp': isp}
+
         prediction, completion_tokens, prompt_tokens = self._run_prompt(
             'non_pii_detection',
             context,
@@ -49,15 +49,42 @@ class NonPIIClassifier(BaseClassifier):
         )
 
         if isinstance(completion_tokens, int):
-            report.completion_tokens += completion_tokens
+            sdd_report['completion_tokens'] += completion_tokens
         if isinstance(prompt_tokens, int):
-            report.prompt_tokens += prompt_tokens
+            sdd_report['prompt_tokens'] += prompt_tokens
 
-        return NonPIIReport(
-            model_name=self.model.model_name,
-            isp_used=isp_name,
-            sensitivity=prediction.get('sensitivity', 'UNDETERMINED'),
-            sensitive_columns=prediction.get('sensitive_columns', []),
-            cited_isp_rules=prediction.get('cited_isp_rules', []),
-            explanation=prediction.get('explanation', ''),
+        sdd_report['non_pii_model'] = self.model.model_name
+        sdd_report['non_pii'] = {}
+        sdd_report['non_pii']['sensitivity'] = prediction.get('sensitivity', 'UNDETERMINED')
+        sdd_report['non_pii']['sensitive_columns'] = prediction.get('sensitive_columns', [])
+        sdd_report['non_pii']['cited_isp_rules'] = prediction.get('cited_isp_rules', [])
+        sdd_report['non_pii']['explanation'] = prediction.get('explanation', '')
+
+        return sdd_report
+
+
+if __name__ == '__main__':
+    from utils.processing import create_report
+    import os
+
+    sdd_report = create_report('research/data/panama.xlsx')
+
+    non_pii_classifier = NonPIIClassifier(
+        AzureOpenAIStrategy(
+            model_name='gpt-4.1-nano',
+            azure_endpoint=os.getenv('AZURE_OPENAI_ENDPOINT'),
+            api_key=os.getenv('AZURE_OPENAI_API_KEY'),
         )
+    )
+    import json
+
+    with open('/Users/liangtelkamp/Documents/GitHub/hdx-ssd-pipeline/data/isps.json', 'r') as f:
+        isp = json.load(f)
+
+    print(isp['default'])
+
+    for sheet in sdd_report:
+        # Only use the two first columns
+        sheet['columns'] = sheet['columns'][:2]
+        sdd_report = non_pii_classifier.classify(sheet, isp)
+        print(sdd_report)
