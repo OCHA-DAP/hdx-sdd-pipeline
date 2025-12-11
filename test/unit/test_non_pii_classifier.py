@@ -50,7 +50,7 @@ def test_format_prediction_only_first_line_is_considered(non_pii_classifier_inst
     assert non_pii_classifier_instance.format_prediction(raw_pred) == 'UNDETERMINED'
 
 
-def test_classify(non_pii_classifier_instance, sample_report, sample_table_markdown):
+def test_classify(non_pii_classifier_instance, sample_report):
     non_pii_classifier_instance._run_prompt.return_value = (
         {
             'sensitivity': 'HIGH_SENSITIVE',
@@ -61,17 +61,16 @@ def test_classify(non_pii_classifier_instance, sample_report, sample_table_markd
         10,
         20,
     )
-    non_pii_report = non_pii_classifier_instance.classify(sample_table_markdown, sample_report, TEST_ISP)
-    assert non_pii_report.sensitivity == 'HIGH_SENSITIVE'
-    assert non_pii_report.isp_used == 'mock_isp'
-    assert non_pii_report.sensitive_columns == ['name']
-    assert non_pii_report.cited_isp_rules == ['name is sensitive']
-    assert non_pii_report.explanation == 'name is sensitive'
+    non_pii_report = non_pii_classifier_instance.classify(sample_report, TEST_ISP)
+    assert non_pii_report['non_pii']['sensitivity'] == 'HIGH_SENSITIVE'
+    assert non_pii_report['non_pii']['sensitive_columns'] == ['name']
+    assert non_pii_report['non_pii']['cited_isp_rules'] == ['name is sensitive']
+    assert non_pii_report['non_pii']['explanation'] == 'name is sensitive'
 
 
-def test_classify_non_dict_output(non_pii_classifier_instance, sample_report, sample_table_markdown):
+def test_classify_non_dict_output(non_pii_classifier_instance, sample_report):
     non_pii_classifier_instance._run_prompt.return_value = ({'sensitive columns found'}, 10, 20)
     with pytest.raises(utils.exception_handler.ContextualError):
-        report = non_pii_classifier_instance.classify(sample_table_markdown, sample_report, TEST_ISP)
-        assert report.error_source == ERROR_SOURCE_NON_PII_CLASSIFICATION
-        assert report.error_message
+        report = non_pii_classifier_instance.classify(sample_report, TEST_ISP)
+        assert report['error_source'] == ERROR_SOURCE_NON_PII_CLASSIFICATION
+        assert report['error_message']

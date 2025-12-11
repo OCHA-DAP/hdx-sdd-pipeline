@@ -1,6 +1,6 @@
 import logging
 import pandas as pd
-from models.sdd_report import SDDReport
+from typing import Dict, Any
 from utils.exception_handler import handle_exception_wrap
 
 logger = logging.getLogger(__name__)
@@ -29,19 +29,16 @@ def determine_sensitivity(reports: list) -> str:
 
 
 @handle_exception_wrap()
-def table_markdown(report: SDDReport) -> str:
+def table_markdown(report: Dict[str, Any]) -> str:
     """Generate a markdown table from the report sample columns."""
     column_samples = {}
-    for col in report.columns:
+    for col in report['columns']:
         key = (
-            f'{col.column_name} - {col.pii.get("entity_type", "None")}'
-            if col.pii.get('entity_type') != 'None'
-            else col.column_name
+            f'{col["column_name"]} - {col["pii"].get("entity_type", "None")}'
+            if col['pii'].get('entity_type') != 'None'
+            else col['column_name']
         )
-        column_samples[key] = col.sample_values
-
-    if not column_samples:
-        return ''
+        column_samples[key] = col['sample_values']
 
     max_len = max(len(values) for values in column_samples.values())
     for key, values in column_samples.items():

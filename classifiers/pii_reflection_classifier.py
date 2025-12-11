@@ -1,11 +1,11 @@
 import logging
-from typing import Any, Dict, List, Tuple
+from typing import Any, Dict, Tuple
 from tqdm import tqdm
 
 from .base_classifier import BaseClassifier
 from llm_model.azure_strategy import AzureOpenAIStrategy
 from utils.exception_handler import handle_exception_wrap
-from models.sdd_report import PIIColumnReport
+from utils.utils import table_markdown
 
 logger = logging.getLogger(__name__)
 
@@ -55,67 +55,52 @@ class PIIReflectionClassifier(BaseClassifier):
 
     def classify_df(
         self,
-        table_markdown: str,
-        pii_columns: List,
-    ) -> Tuple[List[Dict[str, Any]], int, int, str]:  # reflections  # completion tokens  # prompt tokens  # model name
+        sdd_report: Dict[str, Any],
+    ) -> Dict[str, Any]:
         """
         Args:
-            table_markdown: the markdown table used for reasoning
-            pii_columns: list of PIIColumnReport from PIIClassifier
-
-        Returns:
-            (
-              [
-                {
-                  "column_name": ...,
-                  "entity_type": ...,
-                  "sensitive": bool
-                },
-                ...
-              ],
-              total_completion_tokens,
-              total_prompt_tokens,
-              model_name
-            )
+            sdd_report: the dictionary to classify
         """
 
-        reflections: List[PIIColumnReport] = []
-        total_completion = 0
-        total_prompt = 0
+        sdd_report['pii_reflection_model'] = self.model.model_name
 
-        for col in tqdm(pii_columns, desc='Reflecting on PII sensitivity'):
-            entity = col.pii.get('entity_type')
-
-            if entity == 'None':
-                reflections.append(
-                    PIIColumnReport(
-                        column_name=col.column_name,
-                        sample_values=col.sample_values,
-                        pii={'entity_type': entity, 'sensitive': False},
-                    )
-                )
-                continue
+        for col in tqdm(sdd_report['columns'], desc='Reflecting on PII sensitivity'):
+            entity = col['pii']['entity_type']
 
             pred, comp, prompt = self.classify_column(
-                column_name=col.column_name,
-                table_markdown=table_markdown,
+                column_name=col['column_name'],
+                table_markdown=table_markdown(sdd_report),
                 entity_type=entity,
             )
 
             # token aggregation
-            total_completion += comp
-            total_prompt += prompt
+            sdd_report['completion_tokens'] += comp
+            sdd_report['prompt_tokens'] += prompt
 
             sensitive = False
             if pred == 'SENSITIVE':
                 sensitive = True
 
-            reflections.append(
-                PIIColumnReport(
-                    column_name=col.column_name,
-                    sample_values=col.sample_values,
-                    pii={'entity_type': entity, 'sensitive': sensitive},
-                )
-            )
+            col['pii']['sensitive'] = sensitive
 
-        return reflections, total_completion, total_prompt, self.model.model_name
+        return sdd_report
+
+
+if __name__ == '__main__':
+    from utils.processing import create_report
+    import os
+
+    sdd_report = create_report('research/data/panama.xlsx')
+    pii_reflection_classifier = PIIReflectionClassifier(
+        AzureOpenAIStrategy(
+            model_name='gpt-4.1-nano',
+            azure_endpoint=os.getenv('AZURE_OPENAI_ENDPOINT'),
+            api_key=os.getenv('AZURE_OPENAI_API_KEY'),
+        )
+    )
+
+    for sheet in sdd_report:
+        # Only use the two first columns
+        sheet['columns'] = sheet['columns'][:2]
+        sdd_report = pii_reflection_classifier.classify_df(sheet)
+        print(sdd_report)
