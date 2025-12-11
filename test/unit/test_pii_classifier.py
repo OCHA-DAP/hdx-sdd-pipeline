@@ -1,5 +1,4 @@
 import pytest
-import pandas as pd
 from unittest.mock import patch, MagicMock
 
 from classifiers.pii_classifier import PIIClassifier

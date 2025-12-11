@@ -1,7 +1,6 @@
 # utils/processing.py
 from typing import Dict
 import pandas as pd
-from models.sdd_report import SDDReport, PIIColumnReport
 from utils.exception_handler import handle_exception_wrap
 import datetime
 
@@ -13,52 +12,34 @@ def create_report(url: str, resource_id: str = None, download_url: str = None, s
 
     reports = []
     for sheet_name, column_dict_with_sample_values in sample_dict.items():
-        sdd_report = SDDReport(
-            resource_id=resource_id,
-            file_name=url,
-            file_url=download_url,
-            sheet_name=sheet_name,
-            processing_timestamp=datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
-            processing_success=True,
-            n_records=len(sheets[sheet_name]),
-            n_columns=len(sheets[sheet_name].columns),
-        )
+        sdd_report = {
+            'resource_id': resource_id,
+            'file_name': url,
+            'file_url': download_url,
+            'sheet_name': sheet_name,
+            'processing_timestamp': datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+            'processing_success': True,
+            'n_records': len(sheets[sheet_name]),
+            'n_columns': len(sheets[sheet_name].columns),
+            'completion_tokens': 0,
+            'prompt_tokens': 0,
+            'columns': [],
+        }
         if 'readme' in sheet_name.lower().replace(' ', ''):
-            reports.append(sdd_report.to_dict())
+            reports.append(sdd_report)
             continue
 
         # Add to columns the pii_entity TODO and sensitive False
-        column_sdd_report = []
         for col, item in column_dict_with_sample_values.items():
-            column_sdd_report.append(
-                PIIColumnReport(
-                    column_name=col,
-                    sample_values=item,
-                    pii={'entity_type': 'TODO', 'sensitive': False},
-                )
+            sdd_report['columns'].append(
+                {
+                    'column_name': col,
+                    'sample_values': item,
+                    'pii': {'entity_type': 'TODO', 'sensitive': False},
+                }
             )
-        sdd_report.columns = column_sdd_report
-        reports.append(sdd_report.to_dict())
+        reports.append(sdd_report)
     return reports
-
-
-# def table_markdown(report: SDDReport) -> str:
-#     """Generate a markdown table from the report sample columns."""
-#     column_samples = {}
-#     for col in report.columns:
-#         key = (
-#             f'{col.column_name} - {col.pii.get("entity_type", "None")}'
-#             if col.pii.get('entity_type') != 'None'
-#             else col.column_name
-#         )
-#         column_samples[key] = col.sample_values
-#     if not column_samples:
-#         return ''
-#     max_len = max(len(values) for values in column_samples.values())
-#     for key, values in column_samples.items():
-#         column_samples[key] = values + [''] * (max_len - len(values))
-
-#     return pd.DataFrame(column_samples).to_markdown(index=False) or ''
 
 
 class DataSampler:

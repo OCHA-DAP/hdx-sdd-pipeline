@@ -1,30 +1,15 @@
 import pandas as pd
 import pytest
-from models.sdd_report import SDDReport, PIIColumnReport
 from utils.processing import DataSampler
 from utils.utils import table_markdown
 import utils.exception_handler
 
 
-def make_report(columns):
-    """Utility to create SDDReport quickly."""
-    return {
-        'resource_id': 'r1',
-        'file_name': 'file.csv',
-        'file_url': 'http://example.com',
-        'processing_timestamp': '2024-01-01',
-        'processing_success': True,
-        'n_records': 10,
-        'n_columns': len(columns),
-        'columns': columns,
-    }
-
-
 def test_basic_markdown_output():
     report = {
-        "columns": [
-            {"column_name": 'name', "sample_values": ['Alice', 'Bob'], "pii": {'entity_type': 'person_name'}},
-            {"column_name": 'age', "sample_values": ['30', '40'], "pii": {'entity_type': 'None'}},
+        'columns': [
+            {'column_name': 'name', 'sample_values': ['Alice', 'Bob'], 'pii': {'entity_type': 'person_name'}},
+            {'column_name': 'age', 'sample_values': ['30', '40'], 'pii': {'entity_type': 'None'}},
         ]
     }
     md = table_markdown(report)
@@ -38,9 +23,9 @@ def test_basic_markdown_output():
 
 def test_padding_of_shorter_column():
     report = {
-        "columns": [
-            {"column_name": 'city', "sample_values": ['NYC'], "pii": {'entity_type': 'None'}},
-            {"column_name": 'zip', "sample_values": ['10001', '20002'], "pii": {'entity_type': 'None'}},
+        'columns': [
+            {'column_name': 'city', 'sample_values': ['NYC'], 'pii': {'entity_type': 'None'}},
+            {'column_name': 'zip', 'sample_values': ['10001', '20002'], 'pii': {'entity_type': 'None'}},
         ]
     }
     md = table_markdown(report)
@@ -54,9 +39,9 @@ def test_padding_of_shorter_column():
 
 def test_entity_type_none_handling():
     report = {
-        "columns": [
-            {"column_name": 'email', "sample_values": ['a@example.com'], "pii": {'entity_type': 'email_address'}},
-            {"column_name": 'status', "sample_values": ['active'], "pii": {'entity_type': 'None'}},
+        'columns': [
+            {'column_name': 'email', 'sample_values': ['a@example.com'], 'pii': {'entity_type': 'email_address'}},
+            {'column_name': 'status', 'sample_values': ['active'], 'pii': {'entity_type': 'None'}},
         ]
     }
     md = table_markdown(report)
@@ -67,9 +52,9 @@ def test_entity_type_none_handling():
 
 def test_markdown_with_irregular_sample_lengths():
     report = {
-        "columns": [
-            {"column_name": 'col1', "sample_values": ['A', 'B', 'C'], "pii": {'entity_type': 'None'}},
-            {"column_name": 'col2', "sample_values": ['1'], "pii": {'entity_type': 'None'}},
+        'columns': [
+            {'column_name': 'col1', 'sample_values': ['A', 'B', 'C'], 'pii': {'entity_type': 'None'}},
+            {'column_name': 'col2', 'sample_values': ['1'], 'pii': {'entity_type': 'None'}},
         ]
     }
     md = table_markdown(report)
@@ -88,9 +73,9 @@ def test_markdown_with_irregular_sample_lengths():
 
 def test_markdown_output_matches_dataframe_to_markdown_format():
     report = {
-        "columns": [
-            {"column_name": 'product', "sample_values": ['Book', 'Pen'], "pii": {'entity_type': 'product_name'}},
-            {"column_name": 'price', "sample_values": ['10', '2'], "pii": {'entity_type': 'price'}},
+        'columns': [
+            {'column_name': 'product', 'sample_values': ['Book', 'Pen'], 'pii': {'entity_type': 'product_name'}},
+            {'column_name': 'price', 'sample_values': ['10', '2'], 'pii': {'entity_type': 'price'}},
         ]
     }
     md = table_markdown(report)

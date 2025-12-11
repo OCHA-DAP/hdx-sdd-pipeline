@@ -7,9 +7,7 @@ from typing import Any
 from utils.ckan import CKANClient
 from utils.prompt_manager import PromptManager
 import pandas as pd
-from models.sdd_report import PIIColumnReport
 from utils.utils import table_markdown
-from models.sdd_report import SDDReport, NonPIIReport
 from datetime import datetime
 
 
