@@ -7,7 +7,9 @@ from typing import Any
 from utils.ckan import CKANClient
 from utils.prompt_manager import PromptManager
 import pandas as pd
+from models.sdd_report import PIIColumnReport
 from utils.utils import table_markdown
+from models.sdd_report import SDDReport, NonPIIReport
 from datetime import datetime
 
 
@@ -118,34 +120,22 @@ def mock_base_classifier(mock_azure_strategy):
 
 @pytest.fixture
 def mock_non_pii_report():
-    return {
-        'model_name': 'mock-model',
-        'isp_used': 'mock-isp',
-        'sensitivity': 'mock-sensitivity',
-        'explanation': 'mock-explanation',
-        'sensitive_columns': ['name', 'age', 'country'],
-        'cited_isp_rules': ['ISP-1', 'ISP-2', 'ISP-3'],
-    }
+    return NonPIIReport(
+        model_name='mock-model', isp_used='mock-isp', sensitivity='mock-sensitivity', explanation='mock-explanation'
+    )
 
 
 @pytest.fixture
 def mock_sdd_report():
-    return {
-        'resource_id': '1',
-        'file_name': 'file.csv',
-        'file_url': 'http://example.com',
-        'processing_timestamp': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
-        'processing_success': True,
-        'n_records': 10,
-        'n_columns': 3,
-        'completion_tokens': 0,
-        'prompt_tokens': 0,
-        'columns': [
-            {'column_name': 'name', 'sample_values': ['Alice', 'Bob', 'Charlie']},
-            {'column_name': 'age', 'sample_values': ['25', '30', '35']},
-            {'column_name': 'country', 'sample_values': ['US', 'UK', 'DE']},
-        ],
-    }
+    return SDDReport(
+        resource_id='1',
+        file_name='file.csv',
+        file_url='http://example.com',
+        processing_timestamp=datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+        processing_success=True,
+        n_records=10,
+        n_columns=3,
+    )
 
 
 @pytest.fixture
@@ -161,26 +151,24 @@ def sample_df():
 
 @pytest.fixture
 def sample_report(mock_sdd_report):
-    report = {
-        'resource_id': '1',
-        'file_name': 'file.csv',
-        'file_url': 'http://example.com',
-        'processing_timestamp': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
-        'processing_success': True,
-        'n_records': 10,
-        'n_columns': 3,
-        'completion_tokens': 0,
-        'prompt_tokens': 0,
-        'columns': [
-            {
-                'column_name': 'name',
-                'sample_values': ['Alice', 'Bob', 'Charlie'],
-                'pii': {'entity_type': 'PERSON_NAME'},
-            },
-            {'column_name': 'age', 'sample_values': ['25', '30', '35'], 'pii': {'entity_type': 'AGE'}},
-            {'column_name': 'country', 'sample_values': ['US', 'UK', 'DE'], 'pii': {'entity_type': 'STREET_ADDRESS'}},
+    report = SDDReport(
+        resource_id='1',
+        file_name='file.csv',
+        file_url='http://example.com',
+        processing_timestamp=datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+        processing_success=True,
+        n_records=10,
+        n_columns=3,
+        columns=[
+            PIIColumnReport(
+                column_name='name', sample_values=['Alice', 'Bob', 'Charlie'], pii={'entity_type': 'PERSON_NAME'}
+            ),
+            PIIColumnReport(column_name='age', sample_values=['25', '30', '35'], pii={'entity_type': 'AGE'}),
+            PIIColumnReport(
+                column_name='country', sample_values=['US', 'UK', 'DE'], pii={'entity_type': 'STREET_ADDRESS'}
+            ),
         ],
-    }
+    )
     return report
 
 

@@ -18,30 +18,37 @@ def pii_reflection_classifier_instance(mock_azure_strategy):
         return classifier
 
 
-def test_classify_df(pii_reflection_classifier_instance, sample_report):
+def test_classify_df(pii_reflection_classifier_instance, sample_report, sample_table_markdown):
     pii_reflection_classifier_instance._run_prompt.return_value = ('SENSITIVE', 10, 20)
-    sdd_report = pii_reflection_classifier_instance.classify_df(sample_report)
+    predictions, comp, prompt, model_name = pii_reflection_classifier_instance.classify_df(
+        ' test table markdown', sample_report.columns
+    )
 
-    assert len(sdd_report['columns']) == 3
-    assert sdd_report['completion_tokens'] == 30
-    assert sdd_report['prompt_tokens'] == 60
+    assert len(predictions) == 3
+    assert model_name == pii_reflection_classifier_instance.model.model_name
+    assert comp == 30
+    assert prompt == 60
 
     pii_reflection_classifier_instance._run_prompt.return_value = ('NON_SENSITIVE', 10, 20)
-    sdd_report = pii_reflection_classifier_instance.classify_df(sample_report)
-    assert sdd_report['columns'][0]['pii']['sensitive'] == False
-    assert sdd_report['columns'][1]['pii']['sensitive'] == False
-    assert sdd_report['columns'][2]['pii']['sensitive'] == False
+    predictions, comp, prompt, model_name = pii_reflection_classifier_instance.classify_df(
+        sample_table_markdown, sample_report.columns
+    )
+    assert predictions[0].pii['sensitive'] == False
+    assert predictions[1].pii['sensitive'] == False
+    assert predictions[2].pii['sensitive'] == False
 
 
-def test_classify_df_none_column(pii_reflection_classifier_instance, sample_report):
-    sample_report['columns'][0]['pii']['entity_type'] = 'None'
+def test_classify_df_none_column(pii_reflection_classifier_instance, sample_report, sample_table_markdown):
+    sample_report.columns[0].pii['entity_type'] = 'None'
     pii_reflection_classifier_instance._run_prompt.return_value = ('SENSITIVE', 10, 20)
-    sdd_report = pii_reflection_classifier_instance.classify_df(sample_report)
-    assert sdd_report['columns'][0]['pii']['sensitive'] == False
-    assert sdd_report['columns'][1]['pii']['sensitive'] == True
-    assert sdd_report['columns'][2]['pii']['sensitive'] == True
-    assert sdd_report['completion_tokens'] == 20
-    assert sdd_report['prompt_tokens'] == 40
+    predictions, comp, prompt, model_name = pii_reflection_classifier_instance.classify_df(
+        sample_table_markdown, sample_report.columns
+    )
+    assert predictions[0].pii['sensitive'] == False
+    assert predictions[1].pii['sensitive'] == True
+    assert predictions[2].pii['sensitive'] == True
+    assert comp == 20
+    assert prompt == 40
 
 
 def test_classify_column_none_column(pii_reflection_classifier_instance):

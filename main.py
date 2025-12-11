@@ -2,9 +2,12 @@
 
 import json
 import logging.config
+import datetime
+
 from hdx_redis_lib import connect_to_hdx_event_bus, RedisConfig
 
 from config.config import get_config
+from models.sdd_report import SDDReport
 from utils.ckan import CKANClient
 from utils.error_constants import (
     ERROR_SOURCE_PII_CLASSIFICATION,
@@ -13,7 +16,7 @@ from utils.error_constants import (
     ERROR_SOURCE_README_SCAN,
 )
 from utils.exception_handler import handle_exception_wrap
-from utils.processing import create_report
+from utils.processing import DataSampler
 from utils.utils import report_exists_in_ckan, determine_sensitivity, table_markdown
 from classifiers.pii_classifier import PIIClassifier
 from classifiers.non_pii_classifier import NonPIIClassifier
@@ -83,12 +86,12 @@ def get_classifier(classifier_cls, model_name):
 
 
 @handle_exception_wrap()
-def pii_classification(sdd_report, model=None):
+def pii_classification(df, model=None):
     if model:
         classifier = get_classifier(PIIClassifier, model)
     else:
         classifier = get_classifier(PIIClassifier, config.PII_DETECT_MODEL)
-    return classifier.classify_df(sdd_report)
+    return classifier.classify_df(df)
 
 
 @handle_exception_wrap()
@@ -97,7 +100,7 @@ def pii_reflection_classification(sdd_report, model=None):
         classifier = get_classifier(PIIReflectionClassifier, model)
     else:
         classifier = get_classifier(PIIReflectionClassifier, config.PII_REFLECT_MODEL)
-    return classifier.classify_df(sdd_report)
+    return classifier.classify_df(table_markdown(sdd_report), sdd_report.columns)
 
 
 @handle_exception_wrap()
@@ -106,7 +109,7 @@ def non_pii_classification(sdd_report, isp, model=None):
         classifier = get_classifier(NonPIIClassifier, model)
     else:
         classifier = get_classifier(NonPIIClassifier, config.NON_PII_DETECT_MODEL)
-    return classifier.classify(sdd_report, isp)
+    return classifier.classify(table_markdown(sdd_report), sdd_report, isp)
 
 
 @handle_exception_wrap()
@@ -119,8 +122,8 @@ def readme_scan_classification(sdd_report, model=None):
 
 
 @handle_exception_wrap()
-def sheet_processor(sdd_report, isp, model=None):
-    sheet_name = sdd_report['sheet_name']
+def sheet_processor(sdd_report, isp, df, model=None):
+    sheet_name = sdd_report.sheet_name
     if 'readme' in sheet_name.lower() or 'instructions' in sheet_name.lower() or 'metadata' in sheet_name.lower():
         try:
             prediction, comp, prompt = readme_scan_classification(sdd_report, model=model)
@@ -137,35 +140,46 @@ def sheet_processor(sdd_report, isp, model=None):
 
     # PII classification
     try:
-        sdd_report = pii_classification(sdd_report, model=model)
+        pii_columns, comp, prompt, _ = pii_classification(df, model=model)
+        sdd_report.columns = pii_columns
+        sdd_report.completion_tokens += comp
+        sdd_report.prompt_tokens += prompt
+        sdd_report.pii_classifier_model = model if model else config.PII_DETECT_MODEL
     except Exception as e:
-        sdd_report['error_source'] = ERROR_SOURCE_PII_CLASSIFICATION
-        sdd_report['error_message'] = str(e)
+        logger.error(f'Error in PII classification: {e}')
+        sdd_report.error_source = ERROR_SOURCE_PII_CLASSIFICATION
+        sdd_report.error_message = str(e)
         return sdd_report
 
     # PII reflection
     try:
-        sdd_report = pii_reflection_classification(sdd_report, model=model)
+        pii_reflections, comp, prompt, _ = pii_reflection_classification(sdd_report, model=model)
+        sdd_report.columns = pii_reflections
+        sdd_report.completion_tokens += comp
+        sdd_report.prompt_tokens += prompt
+        sdd_report.pii_reflection_model = model if model else config.PII_REFLECT_MODEL
     except Exception as e:
-        sdd_report['error_source'] = ERROR_SOURCE_PII_REFLECTION
-        sdd_report['error_message'] = str(e)
+        logger.error(f'Error in PII reflection classification: {e}')
+        sdd_report.error_source = ERROR_SOURCE_PII_REFLECTION
+        sdd_report.error_message = str(e)
         return sdd_report
 
     # Check if any column is sensitive
-    if any(column['pii'].get('sensitive', True) for column in sdd_report['columns']):
-        sdd_report['pii_sensitive'] = True
+    if any(column.pii.get('sensitive', True) for column in pii_reflections):
+        sdd_report.pii_sensitive = True
 
     # Non-PII classification
     try:
-        sdd_report = non_pii_classification(sdd_report, isp, model=model)
-        print(f'Non-PII classification: {sdd_report}')
+        sdd_report.non_pii = non_pii_classification(sdd_report, isp, model=model)
+        sdd_report.non_pii_model = model if model else config.NON_PII_DETECT_MODEL
     except Exception as e:
-        sdd_report['error_source'] = ERROR_SOURCE_NON_PII_CLASSIFICATION
-        sdd_report['error_message'] = str(e)
+        logger.error(f'Error in Non-PII classification: {e}')
+        sdd_report.error_source = ERROR_SOURCE_NON_PII_CLASSIFICATION
+        sdd_report.error_message = str(e)
         return sdd_report
 
     # Check if any column is sensitive
-    if sdd_report['non_pii']['sensitivity'].lower() in [
+    if sdd_report.non_pii.sensitivity.lower() in [
         'high',
         'high_sensitive',
         'moderate',
@@ -173,7 +187,7 @@ def sheet_processor(sdd_report, isp, model=None):
         'severe',
         'severe_sensitive',
     ]:
-        sdd_report['non_pii_sensitive'] = True
+        sdd_report.non_pii_sensitive = True
 
     return sdd_report
 
@@ -205,33 +219,52 @@ def event_processor(event):
         if 'default' in isp:
             logger.info('No ISP found for dataset location or filename.')
 
-    sdd_reports = create_report(download_url)
-    logger.debug(f'SDD report: {sdd_reports}')
+    sampler = DataSampler()
+    dfs = sampler.sample(download_url)
 
-    for sdd_report in sdd_reports:
-        sdd_report = sheet_processor(sdd_report, isp)
-        # If error_source is not None then set processing_success to False
-        if sdd_report.get('error_source', None):
-            sdd_report['processing_success'] = False
+    reports = []
 
-    sensitivity = determine_sensitivity(sdd_reports)
+    for sheet_name, df in dfs.items():
+        sdd_report = SDDReport(
+            resource_id=resource_id,
+            file_name=file_name,
+            file_url=download_url,
+            sheet_name=sheet_name,
+            processing_timestamp=datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+            processing_success=True,
+            n_records=len(df),
+            n_columns=len(df.columns),
+        )
+        try:
+            sdd_report = sheet_processor(sdd_report, isp, df)
+            reports.append(sdd_report.to_dict())
+
+        except Exception as e:
+            logger.error(e)
+            sdd_report.processing_success = False
+            sdd_report.error_message = str(e)
+            reports.append(sdd_report.to_dict())
+
+    sensitivity = determine_sensitivity(reports)
 
     # Directly update CKAN (no file saving)
     ckan.update_resource_fields(
         resource_id,
-        {'sdd_report': json.dumps(sdd_reports, indent=2), 'sensitive': sensitivity},
+        {'sdd_report': json.dumps(reports, indent=2), 'sensitive': sensitivity},
     )
     return True, f'Processed successfully ({sensitivity})'
 
 
 if __name__ == '__main__':
-    events = [
-        {
-            'download_url': 'https://dev.data-humdata-org.ahconu.org/dataset/d762f79e-3b41-46cd-ae00-dd6f87ed11d7/resource/48e6fd47-2619-4f29-a4fe-78e11fb7bb67/download/hdx_signals_data_dictionary.csv',
-            'resource_id': '48e6fd47-2619-4f29-a4fe-78e11fb7bb67',
-            'dataset_id': 'd762f79e-3b41-46cd-ae00-dd6f87ed11d7',
-            'name': 'hdx_signals_data_dictionary.csv',
-        }
-    ]
-    for event in events:
-        event_processor(event)
+    if not config.WORKER_ENABLED:
+        logger.info('WORKER_ENABLED is false. Sleeping indefinitely...')
+        from time import sleep
+
+        while True:
+            sleep(3600)
+    else:
+        event_bus.hdx_listen(
+            event_processor,
+            allowed_event_types={'resource-created', 'resource-data-changed'},
+            max_iterations=10_000,
+        )
