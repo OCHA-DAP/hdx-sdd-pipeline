@@ -7,9 +7,6 @@ import logging
 
 logger = logging.getLogger(__name__)
 
-logging.basicConfig(level=logging.DEBUG)
-
-
 def is_readme_sheet(sheet_name: str) -> bool:
     normalized = sheet_name.lower().replace(' ', '')
     return 'readme' in normalized
