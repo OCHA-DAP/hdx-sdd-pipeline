@@ -122,8 +122,8 @@ def test_unsupported_file_type():
 
 def test_empty_dataframe():
     df = pd.DataFrame()
-    assert sampler._sample_dataframe(df) is not None
-    assert len(sampler._sample_dataframe(df)) == 0
+    assert sampler.sample_dataframe(df) is not None
+    assert len(sampler.sample_dataframe(df)) == 0
 
 
 def test_load_from_url_error():

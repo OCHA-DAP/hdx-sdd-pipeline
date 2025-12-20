@@ -54,7 +54,7 @@ st.title('🔐 LLM Sensitive Data Detection Dashboard')
 st.write('Visualizing performance metrics of LLMs in detecting sensitive data.')
 
 # LLMs evaluated
-models = ['gpt-4.1-nano', 'gpt-4.1-mini']
+models = ['gpt-4.1-nano']
 
 # Collect statistics:
 data = []

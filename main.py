@@ -84,6 +84,9 @@ def get_classifier(classifier_cls, model_name):
 
 @handle_exception_wrap()
 def pii_classification(sdd_report, model=None):
+    if sdd_report.get('pii_classifier_model'):
+        logger.info(f'PII classifier model already set to {sdd_report.get("pii_classifier_model")}. Skipping.')
+        return sdd_report
     if model:
         classifier = get_classifier(PIIClassifier, model)
     else:
@@ -93,6 +96,9 @@ def pii_classification(sdd_report, model=None):
 
 @handle_exception_wrap()
 def pii_reflection_classification(sdd_report, model=None):
+    if sdd_report.get('pii_reflection_model'):
+        logger.info(f'PII reflection model already set to {sdd_report.get("pii_reflection_model")}. Skipping.')
+        return sdd_report
     if model:
         classifier = get_classifier(PIIReflectionClassifier, model)
     else:
@@ -102,6 +108,9 @@ def pii_reflection_classification(sdd_report, model=None):
 
 @handle_exception_wrap()
 def non_pii_classification(sdd_report, isp, model=None):
+    if sdd_report.get('non_pii_model'):
+        logger.info(f'Non-PII model already set to {sdd_report.get("non_pii_model")}. Skipping.')
+        return sdd_report
     if model:
         classifier = get_classifier(NonPIIClassifier, model)
     else:
@@ -120,10 +129,7 @@ def readme_scan_classification(sdd_report, model=None):
 
 @handle_exception_wrap()
 def sheet_processor(sdd_report, isp, model=None):
-    print('================================================')
-    print('Processing sheet: ')
-    print('================================================')
-    print(sdd_report.keys())
+    print(f'SDD Report: {sdd_report}')
     sheet_name = sdd_report['sheet_name']
     if 'readme' in sheet_name.lower() or 'instructions' in sheet_name.lower() or 'metadata' in sheet_name.lower():
         try:

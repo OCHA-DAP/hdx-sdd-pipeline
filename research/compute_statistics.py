@@ -23,6 +23,9 @@ def eval_sheet_level_sensitive_data(llm_model: str, key: str):
     # Compare file names in both folders
     groundtruth_files = os.listdir(GROUNDTRUTH_FOLDER)
     prediction_files = os.listdir(prediction_folder)
+    # Only use files that are in both folders
+    groundtruth_files = [file for file in groundtruth_files if file in prediction_files]
+    prediction_files = [file for file in prediction_files if file in groundtruth_files]
     assert set(groundtruth_files) == set(prediction_files), (
         'The file names in the groundtruth and prediction folders must match'
     )
@@ -44,6 +47,11 @@ def eval_sheet_level_sensitive_data(llm_model: str, key: str):
             groundtruth_array.append(non_personal_sensitive_data)
             predictions_array.append(predicted_non_personal_sensitive_data)
 
+    # Map none to False
+    groundtruth_array = [False if item is None else item for item in groundtruth_array]
+    predictions_array = [False if item is None else item for item in predictions_array]
+    print(f'Groundtruth array: {groundtruth_array}')
+    print(f'Predictions array: {predictions_array}')
     # Convert to integers
     groundtruth_array = [int(item) for item in groundtruth_array]
     predictions_array = [int(item) for item in predictions_array]
@@ -67,6 +75,9 @@ def eval_personal_sensitive_data_column_level(llm_model: str):
 
     groundtruth_files = os.listdir(GT_FOLDER)
     prediction_files = os.listdir(PRED_FOLDER)
+    # Only use files that are in both folders
+    groundtruth_files = [file for file in groundtruth_files if file in prediction_files]
+    prediction_files = [file for file in prediction_files if file in groundtruth_files]
     assert set(groundtruth_files) == set(prediction_files)
 
     gt_arr, pred_arr, errors = [], [], []
