@@ -51,7 +51,7 @@ def create_report(url: str, resource_id: str = None, download_url: str = None, s
                 }
             )
         reports.append(sdd_report)
-    print(f'Reports: {reports}')
+    logger.debug(f'Reports: {reports}')
     return reports
 
 
