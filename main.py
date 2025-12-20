@@ -129,7 +129,6 @@ def readme_scan_classification(sdd_report, model=None):
 
 @handle_exception_wrap()
 def sheet_processor(sdd_report, isp, model=None):
-    print(f'SDD Report: {sdd_report}')
     sheet_name = sdd_report['sheet_name']
     if 'readme' in sheet_name.lower() or 'instructions' in sheet_name.lower() or 'metadata' in sheet_name.lower():
         try:
