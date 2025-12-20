@@ -26,9 +26,6 @@ def eval_sheet_level_sensitive_data(llm_model: str, key: str):
     # Only use files that are in both folders
     groundtruth_files = [file for file in groundtruth_files if file in prediction_files]
     prediction_files = [file for file in prediction_files if file in groundtruth_files]
-    assert set(groundtruth_files) == set(
-        prediction_files
-    ), 'The file names in the groundtruth and prediction folders must match'
 
     groundtruth_array = []
     predictions_array = []
