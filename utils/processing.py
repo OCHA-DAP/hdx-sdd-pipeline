@@ -7,9 +7,6 @@ import logging
 
 logger = logging.getLogger(__name__)
 
-logging.basicConfig(level=logging.DEBUG)
-
-
 def is_readme_sheet(sheet_name: str) -> bool:
     normalized = sheet_name.lower().replace(' ', '')
     return 'readme' in normalized
@@ -54,7 +51,7 @@ def create_report(url: str, resource_id: str = None, download_url: str = None, s
                 }
             )
         reports.append(sdd_report)
-    print(f'Reports: {reports}')
+    logger.debug(f'Reports: {reports}')
     return reports
 
 
