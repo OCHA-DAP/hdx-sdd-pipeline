@@ -234,13 +234,15 @@ def event_processor(event):
 
 
 if __name__ == '__main__':
-    events = [
-        {
-            'download_url': 'https://dev.data-humdata-org.ahconu.org/dataset/d762f79e-3b41-46cd-ae00-dd6f87ed11d7/resource/48e6fd47-2619-4f29-a4fe-78e11fb7bb67/download/hdx_signals_data_dictionary.csv',
-            'resource_id': '48e6fd47-2619-4f29-a4fe-78e11fb7bb67',
-            'dataset_id': 'd762f79e-3b41-46cd-ae00-dd6f87ed11d7',
-            'name': 'hdx_signals_data_dictionary.csv',
-        }
-    ]
-    for event in events:
-        event_processor(event)
+    if not config.WORKER_ENABLED:
+        logger.info('WORKER_ENABLED is false. Sleeping indefinitely...')
+        from time import sleep
+
+        while True:
+            sleep(3600)
+    else:
+        event_bus.hdx_listen(
+            event_processor,
+            allowed_event_types={'resource-created', 'resource-data-changed'},
+            max_iterations=10_000,
+        )
