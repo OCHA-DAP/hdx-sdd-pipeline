@@ -13,7 +13,7 @@ st.set_page_config(page_title='LLM Sensitive Data Detection Dashboard', layout='
 
 # --- Custom CSS for sleek styling ---
 st.markdown(
-    '''
+    """
     <style>
     /* Import Outfit font from Google Fonts */
     @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;700&display=swap');
@@ -45,7 +45,7 @@ st.markdown(
     }
 
     </style>
-    ''',
+    """,
     unsafe_allow_html=True,
 )
 
