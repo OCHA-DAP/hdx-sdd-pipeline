@@ -10,7 +10,6 @@ import main
 logging.basicConfig(
     level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', datefmt='%Y-%m-%d %H:%M:%S'
 )
-
 logger = logging.getLogger(__name__)
 
 
@@ -67,7 +66,7 @@ def test_push_and_listen_events(event_bus_listener):
 
     def event_processor(event):
         """Process received events."""
-        logger.info(f'Received event: {event}')
+        logger.info('Received event: %s', event)
         received_events.append(event)
         return True, 'Success'
 

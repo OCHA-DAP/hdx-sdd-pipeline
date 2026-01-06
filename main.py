@@ -21,9 +21,7 @@ from classifiers.pii_reflection_classifier import PIIReflectionClassifier
 from classifiers.readme_scan import ReadMeScanClassifier
 from llm_model.azure_strategy import AzureOpenAIStrategy
 
-
 logging.config.fileConfig('logging.conf')
-
 
 logger = logging.getLogger(__name__)
 
