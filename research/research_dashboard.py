@@ -1,3 +1,4 @@
+# uv run streamlit run research/research_dashboard.py
 import io
 import streamlit as st
 import pandas as pd
@@ -5,6 +6,7 @@ import plotly.express as px
 from compute_statistics import (
     eval_sheet_level_sensitive_data,
     eval_personal_sensitive_data_column_level,
+    eval_file_level_sensitive_any_sheets,
     compute_cost_for_model,
 )
 
@@ -62,12 +64,13 @@ all_errors = []  # collect misclassification rows across models
 
 # Sheet-level categories
 sheet_categories = ['non_pii_sensitive', 'pii_sensitive']
-
+sheet_errors = []
 for model in models:
     # Sheet-level stats
     for cat in sheet_categories:
         try:
-            metrics = eval_sheet_level_sensitive_data(model, cat)
+            metrics, sheet_errors_model = eval_sheet_level_sensitive_data(model, cat)
+            sheet_errors.extend(sheet_errors_model)
         except AssertionError as e:
             st.error(f'File mismatch for model {model} / category {cat}: {e}')
             metrics = {'accuracy': 0, 'precision': 0, 'recall': 0, 'f1': 0}
@@ -141,6 +144,61 @@ if not df.empty:
 else:
     st.info('Metrics will appear here once computed.')
 
+st.subheader("🚨 File-Level Misclassifications (Any Sheet Sensitive)")
+
+file_errors = []
+for model in models:
+    metrics, errors_model = eval_file_level_sensitive_any_sheets(model)
+    file_errors.extend(errors_model)
+    metrics['model'] = model
+    metrics['category'] = 'file_sensitive'
+    data.append(metrics)
+
+# Round metrics scores to 2 decimal places
+metrics['accuracy'] = round(metrics['accuracy'], 2)
+metrics['precision'] = round(metrics['precision'], 2)
+metrics['recall'] = round(metrics['recall'], 2)
+metrics['f1'] = round(metrics['f1'], 2)
+
+# Convert dict to DataFrame for plotting
+df_metrics = pd.DataFrame([metrics])
+
+# Melt the DataFrame so we can plot metrics on Y axis
+df_melted = df_metrics.melt(
+    id_vars=['model', 'category'],
+    value_vars=['accuracy', 'precision', 'recall', 'f1'],
+    var_name='metric',
+    value_name='value',
+)
+
+# Plot with Plotly
+fig = px.bar(
+    df_melted,
+    x='metric',
+    y='value',
+    color='metric',
+    text='value',
+    title=f"File-Level Metrics for {metrics['model']}",
+    range_y=[0, 1],
+)
+
+st.plotly_chart(fig)
+
+if file_errors:
+    file_err_df = pd.DataFrame(file_errors)
+    st.dataframe(file_err_df[['model', 'file', 'true_label', 'predicted_label']])
+
+    csv_buf = io.StringIO()
+    file_err_df.to_csv(csv_buf, index=False)
+    st.download_button(
+        "Download file-level misclassifications (CSV)",
+        csv_buf.getvalue().encode("utf-8"),
+        "misclassified_files.csv",
+        "text/csv",
+    )
+else:
+    st.success("🎉 No file-level misclassifications detected!")
+
 # Misclassified Columns Report
 st.subheader('⚠️ Misclassified Columns Report')
 errors_df = pd.DataFrame(all_errors)
@@ -160,6 +218,37 @@ if not errors_df.empty:
     )
 else:
     st.success('🎉 No column-level misclassifications detected!')
+
+st.subheader("🚨 Sheet-Level Misclassifications")
+
+if sheet_errors:
+    sheet_err_df = pd.DataFrame(sheet_errors)
+    st.dataframe(
+        sheet_err_df[
+            [
+                "model",
+                "file_name",
+                "resource_id",
+                "sheet_name",
+                "table_name",
+                "true_label",
+                "predicted_label",
+                "category",
+            ]
+        ]
+    )
+    # Download option
+    csv_buf = io.StringIO()
+    sheet_err_df.to_csv(csv_buf, index=False)
+    st.download_button(
+        "Download sheet-level misclassifications (CSV)",
+        csv_buf.getvalue().encode("utf-8"),
+        "misclassified_sheets.csv",
+        "text/csv",
+    )
+else:
+    st.success("🎉 No sheet-level misclassifications detected!")
+
 
 # Token Usage & Cost Efficiency
 st.subheader('💰 Token Usage & Cost Efficiency')

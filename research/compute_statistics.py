@@ -19,52 +19,119 @@ def load_json(file_path: str):
 
 def eval_sheet_level_sensitive_data(llm_model: str, key: str):
     """
-    Evaluate the non personal sensitive data detection per LLM
+    Evaluate the non personal or personal sensitive data detection per LLM
+    Returns:
+        metrics: dict
+        errors: list of misclassified sheets
     """
     # Load the groundtruth and predictions
-    GROUNDTRUTH_FOLDER = 'research/results/test_results/groundtruth'
+    GROUNDTRUTH_FOLDER = 'research/results/test_results/groundtruth2'
     prediction_folder = f'research/results/test_results/{llm_model}'
-    # Compare file names in both folders
+
     groundtruth_files = os.listdir(GROUNDTRUTH_FOLDER)
     prediction_files = os.listdir(prediction_folder)
-    # Only use files that are in both folders
+
+    # Only keep files present in both
     groundtruth_files = [file for file in groundtruth_files if file in prediction_files]
-    prediction_files = [file for file in prediction_files if file in groundtruth_files]
 
     groundtruth_array = []
     predictions_array = []
+    errors = []
 
     for file in groundtruth_files:
-        groundtruth = load_json(f'{GROUNDTRUTH_FOLDER}/{file}')
-        predictions = load_json(f'{prediction_folder}/{file}')
-        # Compare the predictions with the groundtruth
-        for idx in range(len(groundtruth)):
-            groundtruth_item = groundtruth[idx]
-            predictions_item = predictions[idx]
+        groundtruth_data = load_json(f'{GROUNDTRUTH_FOLDER}/{file}')
+        prediction_data = load_json(f'{prediction_folder}/{file}')
 
-            non_personal_sensitive_data = groundtruth_item.get(key)
-            predicted_non_personal_sensitive_data = predictions_item.get(key)
+        for idx in range(len(groundtruth_data)):
+            gt_item = groundtruth_data[idx]
+            pred_item = prediction_data[idx]
 
-            groundtruth_array.append(non_personal_sensitive_data)
-            predictions_array.append(predicted_non_personal_sensitive_data)
+            gt_val = gt_item.get(key, False)
+            pred_val = pred_item.get(key, False)
 
-    # Map none to False
-    groundtruth_array = [False if item is None else item for item in groundtruth_array]
-    predictions_array = [False if item is None else item for item in predictions_array]
-    logger.debug(f'Groundtruth array: {groundtruth_array}')
-    logger.debug(f'Predictions array: {predictions_array}')
+            gt_val_int = int(gt_val)
+            pred_val_int = int(pred_val)
 
-    # Convert to integers
-    groundtruth_array = [int(item) for item in groundtruth_array]
-    predictions_array = [int(item) for item in predictions_array]
-    # Calculate the metrics
+            groundtruth_array.append(gt_val_int)
+            predictions_array.append(pred_val_int)
+
+            if gt_val_int != pred_val_int:
+                # Collect sheet-level error info
+                errors.append(
+                    {
+                        "model": llm_model,
+                        "file_name": gt_item.get("file_name"),
+                        "dataset_id": gt_item.get("dataset_id"),
+                        "resource_id": gt_item.get("resource_id"),
+                        "sheet_name": gt_item.get("sheet_name"),
+                        "table_name": gt_item.get("table_name", None),
+                        "true_label": gt_val_int,
+                        "predicted_label": pred_val_int,
+                        "category": key,
+                    }
+                )
+
     metrics = {
-        'accuracy': accuracy_score(groundtruth_array, predictions_array),
-        'precision': precision_score(groundtruth_array, predictions_array, zero_division=0),
-        'recall': recall_score(groundtruth_array, predictions_array, zero_division=0),
-        'f1': f1_score(groundtruth_array, predictions_array, zero_division=0),
+        "accuracy": accuracy_score(groundtruth_array, predictions_array),
+        "precision": precision_score(groundtruth_array, predictions_array, zero_division=0),
+        "recall": recall_score(groundtruth_array, predictions_array, zero_division=0),
+        "f1": f1_score(groundtruth_array, predictions_array, zero_division=0),
     }
-    return metrics
+
+    return metrics, errors
+
+
+def eval_file_level_sensitive_any_sheets(llm_model: str):
+    """
+    Evaluate file-level sensitive data detection.
+    A file is considered sensitive if any sheet in it is sensitive
+    (pii_sensitive or non_pii_sensitive).
+
+    Returns:
+        metrics: dict
+        errors: list of misclassified files
+    """
+    GROUNDTRUTH_FOLDER = 'research/results/test_results/groundtruth2'
+    PRED_FOLDER = f'research/results/test_results/{llm_model}'
+
+    groundtruth_files = [f for f in os.listdir(GROUNDTRUTH_FOLDER) if f in os.listdir(PRED_FOLDER)]
+
+    gt_arr, pred_arr, errors = [], [], []
+
+    for file in groundtruth_files:
+        gt_data = load_json(f'{GROUNDTRUTH_FOLDER}/{file}')
+        pd_data = load_json(f'{PRED_FOLDER}/{file}')
+
+        # File is sensitive if any sheet in it is sensitive (pii or non-pii)
+        gt_file_sensitive = int(
+            any(sheet.get('pii_sensitive', False) or sheet.get('non_pii_sensitive', False) for sheet in gt_data)
+        )
+        pred_file_sensitive = int(
+            any(sheet.get('pii_sensitive', False) or sheet.get('non_pii_sensitive', False) for sheet in pd_data)
+        )
+
+        gt_arr.append(gt_file_sensitive)
+        pred_arr.append(pred_file_sensitive)
+
+        if gt_file_sensitive != pred_file_sensitive:
+            errors.append(
+                {
+                    'model': llm_model,
+                    'file': file,
+                    'true_label': gt_file_sensitive,
+                    'predicted_label': pred_file_sensitive,
+                    'category': 'file_sensitive',
+                }
+            )
+
+    metrics = {
+        'accuracy': accuracy_score(gt_arr, pred_arr),
+        'precision': precision_score(gt_arr, pred_arr, zero_division=0),
+        'recall': recall_score(gt_arr, pred_arr, zero_division=0),
+        'f1': f1_score(gt_arr, pred_arr, zero_division=0),
+    }
+
+    return metrics, errors
 
 
 def eval_personal_sensitive_data_column_level(llm_model: str):
@@ -72,7 +139,7 @@ def eval_personal_sensitive_data_column_level(llm_model: str):
     Evaluate personal sensitive data detection per LLM (column level)
     Returns classification metrics + list of misclassified columns
     """
-    GT_FOLDER = 'research/results/test_results/groundtruth'
+    GT_FOLDER = 'research/results/test_results/groundtruth2'
     PRED_FOLDER = f'research/results/test_results/{llm_model}'
 
     groundtruth_files = os.listdir(GT_FOLDER)
@@ -80,6 +147,11 @@ def eval_personal_sensitive_data_column_level(llm_model: str):
     # Only use files that are in both folders
     groundtruth_files = [file for file in groundtruth_files if file in prediction_files]
     prediction_files = [file for file in prediction_files if file in groundtruth_files]
+
+    # Get only files that are in both intersection of groundtruth_files and prediction_files
+    groundtruth_files = [file for file in groundtruth_files if file in prediction_files]
+    prediction_files = [file for file in prediction_files if file in groundtruth_files]
+    logger.info(f"Number of files in both folders: {len(groundtruth_files)}")
     assert set(groundtruth_files) == set(prediction_files)
 
     gt_arr, pred_arr, errors = [], [], []
