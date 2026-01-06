@@ -99,7 +99,7 @@ def test_redis_event_calls_main_event_processor(event_bus_listener):
         'resource_id': 'test-resource-id-456',
     }
 
-    with patch.object(main, "event_processor", return_value=(True, "OK")) as mock_processor:
+    with patch.object(main, 'event_processor', return_value=(True, 'OK')) as mock_processor:
         stream_events_to_redis([test_event], stream_name='hdx_test_event_stream')
         time.sleep(0.1)
 
