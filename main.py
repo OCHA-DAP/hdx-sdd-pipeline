@@ -141,8 +141,8 @@ def sheet_processor(sdd_report, isp, model=None):
             return sdd_report
         except Exception as e:
             logger.error(f'Error in README scan classification: {e}')
-            sdd_report.error_source = ERROR_SOURCE_README_SCAN
-            sdd_report.error_message = str(e)
+            sdd_report['error_source'] = ERROR_SOURCE_README_SCAN
+            sdd_report['error_message'] = str(e)
             return sdd_report
 
     # PII classification

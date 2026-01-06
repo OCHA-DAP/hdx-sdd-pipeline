@@ -4,8 +4,10 @@ import pandas as pd
 from utils.exception_handler import handle_exception_wrap
 import datetime
 import logging
+import numpy as np
 
-logger = logging.getLogger(__name__)
+logger = logging.getLogger(__name__)p
+
 
 logging.basicConfig(level=logging.DEBUG)
 
@@ -13,6 +15,21 @@ logging.basicConfig(level=logging.DEBUG)
 def is_readme_sheet(sheet_name: str) -> bool:
     normalized = sheet_name.lower().replace(' ', '')
     return 'readme' in normalized
+
+
+def make_json_safe(obj):
+    if isinstance(obj, dict):
+        return {k: make_json_safe(v) for k, v in obj.items()}
+    elif isinstance(obj, list):
+        return [make_json_safe(v) for v in obj]
+    elif isinstance(obj, (datetime.datetime, pd.Timestamp)):
+        return obj.isoformat()
+    elif isinstance(obj, (np.integer, np.floating)):
+        return obj.item()
+    elif pd.isna(obj):
+        return None
+    else:
+        return obj
 
 
 def create_report(url: str, resource_id: str = None, download_url: str = None, sample_size: int = 5):
