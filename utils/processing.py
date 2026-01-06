@@ -9,8 +9,6 @@ import numpy as np
 logger = logging.getLogger(__name__)p
 
 
-logging.basicConfig(level=logging.DEBUG)
-
 
 def is_readme_sheet(sheet_name: str) -> bool:
     normalized = sheet_name.lower().replace(' ', '')
@@ -71,7 +69,7 @@ def create_report(url: str, resource_id: str = None, download_url: str = None, s
                 }
             )
         reports.append(sdd_report)
-    print(f'Reports: {reports}')
+    logger.debug(f'Reports: {reports}')
     return reports
 
 
@@ -201,9 +199,3 @@ class DataSampler:
             if not is_readme_sheet(name):
                 new_sample_dict[name] = self.sample_dataframe(df, sample_size)
         return new_sample_dict
-
-
-if __name__ == '__main__':
-    # sdd_report = create_report('test/unit/downloads/multicolumn_sample.xlsx')
-    sdd_report = create_report('research/data/bgd_dataset_joint-msna_refugee_september-2019.xlsx')
-    print(sdd_report)

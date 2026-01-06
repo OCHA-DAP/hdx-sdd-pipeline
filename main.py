@@ -21,9 +21,7 @@ from classifiers.pii_reflection_classifier import PIIReflectionClassifier
 from classifiers.readme_scan import ReadMeScanClassifier
 from llm_model.azure_strategy import AzureOpenAIStrategy
 
-
-logging.config.fileConfig('logging.dev.conf')
-
+logging.config.fileConfig('logging.conf')
 
 logger = logging.getLogger(__name__)
 
@@ -129,7 +127,6 @@ def readme_scan_classification(sdd_report, model=None):
 
 @handle_exception_wrap()
 def sheet_processor(sdd_report, isp, model=None):
-    print(f'SDD Report: {sdd_report}')
     sheet_name = sdd_report['sheet_name']
     if 'readme' in sheet_name.lower() or 'instructions' in sheet_name.lower() or 'metadata' in sheet_name.lower():
         try:
@@ -235,13 +232,15 @@ def event_processor(event):
 
 
 if __name__ == '__main__':
-    events = [
-        {
-            'download_url': 'https://dev.data-humdata-org.ahconu.org/dataset/d762f79e-3b41-46cd-ae00-dd6f87ed11d7/resource/48e6fd47-2619-4f29-a4fe-78e11fb7bb67/download/hdx_signals_data_dictionary.csv',
-            'resource_id': '48e6fd47-2619-4f29-a4fe-78e11fb7bb67',
-            'dataset_id': 'd762f79e-3b41-46cd-ae00-dd6f87ed11d7',
-            'name': 'hdx_signals_data_dictionary.csv',
-        }
-    ]
-    for event in events:
-        event_processor(event)
+    if not config.WORKER_ENABLED:
+        logger.info('WORKER_ENABLED is false. Sleeping indefinitely...')
+        from time import sleep
+
+        while True:
+            sleep(3600)
+    else:
+        event_bus.hdx_listen(
+            event_processor,
+            allowed_event_types={'resource-created', 'resource-data-changed'},
+            max_iterations=10_000,
+        )
