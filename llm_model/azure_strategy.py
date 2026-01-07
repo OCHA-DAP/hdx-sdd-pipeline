@@ -44,7 +44,7 @@ class AzureOpenAIStrategy:
         return response.choices[0].message.content, response.usage.completion_tokens, response.usage.prompt_tokens
 
     @handle_exception_wrap()
-    def generate_json(self, prompt: str, temperature: float = 0.3, max_new_tokens: int = 200) -> tuple[dict, int, int]:
+    def generate_json(self, prompt: str, temperature: float = 0.3, max_new_tokens: int = 300) -> tuple[dict, int, int]:
         """Generate JSON using Azure OpenAI API."""
 
         json_response = self.client.chat.completions.create(

@@ -3,15 +3,26 @@ from typing import Dict
 import pandas as pd
 from utils.exception_handler import handle_exception_wrap
 import datetime
+import logging
+
+logger = logging.getLogger(__name__)
+
+
+def is_readme_sheet(sheet_name: str) -> bool:
+    normalized = sheet_name.lower().replace(' ', '')
+    return 'readme' in normalized
 
 
 def create_report(url: str, resource_id: str = None, download_url: str = None, sample_size: int = 5):
     sampler = DataSampler()
     sheets = sampler.load_from_url(url)
-    sample_dict = {name: sampler._sample_dataframe(df, sample_size) for name, df in sheets.items()}
-
+    new_sample_dict = {}
+    for name, df in sheets.items():
+        logger.debug(f'Processing sheet: {name}')
+        if not is_readme_sheet(name):
+            new_sample_dict[name] = sampler.sample_dataframe(df, sample_size)
     reports = []
-    for sheet_name, column_dict_with_sample_values in sample_dict.items():
+    for sheet_name, column_dict_with_sample_values in new_sample_dict.items():
         sdd_report = {
             'resource_id': resource_id,
             'file_name': url,
@@ -23,6 +34,8 @@ def create_report(url: str, resource_id: str = None, download_url: str = None, s
             'n_columns': len(sheets[sheet_name].columns),
             'completion_tokens': 0,
             'prompt_tokens': 0,
+            'pii_sensitive': False,
+            'non_pii_sensitive': False,
             'columns': [],
         }
         if 'readme' in sheet_name.lower().replace(' ', ''):
@@ -39,6 +52,7 @@ def create_report(url: str, resource_id: str = None, download_url: str = None, s
                 }
             )
         reports.append(sdd_report)
+    logger.debug(f'Reports: {reports}')
     return reports
 
 
@@ -81,32 +95,45 @@ class DataSampler:
     def _concatenate_header(self, df: pd.DataFrame) -> pd.DataFrame:
         """
         Attempts to detect header rows and flatten them into single column names.
-        If no header pattern is found, uses the first row as header.
+        Treats row 0 as the header row and concatenates all header rows including it.
         """
-        header_end_row = None
-        for idx, row in df.iterrows():
+        # If dict, get first sheet
+        if isinstance(df, dict):
+            df = df[list(df.keys())[0]]
+
+        # Skip leading all-NaN rows
+        while not df.empty and df.iloc[0].isna().all():
+            df = df.iloc[1:].reset_index(drop=True)
+
+        if df.empty:
+            return df
+
+        # Find the end of the header block (first complete row starting from index 0)
+        # Header row itself is at index 0, so we look for the last header row
+        header_end_row = 0
+        for idx in range(len(df)):
+            row = df.iloc[idx]
             if row.notna().all():
                 header_end_row = idx
                 break
 
-        if header_end_row is None:
-            # Fallback: treat first row as header
-            header_end_row = 0
-
-        # Extract header block and fill missing cells
+        # Extract header block (rows 0 to header_end_row, inclusive)
+        # This includes the header row at index 0
         header_block = df.iloc[: header_end_row + 1].fillna('').astype(str)
+
+        # Forward fill missing values within each row, then across rows
         header_block = header_block.apply(lambda row: row.replace('', None).ffill(), axis=1)
         header_block = header_block.replace('', None).ffill()
 
-        # Combine multi-row headers
+        # Combine multi-row headers into single column names
         final_columns = header_block.apply(lambda col: ' | '.join([v for v in col if v]), axis=0)
-
+        # Data starts after the header block (header_end_row + 1)
         cleaned_df = df.iloc[header_end_row + 1 :].copy()
         cleaned_df.columns = final_columns
         return cleaned_df.reset_index(drop=True)
 
     @handle_exception_wrap()
-    def _sample_dataframe(self, df: pd.DataFrame, sample_size: int = 10) -> dict:
+    def sample_dataframe(self, df: pd.DataFrame, sample_size: int = 10) -> dict:
         """Return a dict of column -> sample values, using rows with the most non-null values first."""
 
         if df.empty:
@@ -131,7 +158,7 @@ class DataSampler:
             non_empty = non_empty[non_empty != '']
 
             # Take the top N most complete values
-            values = non_empty.head(sample_size).tolist()
+            values = non_empty.head(sample_size).values.ravel().tolist()
 
             # If the column has no usable values
             if not values:
@@ -150,16 +177,8 @@ class DataSampler:
         """Main entrypoint: load and sample dataset(s) from a URL."""
         sheets = self.load_from_url(url)
 
-        sample_dict = {name: self._sample_dataframe(df, sample_size) for name, df in sheets.items()}
-        return sample_dict
-
-
-if __name__ == '__main__':
-    sampler = DataSampler()
-    # sheets = sampler.sample(
-    #     'https://dev.data-humdata-org.ahconu.org/dataset/a4256b92-dfee-4856-b28e-81abcf1da882/resource/496d920a-56e5-4093-9588-26fbd1ea46b7/download/multicolumn_sample.xlsx'
-    # )
-
-    sheets = sampler.sample('research/data/panama.xlsx')
-    sdd_report = create_report('research/data/panama.xlsx')
-    print(sdd_report)
+        new_sample_dict = {}
+        for name, df in sheets.items():
+            if not is_readme_sheet(name):
+                new_sample_dict[name] = self.sample_dataframe(df, sample_size)
+        return new_sample_dict
