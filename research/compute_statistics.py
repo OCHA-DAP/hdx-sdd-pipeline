@@ -198,6 +198,7 @@ PRICES = {
     'gpt-4.1-nano': {'prompt': 0.17 / 1000000, 'completion': 0.17 / 1000000},
     'gpt-4.1-mini': {'prompt': 0.7 / 1000000, 'completion': 0.7 / 1000000},
     'gpt-5-nano': {'prompt': 0.14 / 1000000, 'completion': 0.14 / 1000000},
+    'DeepSeek-V3.1': {'prompt': 0.84 / 1000000, 'completion': 0.84 / 1000000},
 }
 
 

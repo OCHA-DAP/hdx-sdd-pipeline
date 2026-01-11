@@ -28,6 +28,8 @@ class MockAzureOpenAIStrategy:
         self.client = MagicMock()
 
     def generate(self, _prompt: str, _temperature: float = 0.3, max_new_tokens: int = 200):
+        if self.model_name == 'gpt-5-nano':
+            _temperature = 1.0
         return 'mock_generated_text', 1, 1
 
     def generate_json(self, _prompt: str, _temperature: float = 0.3, max_new_tokens: int = 200):

@@ -34,6 +34,8 @@ class AzureOpenAIStrategy:
     @handle_exception_wrap()
     def generate(self, prompt: str, temperature: float = 0.3, max_new_tokens: int = 200) -> tuple[str, int, int]:
         """Generate text using Azure OpenAI API."""
+        if self.model_name == 'gpt-5-nano':
+            temperature = 1.0
         response = self.client.chat.completions.create(
             messages=[{'role': 'user', 'content': prompt}],
             max_completion_tokens=max_new_tokens,
@@ -46,7 +48,8 @@ class AzureOpenAIStrategy:
     @handle_exception_wrap()
     def generate_json(self, prompt: str, temperature: float = 0.3, max_new_tokens: int = 300) -> tuple[dict, int, int]:
         """Generate JSON using Azure OpenAI API."""
-
+        if self.model_name == 'gpt-5-nano':
+            temperature = 1.0
         json_response = self.client.chat.completions.create(
             messages=[{'role': 'user', 'content': prompt}],
             max_completion_tokens=max_new_tokens,

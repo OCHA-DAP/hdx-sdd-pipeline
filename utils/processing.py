@@ -6,8 +6,7 @@ import datetime
 import logging
 import numpy as np
 
-logger = logging.getLogger(__name__)p
-
+logger = logging.getLogger(__name__)
 
 
 def is_readme_sheet(sheet_name: str) -> bool:
