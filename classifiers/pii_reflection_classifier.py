@@ -34,7 +34,7 @@ class PIIReflectionClassifier(BaseClassifier):
         max_new_tokens: int = 12,
         version: str = 'v0',
     ) -> Tuple[str, int, int]:
-        if entity_type == 'None':
+        if entity_type == 'None' or entity_type == 'TODO' or entity_type == 'UNDETERMINED':
             return 'NON_SENSITIVE', 0, 0
 
         ctx = {
