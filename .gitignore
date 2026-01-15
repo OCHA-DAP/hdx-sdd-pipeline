@@ -243,3 +243,6 @@ research/data/
 research/results/
 
 uv.lock
+
+dashboard/
+app/*

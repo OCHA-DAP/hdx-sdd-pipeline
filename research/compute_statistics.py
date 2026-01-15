@@ -59,23 +59,23 @@ def eval_sheet_level_sensitive_data(llm_model: str, key: str):
                 # Collect sheet-level error info
                 errors.append(
                     {
-                        "model": llm_model,
-                        "file_name": gt_item.get("file_name"),
-                        "dataset_id": gt_item.get("dataset_id"),
-                        "resource_id": gt_item.get("resource_id"),
-                        "sheet_name": gt_item.get("sheet_name"),
-                        "table_name": gt_item.get("table_name", None),
-                        "true_label": gt_val_int,
-                        "predicted_label": pred_val_int,
-                        "category": key,
+                        'model': llm_model,
+                        'file_name': gt_item.get('file_name'),
+                        'dataset_id': gt_item.get('dataset_id'),
+                        'resource_id': gt_item.get('resource_id'),
+                        'sheet_name': gt_item.get('sheet_name'),
+                        'table_name': gt_item.get('table_name', None),
+                        'true_label': gt_val_int,
+                        'predicted_label': pred_val_int,
+                        'category': key,
                     }
                 )
 
     metrics = {
-        "accuracy": accuracy_score(groundtruth_array, predictions_array),
-        "precision": precision_score(groundtruth_array, predictions_array, zero_division=0),
-        "recall": recall_score(groundtruth_array, predictions_array, zero_division=0),
-        "f1": f1_score(groundtruth_array, predictions_array, zero_division=0),
+        'accuracy': accuracy_score(groundtruth_array, predictions_array),
+        'precision': precision_score(groundtruth_array, predictions_array, zero_division=0),
+        'recall': recall_score(groundtruth_array, predictions_array, zero_division=0),
+        'f1': f1_score(groundtruth_array, predictions_array, zero_division=0),
     }
 
     return metrics, errors
@@ -151,7 +151,7 @@ def eval_personal_sensitive_data_column_level(llm_model: str):
     # Get only files that are in both intersection of groundtruth_files and prediction_files
     groundtruth_files = [file for file in groundtruth_files if file in prediction_files]
     prediction_files = [file for file in prediction_files if file in groundtruth_files]
-    logger.info(f"Number of files in both folders: {len(groundtruth_files)}")
+    logger.info(f'Number of files in both folders: {len(groundtruth_files)}')
     assert set(groundtruth_files) == set(prediction_files)
 
     gt_arr, pred_arr, errors = [], [], []
