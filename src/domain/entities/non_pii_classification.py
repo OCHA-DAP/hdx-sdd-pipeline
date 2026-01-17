@@ -1,7 +1,7 @@
 """Non-PII Classification entity."""
 
-from dataclasses import dataclass
-from typing import Optional
+from dataclasses import dataclass, field
+from typing import Optional, Dict, Any
 
 from ..value_objects.sensitivity import SensitivityLevel
 
@@ -13,6 +13,7 @@ class NonPIIClassification:
     sensitivity: SensitivityLevel = SensitivityLevel.UNDETERMINED
     explanation: Optional[str] = None
     confidence: Optional[float] = None
+    isp_name: Optional[str] = None  # Name/title of the ISP used
 
     def is_sensitive(self) -> bool:
         """Check if classified as sensitive."""
@@ -27,6 +28,8 @@ class NonPIIClassification:
             result['explanation'] = self.explanation
         if self.confidence is not None:
             result['confidence'] = self.confidence
+        if self.isp_name:
+            result['isp_name'] = self.isp_name
         return result
 
     @classmethod
@@ -36,4 +39,5 @@ class NonPIIClassification:
             sensitivity=SensitivityLevel.from_string(data.get('sensitivity', 'UNDETERMINED')),
             explanation=data.get('explanation'),
             confidence=data.get('confidence'),
+            isp_name=data.get('isp_name'),
         )

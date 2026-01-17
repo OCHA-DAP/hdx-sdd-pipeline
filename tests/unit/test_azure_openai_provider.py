@@ -240,3 +240,30 @@ class TestAzureOpenAIProvider:
             "outer": {"inner": {"value": 123}},
             "array": [1, 2, 3]
         }
+    
+    def test_initialization_failure(self):
+        """Test handling of initialization failure."""
+        with patch('src.infrastructure.llm.azure_openai_provider.AzureOpenAI') as mock_azure:
+            mock_azure.side_effect = Exception("Connection failed")
+            
+            with pytest.raises(LLMProviderError, match="Azure OpenAI initialization failed"):
+                AzureOpenAIProvider(
+                    model_name="gpt-4.1-nano",
+                    azure_endpoint="https://test.openai.azure.com/",
+                    api_key="test-key"
+                )
+    
+    def test_generate_api_error(self, provider, mock_client):
+        """Test handling of API errors during generation."""
+        mock_client.chat.completions.create.side_effect = Exception("API error")
+        
+        with pytest.raises(LLMProviderError, match="LLM generation failed"):
+            provider.generate(prompt="Test prompt")
+    
+    def test_generate_json_api_error(self, provider, mock_client):
+        """Test handling of API errors during JSON generation."""
+        mock_client.chat.completions.create.side_effect = Exception("API error")
+        
+        with pytest.raises(LLMProviderError, match="LLM JSON generation failed"):
+            provider.generate_json(prompt="Generate JSON")
+

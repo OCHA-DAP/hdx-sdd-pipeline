@@ -50,7 +50,7 @@ class PromptManager:
             context = {}
 
         # Try to load template
-        template_path = f"{version}/{prompt_name}.jinja2"
+        template_path = f"src/prompts/{prompt_name}/{version}.jinja2"
 
         try:
             if self.env:

@@ -348,3 +348,68 @@ class TestProcessDatasetUseCase:
         assert len(reports) == 2
         assert reports[0].sheet_name == "Sheet1"
         assert reports[1].sheet_name == "Sheet2"
+    
+    def test_extract_sensitivity_from_text_empty(self, use_case):
+        """Test _extract_sensitivity_from_text with empty text."""
+        result = use_case._extract_sensitivity_from_text("")
+        assert result == SensitivityLevel.UNDETERMINED
+        
+        result = use_case._extract_sensitivity_from_text(None)
+        assert result == SensitivityLevel.UNDETERMINED
+    
+    def test_extract_sensitivity_from_text_classification_format(self, use_case):
+        """Test _extract_sensitivity_from_text with 'Classification:' format."""
+        text = "Classification: MODERATE_SENSITIVE\n\nExplanation: This data is moderately sensitive."
+        result = use_case._extract_sensitivity_from_text(text)
+        assert result == SensitivityLevel.MODERATE_SENSITIVE
+        
+        text = "Classification: HIGH_SENSITIVE\n\nDetails here."
+        result = use_case._extract_sensitivity_from_text(text)
+        assert result == SensitivityLevel.HIGH_SENSITIVE
+    
+    def test_extract_sensitivity_from_text_severe_sensitive(self, use_case):
+        """Test _extract_sensitivity_from_text with SEVERE_SENSITIVE."""
+        text = "The data is SEVERE_SENSITIVE because it contains critical information."
+        result = use_case._extract_sensitivity_from_text(text)
+        assert result == SensitivityLevel.SEVERE_SENSITIVE
+        
+        text = "SEVERE-SENSITIVE data detected"
+        result = use_case._extract_sensitivity_from_text(text)
+        assert result == SensitivityLevel.SEVERE_SENSITIVE
+    
+    def test_extract_sensitivity_from_text_medium_sensitive(self, use_case):
+        """Test _extract_sensitivity_from_text with MEDIUM_SENSITIVE."""
+        text = "This is MEDIUM_SENSITIVE data."
+        result = use_case._extract_sensitivity_from_text(text)
+        assert result == SensitivityLevel.MEDIUM_SENSITIVE
+        
+        text = "MEDIUM-SENSITIVE classification"
+        result = use_case._extract_sensitivity_from_text(text)
+        assert result == SensitivityLevel.MEDIUM_SENSITIVE
+    
+    def test_extract_sensitivity_from_text_non_sensitive(self, use_case):
+        """Test _extract_sensitivity_from_text with NON_SENSITIVE."""
+        text = "This data is NON_SENSITIVE."
+        result = use_case._extract_sensitivity_from_text(text)
+        assert result == SensitivityLevel.NON_SENSITIVE
+        
+        text = "NON-SENSITIVE information"
+        result = use_case._extract_sensitivity_from_text(text)
+        assert result == SensitivityLevel.NON_SENSITIVE
+    
+    def test_extract_sensitivity_from_text_all_levels(self, use_case):
+        """Test _extract_sensitivity_from_text with all sensitivity levels."""
+        # Test HIGH_SENSITIVE
+        text = "HIGH_SENSITIVE data"
+        result = use_case._extract_sensitivity_from_text(text)
+        assert result == SensitivityLevel.HIGH_SENSITIVE
+        
+        # Test with hyphen
+        text = "HIGH-SENSITIVE data"
+        result = use_case._extract_sensitivity_from_text(text)
+        assert result == SensitivityLevel.HIGH_SENSITIVE
+        
+        # Test MODERATE_SENSITIVE
+        text = "MODERATE-SENSITIVE classification"
+        result = use_case._extract_sensitivity_from_text(text)
+        assert result == SensitivityLevel.MODERATE_SENSITIVE

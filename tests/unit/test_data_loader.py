@@ -273,3 +273,150 @@ class TestSmartDataLoader:
         result = loader.load_from_file('/path/to/data.xlsx')
         
         assert 'Sheet1' in result
+    
+    @patch('pandas.read_csv')
+    @patch('pathlib.Path.exists', return_value=True)
+    def test_load_from_file_error_handling(self, mock_exists, mock_read_csv):
+        """Test load_from_file handles errors."""
+        loader = SmartDataLoader()
+        
+        mock_read_csv.side_effect = Exception("Read error")
+        
+        with pytest.raises(DataProcessingError, match="Failed to load file"):
+            loader.load_from_file('/path/to/data.csv')
+    
+    def test_build_column_names_empty_header(self):
+        """Test _build_column_names with empty header block."""
+        loader = SmartDataLoader()
+        
+        # Empty DataFrame
+        header_block = pd.DataFrame()
+        result = loader._build_column_names(header_block)
+        
+        assert result == []
+    
+    def test_detect_header_end_with_column_pattern(self):
+        """Test _detect_header_end detects 'Column' metadata rows."""
+        loader = SmartDataLoader()
+        
+        # Create DataFrame with 'Column' pattern
+        data = {
+            0: ['Column 1', 'Column 2', 'Data1', 'Data2'],
+            1: ['Type A', 'Type B', 'Value1', 'Value2'],
+            2: ['Info', 'Info', 'Value3', 'Value4']
+        }
+        df = pd.DataFrame(data)
+        
+        result = loader._detect_header_end(df)
+        
+        # Should detect the row with 'Column' pattern
+        assert result >= 0
+    
+    def test_detect_header_end_fallback(self):
+        """Test _detect_header_end uses fallback when no clear pattern."""
+        loader = SmartDataLoader()
+        
+        # Create DataFrame with sparse data
+        data = {
+            0: ['A', None, None, 'Data'],
+            1: [None, 'B', None, 'Data'],
+            2: [None, None, 'C', 'Data']
+        }
+        df = pd.DataFrame(data)
+        
+        result = loader._detect_header_end(df)
+        
+        # Should return a valid header end index
+        assert result >= 0
+        assert result < len(df)
+    
+    def test_filter_empty_columns_empty_df(self):
+        """Test _filter_empty_columns with empty DataFrame."""
+        loader = SmartDataLoader()
+        
+        df = pd.DataFrame()
+        result = loader._filter_empty_columns(df)
+        
+        assert result.empty
+    
+    def test_filter_empty_columns_all_empty(self):
+        """Test _filter_empty_columns when all columns are empty."""
+        loader = SmartDataLoader()
+        
+        df = pd.DataFrame({
+            'col1': [None, None, None],
+            'col2': ['', '', ''],
+            'col3': ['nan', 'none', '']
+        })
+        
+        result = loader._filter_empty_columns(df)
+        
+        # Should return empty DataFrame when all columns are empty
+        assert result.empty or len(result.columns) == 0
+    
+    def test_preprocess_dataframe_complex_headers(self):
+        """Test preprocessing with complex multi-row headers."""
+        loader = SmartDataLoader()
+        
+        # Create DataFrame with complex headers
+        data = {
+            0: ['Section A', 'Name', 'John', 'Jane'],
+            1: ['Section A', 'Age', '25', '30'],
+            2: ['Section B', 'City', 'NYC', 'LA']
+        }
+        df = pd.DataFrame(data)
+        
+        result = loader._preprocess_dataframe(df)
+        
+        # Should have processed headers
+        assert len(result.columns) > 0
+        assert len(result) >= 1
+    
+    def test_ensure_unique_names(self):
+        """Test _ensure_unique_names handles duplicates."""
+        loader = SmartDataLoader()
+        
+        names = ['Name', 'Age', 'Name', 'Name', 'City']
+        result = loader._ensure_unique_names(names)
+        
+        assert result[0] == 'Name'
+        assert result[1] == 'Age'
+        assert result[2] == 'Name_1'
+        assert result[3] == 'Name_2'
+        assert result[4] == 'City'
+    
+    def test_detect_header_end_with_column_and_high_fill_next_row(self):
+        """Test _detect_header_end with 'Column' pattern and high fill rate in next row."""
+        loader = SmartDataLoader()
+        
+        # Create DataFrame where row with 'Column' has high fill rate in next row
+        data = {
+            0: ['Column A', 'Value1', 'Value2', 'Value3'],
+            1: ['Column B', 'Value4', 'Value5', 'Value6'],
+            2: ['Column C', 'Value7', 'Value8', 'Value9']
+        }
+        df = pd.DataFrame(data)
+        
+        result = loader._detect_header_end(df)
+        
+        # Should detect the 'Column' row as header
+        assert result == 0
+    
+    def test_detect_header_end_all_filled_row(self):
+        """Test _detect_header_end finds first row where all cells are filled."""
+        loader = SmartDataLoader()
+        
+        # Create DataFrame with first fully filled row
+        data = {
+            0: [None, 'Header1', 'Data1', 'Data2'],
+            1: [None, 'Header2', 'Data3', 'Data4'],
+            2: [None, 'Header3', 'Data5', 'Data6']
+        }
+        df = pd.DataFrame(data)
+        
+        result = loader._detect_header_end(df)
+        
+        # Should find the first row where all cells are filled
+        assert result >= 0
+
+

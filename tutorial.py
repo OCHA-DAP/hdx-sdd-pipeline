@@ -124,7 +124,7 @@ def example_1_process_url():
         logger.error(f"Failed to process URL: {e}")
 
 
-def example_2_process_local_file():
+def example_2_process_local_file(file_path: str):
     """
     Example 2: Process a single dataset from local file
     
@@ -137,8 +137,10 @@ def example_2_process_local_file():
     # Setup pipeline
     pipeline = setup_pipeline()
     
+    # Load ISP rules
+    isp_rules = load_isp_rules()
+    
     # Process local file
-    file_path = "research/data/panama.xlsx"
     
     if not Path(file_path).exists():
         logger.warning(f"File not found: {file_path}")
@@ -151,7 +153,8 @@ def example_2_process_local_file():
         reports = pipeline.execute(
             source=file_path,
             resource_id="local-file-123",
-            is_url=False
+            is_url=False,
+            isp_rules=isp_rules  # Pass ISP rules
         )
         
         # Display results
@@ -162,6 +165,41 @@ def example_2_process_local_file():
         
     except Exception as e:
         logger.error(f"Failed to process file: {e}")
+
+
+def load_isp_rules(country: str = "default") -> dict:
+    """
+    Load ISP (Information Sensitivity Protocol) rules from data/isps.json.
+    
+    Args:
+        country: Country name to load ISP rules for (default: "default")
+        
+    Returns:
+        Dictionary containing ISP rules for the specified country
+    """
+    isp_file = Path("data/isps.json")
+    
+    if not isp_file.exists():
+        logger.warning(f"ISP rules file not found: {isp_file}")
+        return {}
+    
+    try:
+        with open(isp_file, 'r') as f:
+            all_isps = json.load(f)
+        
+        # Try to get country-specific ISP, fallback to default
+        if country in all_isps:
+            isp_rules = all_isps[country]
+            logger.info(f"Loaded ISP rules for: {country}")
+        else:
+            isp_rules = all_isps.get("default", {})
+            logger.info(f"Country '{country}' not found, using default ISP rules")
+        
+        return isp_rules
+        
+    except Exception as e:
+        logger.error(f"Failed to load ISP rules: {e}")
+        return {}
 
 
 def example_3_process_folder():
@@ -356,7 +394,9 @@ def main():
     # example_1_process_url()
     
     # Example 2: Process local file
-    example_2_process_local_file()
+    example_2_process_local_file("FILEPATH")
+
+    exit()
     
     # Example 3: Process folder
     example_3_process_folder()

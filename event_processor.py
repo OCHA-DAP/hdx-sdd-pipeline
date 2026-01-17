@@ -74,7 +74,7 @@ class EventProcessor:
         )
         
         # Prompt manager
-        prompt_manager = PromptManager(prompts_dir='prompts')
+        prompt_manager = PromptManager(prompts_dir='src/prompts')
         
         # Create use case
         return ProcessDatasetUseCase(

@@ -130,7 +130,7 @@ class TestPromptManager:
             prompt = manager.get_prompt('pii_detection', version='v1', context={})
             
             # Should request v1 template
-            manager.env.get_template.assert_called_with('v1/pii_detection.jinja2')
+            manager.env.get_template.assert_called_with('src/prompts/pii_detection/v1.jinja2')
     
     def test_get_prompt_empty_context(self):
         """Test getting prompt with empty context."""
