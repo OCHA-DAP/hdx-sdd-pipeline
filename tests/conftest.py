@@ -5,7 +5,7 @@ import sys
 from pathlib import Path
 
 # Add src to path for imports
-src_path = Path(__file__).parent.parent / "src"
+src_path = Path(__file__).parent.parent / 'src'
 sys.path.insert(0, str(src_path))
 
 
@@ -15,10 +15,7 @@ def sample_column_data():
     return {
         'column_name': 'email',
         'sample_values': ['test@example.com', 'user@test.com', 'admin@company.org'],
-        'pii': {
-            'entity_type': 'EMAIL_ADDRESS',
-            'sensitive': True
-        }
+        'pii': {'entity_type': 'EMAIL_ADDRESS', 'sensitive': True},
     }
 
 
@@ -42,18 +39,15 @@ def sample_sheet_report_data():
             {
                 'column_name': 'email',
                 'sample_values': ['test@example.com'],
-                'pii': {'entity_type': 'EMAIL_ADDRESS', 'sensitive': True}
+                'pii': {'entity_type': 'EMAIL_ADDRESS', 'sensitive': True},
             },
             {
                 'column_name': 'name',
                 'sample_values': ['John Doe'],
-                'pii': {'entity_type': 'PERSON_NAME', 'sensitive': True}
-            }
+                'pii': {'entity_type': 'PERSON_NAME', 'sensitive': True},
+            },
         ],
-        'non_pii': {
-            'sensitivity': 'NON_SENSITIVE',
-            'explanation': 'No sensitive non-PII data detected'
-        }
+        'non_pii': {'sensitivity': 'NON_SENSITIVE', 'explanation': 'No sensitive non-PII data detected'},
     }
 
 
@@ -62,12 +56,12 @@ def azure_config():
     """Azure OpenAI configuration for integration tests."""
     import os
     from dotenv import load_dotenv
-    
+
     load_dotenv()
-    
+
     return {
         'model_name': 'gpt-4.1-nano',
         'azure_endpoint': os.getenv('AZURE_OPENAI_ENDPOINT', ''),
         'api_key': os.getenv('AZURE_OPENAI_API_KEY', ''),
-        'api_version': '2024-02-15-preview'
+        'api_version': '2024-02-15-preview',
     }

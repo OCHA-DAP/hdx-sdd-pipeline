@@ -1,18 +1,17 @@
 """Sensitivity level value object."""
 
 from enum import Enum
-from typing import Union
 
 
 class SensitivityLevel(str, Enum):
     """Enumeration of sensitivity levels for data classification."""
 
-    NON_SENSITIVE = "NON_SENSITIVE"
-    MODERATE_SENSITIVE = "MODERATE_SENSITIVE"
-    MEDIUM_SENSITIVE = "MEDIUM_SENSITIVE"  # Alias for MODERATE
-    HIGH_SENSITIVE = "HIGH_SENSITIVE"
-    SEVERE_SENSITIVE = "SEVERE_SENSITIVE"
-    UNDETERMINED = "UNDETERMINED"
+    NON_SENSITIVE = 'NON_SENSITIVE'
+    MODERATE_SENSITIVE = 'MODERATE_SENSITIVE'
+    MEDIUM_SENSITIVE = 'MEDIUM_SENSITIVE'  # Alias for MODERATE
+    HIGH_SENSITIVE = 'HIGH_SENSITIVE'
+    SEVERE_SENSITIVE = 'SEVERE_SENSITIVE'
+    UNDETERMINED = 'UNDETERMINED'
 
     @classmethod
     def from_string(cls, value: str) -> 'SensitivityLevel':

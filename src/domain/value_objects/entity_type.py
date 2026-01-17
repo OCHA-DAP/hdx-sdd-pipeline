@@ -1,42 +1,41 @@
 """PII Entity Type value object."""
 
 from enum import Enum
-from typing import Optional
 
 
 class PIIEntityType(str, Enum):
     """Enumeration of PII entity types that can be detected."""
 
     # Personal identifiers
-    PERSON_NAME = "PERSON_NAME"
-    EMAIL_ADDRESS = "EMAIL_ADDRESS"
-    PHONE_NUMBER = "PHONE_NUMBER"
+    PERSON_NAME = 'PERSON_NAME'
+    EMAIL_ADDRESS = 'EMAIL_ADDRESS'
+    PHONE_NUMBER = 'PHONE_NUMBER'
 
     # Location data
-    LOCATION = "LOCATION"
-    ADDRESS = "ADDRESS"
+    LOCATION = 'LOCATION'
+    ADDRESS = 'ADDRESS'
 
     # Identification numbers
-    ID_NUMBER = "ID_NUMBER"
-    PASSPORT_NUMBER = "PASSPORT_NUMBER"
-    SOCIAL_SECURITY_NUMBER = "SOCIAL_SECURITY_NUMBER"
+    ID_NUMBER = 'ID_NUMBER'
+    PASSPORT_NUMBER = 'PASSPORT_NUMBER'
+    SOCIAL_SECURITY_NUMBER = 'SOCIAL_SECURITY_NUMBER'
 
     # Financial
-    CREDIT_CARD = "CREDIT_CARD"
-    BANK_ACCOUNT = "BANK_ACCOUNT"
+    CREDIT_CARD = 'CREDIT_CARD'
+    BANK_ACCOUNT = 'BANK_ACCOUNT'
 
     # Demographic
-    AGE = "AGE"
-    DATE_OF_BIRTH = "DATE_OF_BIRTH"
-    GENDER = "GENDER"
+    AGE = 'AGE'
+    DATE_OF_BIRTH = 'DATE_OF_BIRTH'
+    GENDER = 'GENDER'
 
     # Other
-    IP_ADDRESS = "IP_ADDRESS"
-    URL = "URL"
+    IP_ADDRESS = 'IP_ADDRESS'
+    URL = 'URL'
 
     # Special values
-    NONE = "None"
-    UNDETERMINED = "UNDETERMINED"
+    NONE = 'None'
+    UNDETERMINED = 'UNDETERMINED'
 
     @classmethod
     def from_string(cls, value: str) -> 'PIIEntityType':

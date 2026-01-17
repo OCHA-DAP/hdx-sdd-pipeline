@@ -76,26 +76,29 @@ class ProcessDatasetUseCase:
             DataProcessingError: If processing fails
         """
         logger.info(
-            f"Starting dataset processing: source={source}, resource_id={resource_id}, "
-            f"is_url={is_url}, has_isp_rules={isp_rules is not None}"
+            f'Starting dataset processing: source={source}, resource_id={resource_id}, '
+            f'is_url={is_url}, has_isp_rules={isp_rules is not None}'
         )
         import time
+
         start_time = time.time()
 
         try:
             # Step 1: Load data
-            logger.debug("Step 1: Loading data...")
+            logger.debug('Step 1: Loading data...')
             if is_url:
                 sheets = self.data_loader.load_from_url(source)
             else:
                 sheets = self.data_loader.load_from_file(source)
 
-            logger.info(f"Loaded {len(sheets)} sheet(s): {list(sheets.keys())}")
+            logger.info(f'Loaded {len(sheets)} sheet(s): {list(sheets.keys())}')
 
             # Step 2: Create reports for each sheet
             reports = []
             for idx, (sheet_name, df) in enumerate(sheets.items(), 1):
-                logger.info(f"Processing sheet {idx}/{len(sheets)}: '{sheet_name}' ({len(df)} rows, {len(df.columns)} columns)")
+                logger.info(
+                    f"Processing sheet {idx}/{len(sheets)}: '{sheet_name}' ({len(df)} rows, {len(df.columns)} columns)"
+                )
 
                 # Check if it's a README sheet
                 if self._is_readme_sheet(sheet_name):
@@ -110,19 +113,18 @@ class ProcessDatasetUseCase:
             elapsed_time = time.time() - start_time
             total_tokens = sum(r.total_tokens() for r in reports)
             logger.info(
-                f"Successfully processed {len(reports)} sheet(s) in {elapsed_time:.2f}s, "
-                f"total_tokens={total_tokens}"
+                f'Successfully processed {len(reports)} sheet(s) in {elapsed_time:.2f}s, total_tokens={total_tokens}'
             )
             return reports
 
         except Exception as e:
             elapsed_time = time.time() - start_time
             logger.error(
-                f"Failed to process dataset after {elapsed_time:.2f}s: {e}",
+                f'Failed to process dataset after {elapsed_time:.2f}s: {e}',
                 exc_info=True,
-                extra={"source": source, "resource_id": resource_id}
+                extra={'source': source, 'resource_id': resource_id},
             )
-            raise DataProcessingError(f"Dataset processing failed: {e}")
+            raise DataProcessingError(f'Dataset processing failed: {e}')
 
     def _is_readme_sheet(self, sheet_name: str) -> bool:
         """Check if sheet is a README/metadata sheet."""
@@ -149,10 +151,10 @@ class ProcessDatasetUseCase:
     ) -> SheetReport:
         """Create and process report for data sheet."""
         logger.debug(f"Creating data report for sheet '{sheet_name}' with {len(df)} rows")
-        
+
         # Sample data
         sample_dict = self.data_loader.sample_dataframe(df, self.sample_size)
-        logger.debug(f"Sampled {len(sample_dict)} columns")
+        logger.debug(f'Sampled {len(sample_dict)} columns')
 
         # Create report
         report = SheetReport(
@@ -170,8 +172,8 @@ class ProcessDatasetUseCase:
             column = Column(name=col_name, sample_values=sample_values)
             report.add_column(column)
 
-        logger.debug(f"Starting classification pipeline for {len(report.columns)} columns")
-        
+        logger.debug(f'Starting classification pipeline for {len(report.columns)} columns')
+
         # Step 3: Classify PII
         report = self._classify_pii(report)
 
@@ -184,19 +186,19 @@ class ProcessDatasetUseCase:
         # Step 6: Update sensitivity flags
         report.update_pii_sensitivity()
         report.update_non_pii_sensitivity()
-        
+
         logger.info(
             f"Data report complete for '{sheet_name}': "
-            f"pii_sensitive={report.has_sensitive_pii}, "
-            f"non_pii_sensitivity={report.non_pii_classification.sensitivity}, "
-            f"tokens={report.total_tokens()}"
+            f'pii_sensitive={report.has_sensitive_pii}, '
+            f'non_pii_sensitivity={report.non_pii_classification.sensitivity}, '
+            f'tokens={report.total_tokens()}'
         )
 
         return report
 
     def _classify_pii(self, report: SheetReport) -> SheetReport:
         """Classify PII for all columns."""
-        logger.info(f"Classifying PII for {len(report.columns)} columns")
+        logger.info(f'Classifying PII for {len(report.columns)} columns')
 
         for column in report.columns:
             if not column.has_valid_samples():
@@ -234,7 +236,7 @@ class ProcessDatasetUseCase:
         """Classify sensitivity for PII columns."""
         pii_columns = [col for col in report.columns if col.has_pii()]
 
-        logger.info(f"Classifying PII sensitivity for {len(pii_columns)} PII columns")
+        logger.info(f'Classifying PII sensitivity for {len(pii_columns)} PII columns')
 
         for column in pii_columns:
             try:
@@ -277,7 +279,7 @@ class ProcessDatasetUseCase:
 
     def _classify_non_pii(self, report: SheetReport, isp_rules: Optional[Dict[str, Any]]) -> SheetReport:
         """Classify non-PII sensitivity for the table."""
-        logger.info("Classifying non-PII sensitivity")
+        logger.info('Classifying non-PII sensitivity')
 
         try:
             # Prepare table summary
@@ -295,7 +297,7 @@ class ProcessDatasetUseCase:
 
             # Store the full explanation
             report.non_pii_classification.explanation = result
-            
+
             # Extract sensitivity level from the response
             # LLM often returns "Classification: LEVEL\n\nExplanation: ..."
             sensitivity = self._extract_sensitivity_from_text(result)
@@ -311,35 +313,35 @@ class ProcessDatasetUseCase:
             report.completion_tokens += comp_tokens
             report.prompt_tokens += prompt_tokens
 
-            logger.info(f"Non-PII sensitivity: {report.non_pii_classification.sensitivity}")
+            logger.info(f'Non-PII sensitivity: {report.non_pii_classification.sensitivity}')
 
         except Exception as e:
-            logger.error(f"Non-PII classification failed: {e}")
+            logger.error(f'Non-PII classification failed: {e}')
             report.non_pii_classification.sensitivity = SensitivityLevel.UNDETERMINED
 
         report.non_pii_model = self.non_pii_llm.model_name
         return report
-    
+
     def _extract_sensitivity_from_text(self, text: str) -> SensitivityLevel:
         """
         Extract sensitivity level from LLM response text.
-        
+
         Handles formats like:
         - "Classification: MODERATE_SENSITIVE\n\nExplanation: ..."
         - "MODERATE_SENSITIVE"
         - "The classification is MODERATE_SENSITIVE because..."
-        
+
         Args:
             text: LLM response text
-            
+
         Returns:
             Extracted SensitivityLevel
         """
         if not text:
             return SensitivityLevel.UNDETERMINED
-        
+
         # Try to extract from "Classification: LEVEL" format
-        if "classification:" in text.lower():
+        if 'classification:' in text.lower():
             lines = text.split('\n')
             for line in lines:
                 if 'classification:' in line.lower():
@@ -351,10 +353,10 @@ class ProcessDatasetUseCase:
                         level = SensitivityLevel.from_string(level_text)
                         if level != SensitivityLevel.UNDETERMINED:
                             return level
-        
+
         # Try to find sensitivity keywords in the text
         text_upper = text.upper()
-        
+
         # Check for each sensitivity level (most specific first)
         if 'SEVERE_SENSITIVE' in text_upper or 'SEVERE-SENSITIVE' in text_upper:
             return SensitivityLevel.SEVERE_SENSITIVE
@@ -366,24 +368,24 @@ class ProcessDatasetUseCase:
             return SensitivityLevel.MEDIUM_SENSITIVE
         if 'NON_SENSITIVE' in text_upper or 'NON-SENSITIVE' in text_upper:
             return SensitivityLevel.NON_SENSITIVE
-        
+
         # Fallback to the original from_string method
         return SensitivityLevel.from_string(text)
 
     def _create_table_summary(self, report: SheetReport) -> str:
         """Create a summary of the table for non-PII classification."""
         summary_parts = [
-            f"Table: {report.sheet_name}",
-            f"Rows: {report.n_records}",
-            f"Columns: {report.n_columns}",
-            "\nColumn Overview:",
+            f'Table: {report.sheet_name}',
+            f'Rows: {report.n_records}',
+            f'Columns: {report.n_columns}',
+            '\nColumn Overview:',
         ]
 
         for column in report.columns[:10]:  # First 10 columns
-            pii_info = f" (PII: {column.pii_classification.entity_type})" if column.has_pii() else ""
-            summary_parts.append(f"- {column.name}{pii_info}")
+            pii_info = f' (PII: {column.pii_classification.entity_type})' if column.has_pii() else ''
+            summary_parts.append(f'- {column.name}{pii_info}')
 
         if len(report.columns) > 10:
-            summary_parts.append(f"... and {len(report.columns) - 10} more columns")
+            summary_parts.append(f'... and {len(report.columns) - 10} more columns')
 
-        return "\n".join(summary_parts)
+        return '\n'.join(summary_parts)

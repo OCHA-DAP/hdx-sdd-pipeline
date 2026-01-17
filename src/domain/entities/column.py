@@ -4,7 +4,6 @@ from dataclasses import dataclass, field
 from typing import List, Any, Optional
 
 from ..value_objects.entity_type import PIIEntityType
-from ..value_objects.sensitivity import SensitivityLevel
 
 
 @dataclass
@@ -55,7 +54,7 @@ class Column:
     def __post_init__(self):
         """Validate column data after initialization."""
         if not self.name:
-            raise ValueError("Column name cannot be empty")
+            raise ValueError('Column name cannot be empty')
 
         # Ensure sample_values is a list
         if not isinstance(self.sample_values, list):

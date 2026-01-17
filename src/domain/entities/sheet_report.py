@@ -5,7 +5,6 @@ from datetime import datetime
 from typing import List, Optional, Dict, Any
 
 from .column import Column
-from .pii_classification import PIIClassification
 from .non_pii_classification import NonPIIClassification
 
 
@@ -20,9 +19,9 @@ class SheetReport:
 
     # Identification
     resource_id: Optional[str] = None
-    file_name: str = ""
+    file_name: str = ''
     file_url: Optional[str] = None
-    sheet_name: str = "sheet1"
+    sheet_name: str = 'sheet1'
 
     # Metadata
     processing_timestamp: datetime = field(default_factory=datetime.now)
@@ -59,7 +58,7 @@ class SheetReport:
     def __post_init__(self):
         """Validate and normalize data after initialization."""
         if not self.file_name:
-            raise ValueError("file_name is required")
+            raise ValueError('file_name is required')
 
         # Update n_columns if columns are provided
         if self.columns and self.n_columns == 0:

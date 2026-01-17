@@ -1,7 +1,7 @@
 """Non-PII Classification entity."""
 
-from dataclasses import dataclass, field
-from typing import Optional, Dict, Any
+from dataclasses import dataclass
+from typing import Optional
 
 from ..value_objects.sensitivity import SensitivityLevel
 
