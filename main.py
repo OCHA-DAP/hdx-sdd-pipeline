@@ -186,7 +186,7 @@ def sheet_processor(sdd_report, isp, model=None):
 
 
 def event_processor(event):
-    """Main event processor. Handles one HDX resource-data-changed event."""
+    """Main event processor. Handles one HDX sdd-resource-data-changed event."""
     logger.info('Received event: %s', json.dumps(event, ensure_ascii=False, indent=2))
 
     resource_id = event.get('resource_id')
@@ -241,6 +241,6 @@ if __name__ == '__main__':
     else:
         event_bus.hdx_listen(
             event_processor,
-            allowed_event_types={'resource-created', 'resource-data-changed'},
+            allowed_event_types={'sdd-resource-created', 'sdd-resource-data-changed'},
             max_iterations=10_000,
         )

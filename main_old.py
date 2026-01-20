@@ -29,4 +29,4 @@ def event_processor(event):
 
 
 if __name__ == '__main__':
-    event_bus.hdx_listen(event_processor, allowed_event_types={'resource-data-changed'}, max_iterations=10_000)
+    event_bus.hdx_listen(event_processor, allowed_event_types={'sdd-resource-data-changed'}, max_iterations=10_000)
