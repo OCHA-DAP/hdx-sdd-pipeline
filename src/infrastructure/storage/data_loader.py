@@ -1,0 +1,412 @@
+"""Data loader implementation with smart preprocessing."""
+
+import logging
+from typing import Dict, List, Any
+from pathlib import Path
+import pandas as pd
+
+from ...application.interfaces.data_loader import IDataLoader
+from ...domain.exceptions import DataProcessingError
+
+logger = logging.getLogger(__name__)
+
+
+class SmartDataLoader(IDataLoader):
+    """
+    Smart data loader with automatic preprocessing.
+
+    Features:
+    - Loads from URLs or local files
+    - Handles CSV, Excel (XLS, XLSX)
+    - Detects and concatenates multi-row headers
+    - Handles multiple sheets
+    - Smart sampling (most complete rows first)
+    """
+
+    SUPPORTED_EXTENSIONS = ('.csv', '.xls', '.xlsx')
+
+    def __init__(self, max_rows: int = 1000):
+        """
+        Initialize data loader.
+
+        Args:
+            max_rows: Maximum rows to load per sheet
+        """
+        self.max_rows = max_rows
+
+    def validate_url(self, url: str) -> bool:
+        """
+        Validate if URL is supported.
+
+        Args:
+            url: URL to validate
+
+        Returns:
+            True if URL is valid and supported
+        """
+        url_lower = url.lower()
+        return any(url_lower.endswith(ext) for ext in self.SUPPORTED_EXTENSIONS)
+
+    def load_from_url(self, url: str) -> Dict[str, pd.DataFrame]:
+        """
+        Load data from URL into dictionary of DataFrames.
+
+        Args:
+            url: URL to load data from
+
+        Returns:
+            Dictionary mapping sheet names to DataFrames
+
+        Raises:
+            DataProcessingError: If loading fails
+        """
+        logger.info(f'Loading data from URL: {url}')
+
+        if not self.validate_url(url):
+            logger.error(f'Unsupported file type for URL: {url}')
+            raise DataProcessingError(
+                f'Unsupported file type. Only {", ".join(self.SUPPORTED_EXTENSIONS)} are supported.'
+            )
+
+        try:
+            file_type = 'CSV' if url.lower().endswith('.csv') else 'Excel'
+            logger.debug(f'Detected file type: {file_type}')
+
+            if url.lower().endswith('.csv'):
+                result = self._load_csv(url)
+            else:
+                result = self._load_excel(url)
+
+            total_rows = sum(len(df) for df in result.values())
+            total_cols = sum(len(df.columns) for df in result.values())
+            logger.info(
+                f'Successfully loaded {len(result)} sheet(s) from URL: '
+                f'{total_rows} total rows, {total_cols} total columns'
+            )
+            return result
+
+        except Exception as e:
+            logger.error(f'Failed to load data from {url}: {e}', exc_info=True)
+            raise DataProcessingError(f'Failed to load data: {e}')
+
+    def load_from_file(self, file_path: str) -> Dict[str, pd.DataFrame]:
+        """
+        Load data from local file.
+
+        Args:
+            file_path: Path to local file
+
+        Returns:
+            Dictionary mapping sheet names to DataFrames
+        """
+        logger.info(f'Loading data from file: {file_path}')
+
+        path = Path(file_path)
+        if not path.exists():
+            logger.error(f'File not found: {file_path}')
+            raise DataProcessingError(f'File not found: {file_path}')
+
+        if not self.validate_url(str(path)):
+            logger.error(f'Unsupported file type: {file_path}')
+            raise DataProcessingError(
+                f'Unsupported file type. Only {", ".join(self.SUPPORTED_EXTENSIONS)} are supported.'
+            )
+
+        try:
+            file_type = 'CSV' if str(path).lower().endswith('.csv') else 'Excel'
+            try:
+                file_size = path.stat().st_size / 1024  # KB
+                logger.debug(f'File type: {file_type}, size: {file_size:.2f} KB')
+            except OSError:
+                logger.debug(f'File type: {file_type}')
+
+            if str(path).lower().endswith('.csv'):
+                result = self._load_csv(str(path))
+            else:
+                result = self._load_excel(str(path))
+
+            total_rows = sum(len(df) for df in result.values())
+            total_cols = sum(len(df.columns) for df in result.values())
+            logger.info(
+                f'Successfully loaded {len(result)} sheet(s) from file: '
+                f'{total_rows} total rows, {total_cols} total columns'
+            )
+            return result
+
+        except Exception as e:
+            logger.error(f'Failed to load file {file_path}: {e}', exc_info=True)
+            raise DataProcessingError(f'Failed to load file: {e}')
+
+    def _load_csv(self, source: str) -> Dict[str, pd.DataFrame]:
+        """Load CSV file."""
+        logger.debug(f'Reading CSV file: {source} (max_rows={self.max_rows})')
+        df = pd.read_csv(source, header=None, nrows=self.max_rows)
+        logger.debug(f'Raw CSV shape: {df.shape}')
+        df = self._preprocess_dataframe(df)
+        logger.debug(f'Preprocessed CSV shape: {df.shape}')
+        return {'sheet1': df}
+
+    def _load_excel(self, source: str) -> Dict[str, pd.DataFrame]:
+        """Load Excel file with multiple sheets."""
+        logger.debug(f'Reading Excel file: {source} (max_rows={self.max_rows})')
+        df_dict = pd.read_excel(source, sheet_name=None, nrows=self.max_rows, header=None)
+        logger.debug(f'Found {len(df_dict)} sheet(s): {list(df_dict.keys())}')
+
+        result = {}
+        for sheet_name, df in df_dict.items():
+            logger.debug(f"Preprocessing sheet '{sheet_name}': raw shape={df.shape}")
+            processed_df = self._preprocess_dataframe(df)
+            logger.debug(f"Sheet '{sheet_name}' preprocessed: final shape={processed_df.shape}")
+            result[sheet_name] = processed_df
+
+        return result
+
+    def _preprocess_dataframe(self, df: pd.DataFrame) -> pd.DataFrame:
+        """
+        Preprocess DataFrame with smart header detection and robust handling.
+
+        Handles:
+        - Leading empty rows
+        - Multi-row hierarchical headers
+        - Merged cells (forward fill)
+        - Empty columns (filtered out)
+        - Meaningful column naming
+
+        Args:
+            df: Raw DataFrame
+
+        Returns:
+            Preprocessed DataFrame with proper headers and cleaned data
+        """
+        if df.empty:
+            return df
+
+        # Step 1: Remove leading all-NaN rows
+        while not df.empty and df.iloc[0].isna().all():
+            df = df.iloc[1:].reset_index(drop=True)
+
+        if df.empty:
+            return df
+
+        # Step 2: Detect header end using multiple heuristics
+        header_end_row = self._detect_header_end(df)
+
+        # Step 3: Extract and process header block
+        header_block = df.iloc[: header_end_row + 1].copy()
+
+        # Step 4: Build column names from multi-row headers
+        final_columns = self._build_column_names(header_block)
+
+        # Step 5: Extract data rows
+        data_df = df.iloc[header_end_row + 1 :].copy()
+        data_df.columns = final_columns
+
+        # Step 6: Filter out completely empty columns
+        data_df = self._filter_empty_columns(data_df)
+
+        # Step 7: Sort by completeness (rows with most non-null values first)
+        if not data_df.empty:
+            data_df['__null_count__'] = data_df.isna().sum(axis=1)
+            data_df = data_df.sort_values('__null_count__').drop(columns='__null_count__')
+
+        return data_df.reset_index(drop=True)
+
+    def _detect_header_end(self, df: pd.DataFrame) -> int:
+        """
+        Detect where the header ends and data begins.
+
+        Uses multiple heuristics:
+        1. First row where most cells are filled
+        2. First row with consistent data types
+        3. Row after which pattern repeats
+
+        Args:
+            df: Raw DataFrame
+
+        Returns:
+            Index of the last header row
+        """
+        max_check_rows = min(20, len(df))
+
+        # Heuristic 1: Find first row with high fill rate (>70%)
+        for idx in range(max_check_rows):
+            row = df.iloc[idx]
+            fill_rate = row.notna().sum() / len(row)
+
+            # If this row is mostly filled and next few rows are also filled, it's likely data
+            if fill_rate > 0.7 and idx < len(df) - 2:
+                next_row_fill = df.iloc[idx + 1].notna().sum() / len(df.iloc[idx + 1])
+                if next_row_fill > 0.7:
+                    # Check if previous row looks like a header
+                    if idx > 0:
+                        return idx - 1
+                    return idx
+
+        # Heuristic 2: Look for rows with "Column" pattern (often metadata)
+        for idx in range(max_check_rows):
+            row = df.iloc[idx].astype(str)
+            if any('column' in str(val).lower() for val in row if pd.notna(val)):
+                # This is likely a metadata row, check next row
+                if idx + 1 < len(df):
+                    next_row = df.iloc[idx + 1]
+                    if next_row.notna().sum() / len(next_row) > 0.7:
+                        return idx
+
+        # Fallback: First row where all cells are filled
+        for idx in range(max_check_rows):
+            row = df.iloc[idx]
+            if row.notna().all():
+                return idx
+
+        # Last resort: assume first 3 rows are headers
+        return min(2, len(df) - 1)
+
+    def _build_column_names(self, header_block: pd.DataFrame) -> list:
+        """
+        Build meaningful column names from multi-row header block.
+
+        Handles hierarchical headers by combining parent and child labels.
+
+        Args:
+            header_block: DataFrame containing header rows
+
+        Returns:
+            List of column names
+        """
+        if header_block.empty:
+            return []
+
+        # Convert to string and handle NaN
+        header_block = header_block.fillna('').astype(str)
+
+        # Forward fill within each row (for merged cells horizontally)
+        header_block = header_block.apply(lambda row: row.replace('', pd.NA).ffill().fillna(''), axis=1)
+
+        final_columns = []
+
+        for col_idx in range(len(header_block.columns)):
+            # Collect all non-empty values in this column across header rows
+            col_values = []
+
+            for row_idx in range(len(header_block)):
+                val = header_block.iloc[row_idx, col_idx]
+
+                # Clean the value
+                val = str(val).strip()
+
+                # Skip empty, 'None', 'nan', or 'Column' metadata
+                if val and val.lower() not in ['none', 'nan', ''] and not val.lower().startswith('column'):
+                    # Avoid duplicates (e.g., parent header repeated)
+                    if not col_values or val != col_values[-1]:
+                        col_values.append(val)
+
+            # Build column name
+            if col_values:
+                # Join hierarchical parts with separator
+                col_name = ' - '.join(col_values)
+            else:
+                col_name = f'Unnamed_Column_{col_idx}'
+
+            final_columns.append(col_name)
+
+        # Ensure unique column names
+        final_columns = self._ensure_unique_names(final_columns)
+
+        return final_columns
+
+    def _ensure_unique_names(self, names: list) -> list:
+        """
+        Ensure all column names are unique by appending numbers to duplicates.
+
+        Args:
+            names: List of column names
+
+        Returns:
+            List of unique column names
+        """
+        seen = {}
+        unique_names = []
+
+        for name in names:
+            if name not in seen:
+                seen[name] = 0
+                unique_names.append(name)
+            else:
+                seen[name] += 1
+                unique_names.append(f'{name}_{seen[name]}')
+
+        return unique_names
+
+    def _filter_empty_columns(self, df: pd.DataFrame) -> pd.DataFrame:
+        """
+        Filter out columns that are completely empty or have only whitespace.
+
+        Args:
+            df: DataFrame to filter
+
+        Returns:
+            DataFrame with empty columns removed
+        """
+        if df.empty:
+            return df
+
+        # Identify columns to keep
+        cols_to_keep = []
+
+        for col in df.columns:
+            col_data = df[col]
+
+            # Check if column has any non-null, non-empty values
+            has_data = False
+            for val in col_data:
+                if pd.notna(val):
+                    val_str = str(val).strip()
+                    if val_str and val_str.lower() not in ['nan', 'none', '']:
+                        has_data = True
+                        break
+
+            if has_data:
+                cols_to_keep.append(col)
+
+        # Return filtered DataFrame
+        if cols_to_keep:
+            return df[cols_to_keep].copy()
+        else:
+            # If all columns are empty, return empty DataFrame
+            return pd.DataFrame()
+
+    def sample_dataframe(self, df: pd.DataFrame, sample_size: int = 5) -> Dict[str, List[Any]]:
+        """
+        Sample values from DataFrame.
+
+        Takes the most complete rows (fewest nulls) and samples from them.
+
+        Args:
+            df: DataFrame to sample from
+            sample_size: Number of samples per column
+
+        Returns:
+            Dictionary mapping column names to sample values
+        """
+        if df.empty:
+            return {}
+
+        sample_dict = {}
+
+        for col in df.columns:
+            col_data = df[col]
+
+            # Drop empty values
+            non_empty = col_data.dropna()
+            non_empty = non_empty[non_empty != '']
+
+            # Take top N values
+            values = non_empty.head(sample_size).values.ravel().tolist()
+
+            # Pad to sample_size if needed
+            while len(values) < sample_size:
+                values.append('')
+
+            sample_dict[str(col)] = values[:sample_size]
+
+        return sample_dict

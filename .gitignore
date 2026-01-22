@@ -245,3 +245,4 @@ research/results/
 uv.lock
 
 *.json
+output/
