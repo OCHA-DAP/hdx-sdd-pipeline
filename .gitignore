@@ -244,4 +244,4 @@ research/results/
 
 uv.lock
 
-app/*
+*.json
