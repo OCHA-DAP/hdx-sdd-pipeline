@@ -62,10 +62,10 @@ def test_classify(non_pii_classifier_instance, sample_report):
         20,
     )
     non_pii_report = non_pii_classifier_instance.classify(sample_report, TEST_ISP)
-    assert non_pii_report['non_pii']['sensitivity'] == 'HIGH_SENSITIVE'
-    assert non_pii_report['non_pii']['sensitive_columns'] == ['name']
-    assert non_pii_report['non_pii']['cited_isp_rules'] == ['name is sensitive']
-    assert non_pii_report['non_pii']['explanation'] == 'name is sensitive'
+    assert non_pii_report['non_personal_data']['sensitivity'] == 'HIGH_SENSITIVE'
+    assert non_pii_report['non_personal_data']['sensitive_columns'] == ['name']
+    assert non_pii_report['non_personal_data']['cited_isp_rules'] == ['name is sensitive']
+    assert non_pii_report['non_personal_data']['explanation'] == 'name is sensitive'
 
 
 def test_classify_non_dict_output(non_pii_classifier_instance, sample_report):

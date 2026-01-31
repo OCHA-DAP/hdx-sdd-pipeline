@@ -60,9 +60,9 @@ def test_normalize_none_prediction(pii_classifier_instance, mock_sdd_report):
 
     sdd_report = pii_classifier_instance.classify_df(mock_sdd_report)
     assert len(sdd_report['columns']) == 3
-    assert sdd_report['columns'][0]['pii']['entity_type'] == 'None'
-    assert sdd_report['columns'][1]['pii']['entity_type'] == 'None'
-    assert sdd_report['columns'][2]['pii']['entity_type'] == 'None'
+    assert sdd_report['columns'][0]['personal_data']['entity_type'] == 'None'
+    assert sdd_report['columns'][1]['personal_data']['entity_type'] == 'None'
+    assert sdd_report['columns'][2]['personal_data']['entity_type'] == 'None'
 
 
 def test_normalize_prediction(pii_classifier_instance, sample_df, mock_sdd_report):
@@ -71,6 +71,6 @@ def test_normalize_prediction(pii_classifier_instance, sample_df, mock_sdd_repor
 
     sdd_report = pii_classifier_instance.classify_df(mock_sdd_report)
     assert len(sdd_report['columns']) == 3
-    assert sdd_report['columns'][0]['pii']['entity_type'] == 'EMAIL_ADDRESS'
-    assert sdd_report['columns'][1]['pii']['entity_type'] == 'EMAIL_ADDRESS'
-    assert sdd_report['columns'][2]['pii']['entity_type'] == 'EMAIL_ADDRESS'
+    assert sdd_report['columns'][0]['personal_data']['entity_type'] == 'EMAIL_ADDRESS'
+    assert sdd_report['columns'][1]['personal_data']['entity_type'] == 'EMAIL_ADDRESS'
+    assert sdd_report['columns'][2]['personal_data']['entity_type'] == 'EMAIL_ADDRESS'

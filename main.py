@@ -159,8 +159,8 @@ def sheet_processor(sdd_report, isp, model=None):
         return sdd_report
 
     # Check if any column is sensitive
-    if any(column['pii'].get('sensitive', True) for column in sdd_report['columns']):
-        sdd_report['pii_sensitive'] = True
+    if any(column['personal_data'].get('sensitive', True) for column in sdd_report['columns']):
+        sdd_report['personal_data_sensitive'] = True
 
     # Non-PII classification
     try:
@@ -172,7 +172,7 @@ def sheet_processor(sdd_report, isp, model=None):
         return sdd_report
 
     # Check if any column is sensitive
-    if sdd_report['non_pii']['sensitivity'].lower() in [
+    if sdd_report['non_personal_data']['sensitivity'].lower() in [
         'high',
         'high_sensitive',
         'moderate',
@@ -180,7 +180,7 @@ def sheet_processor(sdd_report, isp, model=None):
         'severe',
         'severe_sensitive',
     ]:
-        sdd_report['non_pii_sensitive'] = True
+        sdd_report['non_personal_data_sensitive'] = True
 
     return sdd_report
 

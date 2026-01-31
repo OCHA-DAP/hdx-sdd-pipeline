@@ -54,11 +54,11 @@ class NonPIIClassifier(BaseClassifier):
             sdd_report['prompt_tokens'] += prompt_tokens
 
         sdd_report['non_pii_model'] = self.model.model_name
-        sdd_report['non_pii'] = {}
-        sdd_report['non_pii']['sensitivity'] = prediction.get('sensitivity', 'UNDETERMINED')
-        sdd_report['non_pii']['sensitive_columns'] = prediction.get('sensitive_columns', [])
-        sdd_report['non_pii']['cited_isp_rules'] = prediction.get('cited_isp_rules', [])
-        sdd_report['non_pii']['explanation'] = prediction.get('explanation', '')
+        sdd_report['non_personal_data'] = {}
+        sdd_report['non_personal_data']['sensitivity'] = prediction.get('sensitivity', 'UNDETERMINED')
+        sdd_report['non_personal_data']['sensitive_columns'] = prediction.get('sensitive_columns', [])
+        sdd_report['non_personal_data']['cited_isp_rules'] = prediction.get('cited_isp_rules', [])
+        sdd_report['non_personal_data']['explanation'] = prediction.get('explanation', '')
 
         return sdd_report
 

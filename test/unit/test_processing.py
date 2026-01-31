@@ -8,8 +8,8 @@ import utils.exception_handler
 def test_basic_markdown_output():
     report = {
         'columns': [
-            {'column_name': 'name', 'sample_values': ['Alice', 'Bob'], 'pii': {'entity_type': 'person_name'}},
-            {'column_name': 'age', 'sample_values': ['30', '40'], 'pii': {'entity_type': 'None'}},
+            {'column_name': 'name', 'sample_values': ['Alice', 'Bob'], 'personal_data': {'entity_type': 'person_name'}},
+            {'column_name': 'age', 'sample_values': ['30', '40'], 'personal_data': {'entity_type': 'None'}},
         ]
     }
     md = table_markdown(report)
@@ -24,8 +24,8 @@ def test_basic_markdown_output():
 def test_padding_of_shorter_column():
     report = {
         'columns': [
-            {'column_name': 'city', 'sample_values': ['NYC'], 'pii': {'entity_type': 'None'}},
-            {'column_name': 'zip', 'sample_values': ['10001', '20002'], 'pii': {'entity_type': 'None'}},
+            {'column_name': 'city', 'sample_values': ['NYC'], 'personal_data': {'entity_type': 'None'}},
+            {'column_name': 'zip', 'sample_values': ['10001', '20002'], 'personal_data': {'entity_type': 'None'}},
         ]
     }
     md = table_markdown(report)
@@ -40,8 +40,12 @@ def test_padding_of_shorter_column():
 def test_entity_type_none_handling():
     report = {
         'columns': [
-            {'column_name': 'email', 'sample_values': ['a@example.com'], 'pii': {'entity_type': 'email_address'}},
-            {'column_name': 'status', 'sample_values': ['active'], 'pii': {'entity_type': 'None'}},
+            {
+                'column_name': 'email',
+                'sample_values': ['a@example.com'],
+                'personal_data': {'entity_type': 'email_address'}
+            },
+            {'column_name': 'status', 'sample_values': ['active'], 'personal_data': {'entity_type': 'None'}},
         ]
     }
     md = table_markdown(report)
@@ -53,8 +57,8 @@ def test_entity_type_none_handling():
 def test_markdown_with_irregular_sample_lengths():
     report = {
         'columns': [
-            {'column_name': 'col1', 'sample_values': ['A', 'B', 'C'], 'pii': {'entity_type': 'None'}},
-            {'column_name': 'col2', 'sample_values': ['1'], 'pii': {'entity_type': 'None'}},
+            {'column_name': 'col1', 'sample_values': ['A', 'B', 'C'], 'personal_data': {'entity_type': 'None'}},
+            {'column_name': 'col2', 'sample_values': ['1'], 'personal_data': {'entity_type': 'None'}},
         ]
     }
     md = table_markdown(report)
@@ -74,8 +78,12 @@ def test_markdown_with_irregular_sample_lengths():
 def test_markdown_output_matches_dataframe_to_markdown_format():
     report = {
         'columns': [
-            {'column_name': 'product', 'sample_values': ['Book', 'Pen'], 'pii': {'entity_type': 'product_name'}},
-            {'column_name': 'price', 'sample_values': ['10', '2'], 'pii': {'entity_type': 'price'}},
+            {
+                'column_name': 'product',
+                'sample_values': ['Book', 'Pen'],
+                'personal_data': {'entity_type': 'product_name'}
+            },
+            {'column_name': 'price', 'sample_values': ['10', '2'], 'personal_data': {'entity_type': 'price'}},
         ]
     }
     md = table_markdown(report)

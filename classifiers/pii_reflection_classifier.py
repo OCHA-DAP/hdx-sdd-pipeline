@@ -65,7 +65,7 @@ class PIIReflectionClassifier(BaseClassifier):
         sdd_report['pii_reflection_model'] = self.model.model_name
 
         for col in tqdm(sdd_report['columns'], desc='Reflecting on PII sensitivity'):
-            entity = col['pii']['entity_type']
+            entity = col['personal_data']['entity_type']
 
             pred, comp, prompt = self.classify_column(
                 column_name=col['column_name'],
@@ -80,9 +80,9 @@ class PIIReflectionClassifier(BaseClassifier):
             sensitive = False
             if pred == 'SENSITIVE':
                 sensitive = True
-                sdd_report['pii_sensitive'] = True
+                sdd_report['personal_data_sensitive'] = True
 
-            col['pii']['sensitive'] = sensitive
+            col['personal_data']['sensitive'] = sensitive
 
         return sdd_report
 

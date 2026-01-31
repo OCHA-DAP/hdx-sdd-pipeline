@@ -111,19 +111,19 @@ python redis_streams_event_generator.py
     'processing_success': True,
     'n_records': 100,
     'n_columns': 10,
-    'pii_sensitive': True,
-    'non_pii_sensitive': True,
+    'personal_data_sensitive': True,
+    'non_personal_data_sensitive': True,
     'columns': [
         {
             'column_name': 'email_address',
             'sample_values': ['john@example.com', 'jane@company.com'],
-            'pii': {
+            'personal_data': {
                 'entity_type': 'EMAIL_ADDRESS',
                 'sensitive': True
             }
         }
     ]
-    'non_pii': {
+    'non_personal_data': {
         'sensitivity': 'LOW'
         'explanation': 'The table contains email addresses, which are considered sensitive data.'
     }
@@ -140,7 +140,7 @@ python redis_streams_event_generator.py
 {
     'column_name': 'email_address',
     'sample_values': ['john@example.com', 'jane@company.com'],
-    'pii': {
+    'personal_data': {
         'entity_type': 'EMAIL_ADDRESS',
     }
 }
@@ -156,7 +156,7 @@ python redis_streams_event_generator.py
 {
     'column_name': 'email_address',
     'sample_values': ['john@example.com', 'jane@company.com'],
-    'pii': {
+    'personal_data': {
         'entity_type': 'EMAIL_ADDRESS',
         'sensitive': True
     }

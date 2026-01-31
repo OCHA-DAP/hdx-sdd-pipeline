@@ -61,7 +61,7 @@ data = []
 all_errors = []  # collect misclassification rows across models
 
 # Sheet-level categories
-sheet_categories = ['non_pii_sensitive', 'pii_sensitive']
+sheet_categories = ['non_personal_data_sensitive', 'personal_data_sensitive']
 
 for model in models:
     # Sheet-level stats
@@ -92,7 +92,7 @@ for model in models:
         column_errors = []
 
     column_stats['model'] = model
-    column_stats['category'] = 'column: pii_sensitive'
+    column_stats['category'] = 'column: personal_data_sensitive'
     data.append(column_stats)
 
     # extend global errors (already obtained once per model)
@@ -117,7 +117,7 @@ with col1:
 
 with col2:
     st.subheader('🧩 Column-Level Only Metrics')
-    col_df = df[df['category'] == 'column: pii_sensitive']
+    col_df = df[df['category'] == 'column: personal_data_sensitive']
     if not col_df.empty:
         st.dataframe(col_df)
     else:
@@ -194,12 +194,12 @@ st.subheader('📉 Cost vs Performance Efficiency')
 perf_rows = []
 for model in models:
     # prefer column-level F1
-    row = df[(df['model'] == model) & (df['category'] == 'column: pii_sensitive')]
+    row = df[(df['model'] == model) & (df['category'] == 'column: personal_data_sensitive')]
     if not row.empty:
         f1_val = float(row.iloc[0]['f1'])
     else:
-        # fallback to sheet: pii_sensitive
-        row2 = df[(df['model'] == model) & (df['category'] == 'sheet: pii_sensitive')]
+        # fallback to sheet: personal_data_sensitive
+        row2 = df[(df['model'] == model) & (df['category'] == 'sheet: personal_data_sensitive')]
         f1_val = float(row2.iloc[0]['f1']) if not row2.empty else 0.0
 
     cost_row = cost_df[cost_df['model'] == model]

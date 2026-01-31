@@ -6,10 +6,11 @@ from utils.utils import determine_sensitivity, table_markdown
 @pytest.mark.parametrize(
     'reports, expected',
     [
-        ([{'pii_sensitive': True, 'non_pii_sensitive': False}], 'sensitive-pii'),
-        ([{'pii_sensitive': False, 'non_pii_sensitive': True}], 'sensitive-non-pii'),
-        ([{'pii_sensitive': True, 'non_pii_sensitive': True}], 'sensitive-pii-and-non-pii'),
-        ([{'pii_sensitive': False, 'non_pii_sensitive': False}], 'not-sensitive'),
+        ([{'personal_data_sensitive': True, 'non_personal_data_sensitive': False}], 'sensitive-personal-data'),
+        ([{'personal_data_sensitive': False, 'non_personal_data_sensitive': True}], 'sensitive-non-personal-data'),
+        ([{'personal_data_sensitive': True, 'non_personal_data_sensitive': True}],
+         'sensitive-personal-data-and-non-personal-data'),
+        ([{'personal_data_sensitive': False, 'non_personal_data_sensitive': False}], 'not-sensitive'),
     ],
 )
 def test_determine_sensitivity(reports, expected):
