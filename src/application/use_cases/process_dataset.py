@@ -289,7 +289,7 @@ class ProcessDatasetUseCase:
             prompt = self.prompt_manager.get_prompt(
                 'non_pii_classification',
                 version='v0',
-                context={'table_name': report.sheet_name, 'table_summary': table_summary, 'isp_rules': isp_rules or {}},
+                context={'table_name': report.sheet_name, 'table_markdown': table_summary, 'isp': isp_rules or {}},
             )
 
             # Call LLM

@@ -77,11 +77,19 @@ class AzureOpenAIProvider(ILLMProvider):
         )
 
         try:
-            response = self.client.chat.completions.create(
-                model=self._model_name,
-                messages=[{'role': 'user', 'content': prompt}],
-                max_tokens=max_tokens,
-                temperature=temperature,
+            if 'gpt-5' in self.model_name:
+                response = self.client.chat.completions.create(
+                    messages=[{'role': 'user', 'content': prompt}],
+                    max_completion_tokens=512,
+                    reasoning_effort='minimal',
+                    model=self.model_name,
+                )
+            else:
+                response = self.client.chat.completions.create(
+                    model=self._model_name,
+                    messages=[{'role': 'user', 'content': prompt}],
+                    max_tokens=max_tokens,
+                    temperature=temperature,
                 **kwargs,
             )
 
@@ -132,14 +140,24 @@ class AzureOpenAIProvider(ILLMProvider):
         )
 
         try:
-            response = self.client.chat.completions.create(
-                model=self._model_name,
-                messages=[{'role': 'user', 'content': prompt}],
-                max_tokens=max_tokens,
-                temperature=temperature,
-                response_format={'type': 'json_object'},
-                **kwargs,
-            )
+            if 'gpt-5' in self.model_name.lower():
+                temperature = 1.0
+                json_response = self.client.chat.completions.create(
+                    messages=[{'role': 'user', 'content': prompt}],
+                    max_completion_tokens=1000,
+                    reasoning_effort='minimal',
+                    model=self.model_name,
+                    response_format={'type': 'json_object'},
+                )
+            else:
+                response = self.client.chat.completions.create(
+                    model=self._model_name,
+                    messages=[{'role': 'user', 'content': prompt}],
+                    max_tokens=max_tokens,
+                    temperature=temperature,
+                    response_format={'type': 'json_object'},
+                    **kwargs,
+                )
 
             generated_text = response.choices[0].message.content
             completion_tokens = response.usage.completion_tokens

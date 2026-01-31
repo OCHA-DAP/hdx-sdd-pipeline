@@ -29,6 +29,7 @@ class PromptManager:
             self.env = Environment(loader=FileSystemLoader(str(self.prompts_dir)), trim_blocks=True, lstrip_blocks=True)
         else:
             logger.warning(f'Prompts directory not found: {self.prompts_dir}')
+            exit()
             self.env = None
 
     def get_prompt(self, prompt_name: str, version: str = 'v0', context: Dict[str, Any] = None) -> str:
@@ -49,8 +50,8 @@ class PromptManager:
         if context is None:
             context = {}
 
-        # Try to load template
-        template_path = f'src/prompts/{prompt_name}/{version}.jinja2'
+        # Try to load template (FileSystemLoader already searches in prompts_dir)
+        template_path = f'{prompt_name}/{version}.jinja'
 
         try:
             if self.env:

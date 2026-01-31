@@ -1,7 +1,7 @@
 # utils/processing.py
 from typing import Dict
 import pandas as pd
-from utils.exception_handler import handle_exception_wrap
+# from utils.exception_handler import handle_exception_wrap
 import datetime
 import logging
 import numpy as np

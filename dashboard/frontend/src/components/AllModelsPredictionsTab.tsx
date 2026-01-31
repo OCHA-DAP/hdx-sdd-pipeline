@@ -6,8 +6,9 @@ const MODEL_OPTIONS = [
     "gpt-5-nano",
     "gpt-5-mini",
     "gpt-4.1-nano",
-    "DeepSeek-V3.1",
     "gpt-4.1-mini",
+    "gpt-4.1",
+    "DeepSeek-V3.1",
 ];
 
 interface Props {

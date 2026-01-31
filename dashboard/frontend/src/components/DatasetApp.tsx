@@ -55,13 +55,16 @@ export default function DatasetApp() {
     <div className="container mx-auto px-4 py-8 ">
       <h1 className="text-3xl font-bold mb-8">Dataset Processing Dashboard</h1>
 
-      <div className="mb-8">
-        <TabButton label="📊 Insights" active={activeTab === 'insights'} onClick={() => setActiveTab('insights')} />
-        <TabButton label="Upload" active={activeTab === 'upload'} onClick={() => setActiveTab('upload')} />
-        <TabButton label="Results" active={activeTab === 'results'} onClick={() => setActiveTab('results')} />
-        <TabButton label="Multi-Model Results" active={activeTab === 'multi-model-results'} onClick={() => setActiveTab('multi-model-results')} />
-        <TabButton label="All Models" active={activeTab === 'all-models'} onClick={() => setActiveTab('all-models')} />
-        <TabButton label="Statistics" active={activeTab === 'statistics'} onClick={() => setActiveTab('statistics')} />
+      {/* Tab Navigation */}
+      <div className="mb-8 bg-gray-50 p-2 rounded-2xl border border-gray-200 shadow-sm">
+        <div className="flex flex-wrap gap-2">
+          <TabButton label="📊 Insights" active={activeTab === 'insights'} onClick={() => setActiveTab('insights')} />
+          <TabButton label="📤 Upload" active={activeTab === 'upload'} onClick={() => setActiveTab('upload')} />
+          <TabButton label="📋 Results" active={activeTab === 'results'} onClick={() => setActiveTab('results')} />
+          <TabButton label="🔀 Multi-Model" active={activeTab === 'multi-model-results'} onClick={() => setActiveTab('multi-model-results')} />
+          <TabButton label="🎯 All Models" active={activeTab === 'all-models'} onClick={() => setActiveTab('all-models')} />
+          <TabButton label="📈 Statistics" active={activeTab === 'statistics'} onClick={() => setActiveTab('statistics')} />
+        </div>
       </div>
 
       {activeTab === 'insights' && <InsightsTab />}

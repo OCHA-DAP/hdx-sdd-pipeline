@@ -4,6 +4,7 @@ from dataclasses import dataclass, field
 from typing import List, Any, Optional
 
 from ..value_objects.entity_type import PIIEntityType
+from ...shared.utils.json_serializer import make_json_serializable
 
 
 @dataclass
@@ -78,7 +79,7 @@ class Column:
         """Convert column to dictionary representation."""
         return {
             'column_name': self.name,
-            'sample_values': self.sample_values,
+            'sample_values': make_json_serializable(self.sample_values),
             'pii': self.pii_classification.to_dict(),
         }
 
