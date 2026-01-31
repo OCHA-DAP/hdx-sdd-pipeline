@@ -44,8 +44,8 @@ class SheetReport:
     non_pii_classification: NonPIIClassification = field(default_factory=NonPIIClassification)
 
     # Sensitivity flags
-    pii_sensitive: bool = False
-    non_pii_sensitive: bool = False
+    personal_data_sensitive: bool = False
+    non_personal_data_sensitive: bool = False
 
     # Error handling
     error_source: Optional[str] = None
@@ -78,16 +78,16 @@ class SheetReport:
         return any(col.is_sensitive() for col in self.columns)
 
     def update_pii_sensitivity(self) -> None:
-        """Update the pii_sensitive flag based on column classifications."""
-        self.pii_sensitive = self.has_sensitive_pii()
+        """Update the personal_data_sensitive flag based on column classifications."""
+        self.personal_data_sensitive = self.has_sensitive_pii()
 
     def update_non_pii_sensitivity(self) -> None:
-        """Update the non_pii_sensitive flag based on non-PII classification."""
-        self.non_pii_sensitive = self.non_pii_classification.is_sensitive()
+        """Update the non_personal_data_sensitive flag based on non-PII classification."""
+        self.non_personal_data_sensitive = self.non_pii_classification.is_sensitive()
 
     def is_sensitive(self) -> bool:
         """Check if the sheet is sensitive (PII or non-PII)."""
-        return self.pii_sensitive or self.non_pii_sensitive
+        return self.personal_data_sensitive or self.non_personal_data_sensitive
 
     def total_tokens(self) -> int:
         """Calculate total tokens used."""
@@ -110,10 +110,10 @@ class SheetReport:
             'n_columns': self.n_columns,
             'completion_tokens': self.completion_tokens,
             'prompt_tokens': self.prompt_tokens,
-            'pii_sensitive': self.pii_sensitive,
-            'non_pii_sensitive': self.non_pii_sensitive,
+            'personal_data_sensitive': self.personal_data_sensitive,
+            'non_personal_data_sensitive': self.non_personal_data_sensitive,
             'columns': [col.to_dict() for col in self.columns],
-            'non_pii': self.non_pii_classification.to_dict(),
+            'non_personal_data': self.non_pii_classification.to_dict(),
         }
 
         # Optional fields
@@ -149,8 +149,8 @@ class SheetReport:
         # Parse columns
         columns = [Column.from_dict(col) for col in data.get('columns', [])]
 
-        # Parse non-PII classification
-        non_pii_data = data.get('non_pii', {})
+        # Parse non-PII classification (support both old and new keys)
+        non_pii_data = data.get('non_personal_data', data.get('non_pii', {}))
         non_pii_classification = NonPIIClassification.from_dict(non_pii_data)
 
         return cls(
@@ -170,8 +170,8 @@ class SheetReport:
             readme_model=data.get('readme_model'),
             columns=columns,
             non_pii_classification=non_pii_classification,
-            pii_sensitive=data.get('pii_sensitive', False),
-            non_pii_sensitive=data.get('non_pii_sensitive', False),
+            personal_data_sensitive=data.get('personal_data_sensitive', data.get('pii_sensitive', False)),
+            non_personal_data_sensitive=data.get('non_personal_data_sensitive', data.get('non_pii_sensitive', False)),
             error_source=data.get('error_source'),
             error_message=data.get('error_message'),
             is_readme=data.get('is_readme', False),

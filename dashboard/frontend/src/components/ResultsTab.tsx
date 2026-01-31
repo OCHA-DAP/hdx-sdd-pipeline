@@ -15,16 +15,16 @@ interface Report {
   processing_success: boolean;
   n_records?: number;
   n_columns?: number;
-  pii_sensitive?: boolean;
-  non_pii_sensitive?: boolean;
+  personal_data_sensitive?: boolean;
+  non_personal_data_sensitive?: boolean;
   columns?: Array<{
     column_name: string;
     sample_values: string[];
-    pii?: {
+    personal_data?: {
       entity_type?: string;
       sensitive?: boolean;
     };
-    non_pii?: {
+    non_personal_data?: {
       sensitivity?: string;
     };
   }>;
@@ -441,15 +441,15 @@ export default function ResultsTab({ datasets }: Props) {
                           </div>
                         )}
                         <div>
-                          <span className="text-white/60">PII Sensitive:</span>
-                          <span className={`ml-2 ${sheetReport.pii_sensitive ? 'text-red-400' : 'text-green-400'}`}>
-                            {sheetReport.pii_sensitive ? 'Yes' : 'No'}
+                          <span className="text-white/60">Personal Data Sensitive:</span>
+                          <span className={`ml-2 ${sheetReport.personal_data_sensitive ? 'text-red-400' : 'text-green-400'}`}>
+                            {sheetReport.personal_data_sensitive ? 'Yes' : 'No'}
                           </span>
                         </div>
                         <div>
-                          <span className="text-white/60">Non-PII Sensitive:</span>
-                          <span className={`ml-2 ${sheetReport.non_pii_sensitive ? 'text-red-400' : 'text-green-400'}`}>
-                            {sheetReport.non_pii_sensitive ? 'Yes' : 'No'}
+                          <span className="text-white/60">Non-Personal Data Sensitive:</span>
+                          <span className={`ml-2 ${sheetReport.non_personal_data_sensitive ? 'text-red-400' : 'text-green-400'}`}>
+                            {sheetReport.non_personal_data_sensitive ? 'Yes' : 'No'}
                           </span>
                         </div>
                       </div>
@@ -475,19 +475,19 @@ export default function ResultsTab({ datasets }: Props) {
                               <div className="flex items-center justify-between mb-2">
                                 <span className="font-medium text-white">{col.column_name}</span>
                                 <div className="flex gap-2">
-                                  {col.pii?.entity_type && (
+                                  {col.personal_data?.entity_type && (
                                     <span className="text-xs px-2 py-1 rounded bg-blue-500/30 text-blue-200">
-                                      PII: {col.pii.entity_type}
+                                      Personal Data: {col.personal_data.entity_type}
                                     </span>
                                   )}
-                                  {col.pii?.sensitive && (
+                                  {col.personal_data?.sensitive && (
                                     <span className="text-xs px-2 py-1 rounded bg-red-500/30 text-red-200">
                                       Sensitive
                                     </span>
                                   )}
-                                  {col.non_pii?.sensitivity && (
+                                  {col.non_personal_data?.sensitivity && (
                                     <span className="text-xs px-2 py-1 rounded bg-yellow-500/30 text-yellow-200">
-                                      {col.non_pii.sensitivity}
+                                      {col.non_personal_data.sensitivity}
                                     </span>
                                   )}
                                 </div>

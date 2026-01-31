@@ -29,7 +29,7 @@ interface Metrics {
 interface ModelStatistics {
     file_level: Metrics;
     sheet_level_pii: Metrics;
-    sheet_level_non_pii: Metrics;
+    sheet_level_non_personal_data: Metrics;
 }
 
 interface StatisticsResponse {

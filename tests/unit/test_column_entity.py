@@ -73,8 +73,8 @@ class TestColumn:
 
         assert result['column_name'] == 'email'
         assert result['sample_values'] == ['test@example.com']
-        assert result['pii']['entity_type'] == 'EMAIL_ADDRESS'
-        assert result['pii']['sensitive'] is True
+        assert result['personal_data']['entity_type'] == 'EMAIL_ADDRESS'
+        assert result['personal_data']['sensitive'] is True
 
     def test_from_dict(self):
         """Test creating column from dictionary."""

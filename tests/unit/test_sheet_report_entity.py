@@ -82,7 +82,7 @@ class TestSheetReport:
 
         report.update_pii_sensitivity()
 
-        assert report.pii_sensitive is True
+        assert report.personal_data_sensitive is True
 
     def test_update_non_pii_sensitivity(self):
         """Test updating non-PII sensitivity flag."""
@@ -91,37 +91,37 @@ class TestSheetReport:
 
         report.update_non_pii_sensitivity()
 
-        assert report.non_pii_sensitive is True
+        assert report.non_personal_data_sensitive is True
 
     def test_is_sensitive_pii_only(self):
         """Test is_sensitive with PII only."""
         report = SheetReport(file_name='test.csv', sheet_name='Sheet1')
-        report.pii_sensitive = True
-        report.non_pii_sensitive = False
+        report.personal_data_sensitive = True
+        report.non_personal_data_sensitive = False
 
         assert report.is_sensitive() is True
 
     def test_is_sensitive_non_pii_only(self):
         """Test is_sensitive with non-PII only."""
         report = SheetReport(file_name='test.csv', sheet_name='Sheet1')
-        report.pii_sensitive = False
-        report.non_pii_sensitive = True
+        report.personal_data_sensitive = False
+        report.non_personal_data_sensitive = True
 
         assert report.is_sensitive() is True
 
     def test_is_sensitive_both(self):
         """Test is_sensitive with both PII and non-PII."""
         report = SheetReport(file_name='test.csv', sheet_name='Sheet1')
-        report.pii_sensitive = True
-        report.non_pii_sensitive = True
+        report.personal_data_sensitive = True
+        report.non_personal_data_sensitive = True
 
         assert report.is_sensitive() is True
 
     def test_is_sensitive_neither(self):
         """Test is_sensitive with neither."""
         report = SheetReport(file_name='test.csv', sheet_name='Sheet1')
-        report.pii_sensitive = False
-        report.non_pii_sensitive = False
+        report.personal_data_sensitive = False
+        report.non_personal_data_sensitive = False
 
         assert report.is_sensitive() is False
 
@@ -226,10 +226,10 @@ class TestSheetReport:
             'n_columns': 5,
             'completion_tokens': 150,
             'prompt_tokens': 500,
-            'pii_sensitive': True,
-            'non_pii_sensitive': False,
+            'personal_data_sensitive': True,
+            'non_personal_data_sensitive': False,
             'columns': [],
-            'non_pii': {'sensitivity': 'NON_SENSITIVE'},
+            'non_personal_data': {'sensitivity': 'NON_SENSITIVE'},
         }
 
         report = SheetReport.from_dict(data)
@@ -238,7 +238,7 @@ class TestSheetReport:
         assert report.file_name == 'test.csv'
         assert report.sheet_name == 'Sheet1'
         assert report.n_records == 100
-        assert report.pii_sensitive is True
+        assert report.personal_data_sensitive is True
 
     def test_from_dict_with_columns(self):
         """Test from_dict includes columns."""
@@ -250,10 +250,10 @@ class TestSheetReport:
                 {
                     'column_name': 'email',
                     'sample_values': ['test@example.com'],
-                    'pii': {'entity_type': 'EMAIL_ADDRESS', 'sensitive': True},
+                    'personal_data': {'entity_type': 'EMAIL_ADDRESS', 'sensitive': True},
                 }
             ],
-            'non_pii': {'sensitivity': 'NON_SENSITIVE'},
+            'non_personal_data': {'sensitivity': 'NON_SENSITIVE'},
         }
 
         report = SheetReport.from_dict(data)

@@ -17,7 +17,7 @@ interface Props {
 
 interface ModelPrediction {
     pii_entity_type?: string;
-    pii_sensitive: boolean;
+    personal_data_sensitive: boolean;
     pii_correct: boolean;
 }
 
@@ -26,7 +26,7 @@ interface ColumnComparison {
     sample_values: string[];
     ground_truth: {
         pii_entity_type?: string;
-        pii_sensitive: boolean;
+        personal_data_sensitive: boolean;
     };
     model_predictions: Record<string, ModelPrediction>;
 }
@@ -36,12 +36,12 @@ interface SheetComparison {
     n_records?: number;
     n_columns?: number;
     ground_truth: {
-        pii_sensitive: boolean;
-        non_pii_sensitive: boolean;
+        personal_data_sensitive: boolean;
+        non_personal_data_sensitive: boolean;
     };
     model_predictions: Record<string, {
-        pii_sensitive: boolean;
-        non_pii_sensitive: boolean;
+        personal_data_sensitive: boolean;
+        non_personal_data_sensitive: boolean;
         non_pii_sensitivity_explanation?: string;
         pii_correct: boolean;
         non_pii_correct: boolean;
@@ -271,12 +271,12 @@ export default function AllModelsPredictionsTab({ datasets }: Props) {
                                                         <td className="py-2 px-3 font-semibold text-[#009edb]">Ground Truth</td>
                                                         <td className="py-2 px-3">
                                                             <span className="text-xs px-2 py-1 rounded bg-blue-500/30 text-blue-200 border border-blue-500/50">
-                                                                {sheet.ground_truth.pii_sensitive ? 'Yes' : 'No'}
+                                                                {sheet.ground_truth.personal_data_sensitive ? 'Yes' : 'No'}
                                                             </span>
                                                         </td>
                                                         <td className="py-2 px-3">
                                                             <span className="text-xs px-2 py-1 rounded bg-blue-500/30 text-blue-200 border border-blue-500/50">
-                                                                {sheet.ground_truth.non_pii_sensitive ? 'Yes' : 'No'}
+                                                                {sheet.ground_truth.non_personal_data_sensitive ? 'Yes' : 'No'}
                                                             </span>
                                                         </td>
                                                     </tr>
@@ -290,11 +290,11 @@ export default function AllModelsPredictionsTab({ datasets }: Props) {
                                                             <tr key={model} className="border-b border-white/10 hover:bg-white/5">
                                                                 <td className="py-2 px-3 text-white font-medium">{model}</td>
                                                                 <td className="py-2 px-3">
-                                                                    {renderBadge(pred.pii_correct, pred.pii_sensitive)}
+                                                                    {renderBadge(pred.pii_correct, pred.personal_data_sensitive)}
                                                                 </td>
                                                                 <td className="py-2 px-3">
                                                                     <div className="relative group inline-block">
-                                                                        {renderBadge(pred.non_pii_correct, pred.non_pii_sensitive)}
+                                                                        {renderBadge(pred.non_pii_correct, pred.non_personal_data_sensitive)}
                                                                         {pred.non_pii_sensitivity_explanation && (
                                                                             <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-4 py-3 bg-gray-900 text-white text-xs rounded-lg shadow-xl opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none max-w-md w-max z-50 border border-gray-700">
                                                                                 <div className="font-semibold mb-2 text-blue-300">Non-PII Sensitivity Explanation:</div>
@@ -366,7 +366,7 @@ export default function AllModelsPredictionsTab({ datasets }: Props) {
                                                                         </td>
                                                                         <td className="py-2 px-2">
                                                                             <span className="text-xs px-2 py-1 rounded bg-blue-500/30 text-blue-200">
-                                                                                {col.ground_truth.pii_sensitive ? 'Yes' : 'No'}
+                                                                                {col.ground_truth.personal_data_sensitive ? 'Yes' : 'No'}
                                                                             </span>
                                                                         </td>
                                                                     </tr>
@@ -392,7 +392,7 @@ export default function AllModelsPredictionsTab({ datasets }: Props) {
                                                                                     </span>
                                                                                 </td>
                                                                                 <td className="py-2 px-2">
-                                                                                    {renderBadge(pred.pii_correct, pred.pii_sensitive)}
+                                                                                    {renderBadge(pred.pii_correct, pred.personal_data_sensitive)}
                                                                                 </td>
                                                                             </tr>
                                                                         );

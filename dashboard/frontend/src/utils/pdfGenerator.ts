@@ -29,7 +29,7 @@ interface Metrics {
 interface ModelStatistics {
   file_level: Metrics;
   sheet_level_pii: Metrics;
-  sheet_level_non_pii: Metrics;
+  sheet_level_non_personal_data: Metrics;
 }
 
 interface StatisticsResponse {
@@ -359,11 +359,11 @@ export const generateStatisticsPDF = (statistics: StatisticsResponse, selectedMo
     startY: yPosition,
     head: [['Metric', 'Score', 'Interpretation']],
     body: [
-      ['Accuracy', formatPercent(modelStats.sheet_level_non_pii.accuracy), 'Overall correctness'],
-      ['Precision', formatPercent(modelStats.sheet_level_non_pii.precision), 'Accuracy of sensitive predictions'],
-      ['Recall', formatPercent(modelStats.sheet_level_non_pii.recall), 'Percentage of sensitive sheets caught'],
-      ['F1 Score', modelStats.sheet_level_non_pii.f1.toFixed(3), 'Balance of precision and recall'],
-      ['Total Sheets', String(modelStats.sheet_level_non_pii.total_sheets || 0), 'Number of sheets tested'],
+      ['Accuracy', formatPercent(modelStats.sheet_level_non_personal_data.accuracy), 'Overall correctness'],
+      ['Precision', formatPercent(modelStats.sheet_level_non_personal_data.precision), 'Accuracy of sensitive predictions'],
+      ['Recall', formatPercent(modelStats.sheet_level_non_personal_data.recall), 'Percentage of sensitive sheets caught'],
+      ['F1 Score', modelStats.sheet_level_non_personal_data.f1.toFixed(3), 'Balance of precision and recall'],
+      ['Total Sheets', String(modelStats.sheet_level_non_personal_data.total_sheets || 0), 'Number of sheets tested'],
     ],
     theme: 'grid',
     headStyles: { fillColor: [0, 158, 219], textColor: 255 },
@@ -379,7 +379,7 @@ export const generateStatisticsPDF = (statistics: StatisticsResponse, selectedMo
   doc.text('Confusion Matrix - Non-PII Sensitive Detection', margin, yPosition);
   yPosition += 8;
   
-  const cmNonPii = modelStats.sheet_level_non_pii.confusion_matrix;
+  const cmNonPii = modelStats.sheet_level_non_personal_data.confusion_matrix;
   autoTable(doc, {
     startY: yPosition,
     head: [['', 'Predicted: Not Sensitive', 'Predicted: Sensitive']],
@@ -398,14 +398,14 @@ export const generateStatisticsPDF = (statistics: StatisticsResponse, selectedMo
   yPosition = (doc as any).lastAutoTable.finalY + 15;
 
   // Non-PII misclassifications (limited to first 15)
-  if (modelStats.sheet_level_non_pii.misclassifications.length > 0) {
+  if (modelStats.sheet_level_non_personal_data.misclassifications.length > 0) {
     checkPageBreak(40);
     doc.setFontSize(12);
     doc.setFont('helvetica', 'bold');
-    doc.text(`Non-PII Misclassifications (showing ${Math.min(15, modelStats.sheet_level_non_pii.misclassifications.length)} of ${modelStats.sheet_level_non_pii.misclassifications.length})`, margin, yPosition);
+    doc.text(`Non-PII Misclassifications (showing ${Math.min(15, modelStats.sheet_level_non_personal_data.misclassifications.length)} of ${modelStats.sheet_level_non_personal_data.misclassifications.length})`, margin, yPosition);
     yPosition += 8;
     
-    const nonPiiMisclass = modelStats.sheet_level_non_pii.misclassifications.slice(0, 15).map(m => [
+    const nonPiiMisclass = modelStats.sheet_level_non_personal_data.misclassifications.slice(0, 15).map(m => [
       m.file,
       m.sheet_name || 'N/A',
       m.error_type,
@@ -451,8 +451,8 @@ export const generateStatisticsPDF = (statistics: StatisticsResponse, selectedMo
           stats.file_level.f1.toFixed(3),
           formatPercent(stats.sheet_level_pii.accuracy),
           stats.sheet_level_pii.f1.toFixed(3),
-          formatPercent(stats.sheet_level_non_pii.accuracy),
-          stats.sheet_level_non_pii.f1.toFixed(3),
+          formatPercent(stats.sheet_level_non_personal_data.accuracy),
+          stats.sheet_level_non_personal_data.f1.toFixed(3),
         ];
       });
 
@@ -493,7 +493,7 @@ export const generateStatisticsPDF = (statistics: StatisticsResponse, selectedMo
     '',
     `• File-Level Accuracy: ${formatPercent(modelStats.file_level.accuracy)}`,
     `• PII Detection Accuracy: ${formatPercent(modelStats.sheet_level_pii.accuracy)}`,
-    `• Non-PII Detection Accuracy: ${formatPercent(modelStats.sheet_level_non_pii.accuracy)}`,
+    `• Non-PII Detection Accuracy: ${formatPercent(modelStats.sheet_level_non_personal_data.accuracy)}`,
     '',
     `Total False Positives (False Alarms): ${totalFP}`,
     `  → These are safe items incorrectly flagged as sensitive`,

@@ -80,14 +80,16 @@ class Column:
         return {
             'column_name': self.name,
             'sample_values': make_json_serializable(self.sample_values),
-            'pii': self.pii_classification.to_dict(),
+            'personal_data': self.pii_classification.to_dict(),
         }
 
     @classmethod
     def from_dict(cls, data: dict) -> 'Column':
         """Create Column from dictionary representation."""
+        # Support both old 'pii' and new 'personal_data' keys
+        pii_data = data.get('personal_data', data.get('pii', {}))
         return cls(
             name=data.get('column_name', ''),
             sample_values=data.get('sample_values', []),
-            pii_classification=PIIClassification.from_dict(data.get('pii', {})),
+            pii_classification=PIIClassification.from_dict(pii_data),
         )

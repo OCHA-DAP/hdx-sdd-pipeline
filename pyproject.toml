@@ -37,12 +37,13 @@ skip-string-normalization = true
 [tool.pytest.ini_options]
 pythonpath = ["."]
 testpaths = ["tests"]
-addopts = """
-    --cov=src
-    --cov=utils
-    --cov-report=term-missing
-    --cov-report=html
-"""
+# Coverage options - uncomment if needed
+# addopts = """
+#     --cov=src
+#     --cov=utils
+#     --cov-report=term-missing
+#     --cov-report=html
+# """
 
 # ✅ Coverage config added here
 [tool.coverage.run]

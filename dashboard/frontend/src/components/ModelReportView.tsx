@@ -9,8 +9,8 @@ interface ModelReportViewProps {
       processing_success: boolean;
       n_records?: number;
       n_columns?: number;
-      pii_sensitive?: boolean;
-      non_pii_sensitive?: boolean;
+      personal_data_sensitive?: boolean;
+      non_personal_data_sensitive?: boolean;
       error_source?: string;
       error_message?: string;
       columns?: Array<{
@@ -102,20 +102,20 @@ export function ModelReportView({ report }: ModelReportViewProps) {
             <span className="text-white/60">PII Sensitive:</span>
             <span
               className={`ml-2 ${
-                sheet.pii_sensitive ? "text-red-400" : "text-green-400"
+                sheet.personal_data_sensitive ? "text-red-400" : "text-green-400"
               }`}
             >
-              {sheet.pii_sensitive ? "Yes" : "No"}
+              {sheet.personal_data_sensitive ? "Yes" : "No"}
             </span>
           </div>
           <div>
             <span className="text-white/60">Non-PII Sensitive:</span>
             <span
               className={`ml-2 ${
-                sheet.non_pii_sensitive ? "text-red-400" : "text-green-400"
+                sheet.non_personal_data_sensitive ? "text-red-400" : "text-green-400"
               }`}
             >
-              {sheet.non_pii_sensitive ? "Yes" : "No"}
+              {sheet.non_personal_data_sensitive ? "Yes" : "No"}
             </span>
           </div>
         </div>

@@ -4,7 +4,6 @@ import requests
 import os
 from pathlib import Path
 from typing import Any
-from utils.ckan import CKANClient
 from utils.prompt_manager import PromptManager
 import pandas as pd
 from utils.utils import table_markdown
@@ -69,24 +68,7 @@ def create_mock_response():
     return factory
 
 
-# ----------------------------------------------------------------------
-# CKANClient fixture
-# ----------------------------------------------------------------------
-@pytest.fixture
-def mock_ckan_client():
-    """
-    Returns a CKANClient configured with temporary env variables
-    and an isolated project root to avoid actual file I/O.
-    """
 
-    with patch.dict(
-        os.environ,
-        {'HDX_URL': 'http://mock-ckan.org', 'HDX_KEY': 'mock-token'},
-        clear=True,
-    ):
-        client = CKANClient(base_url='http://mock-ckan.org', api_token='mock-token')
-        client.project_root = Path('/tmp/mock-project-root')
-        return client
 
 
 @pytest.fixture
