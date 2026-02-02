@@ -1,6 +1,6 @@
 [
     {
-        "event_type": "resource-data-changed",
+        "event_type": "sdd-resource-data-changed",
         "event_time": "2025-08-05T20:11:37.131862",
         "event_source": "ckan",
         "dataset_name": "esp-requirements-and-funding-data",
