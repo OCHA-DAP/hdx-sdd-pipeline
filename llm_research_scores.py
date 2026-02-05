@@ -28,8 +28,8 @@ def compare_pii_columns(gt_reports, pred_reports):
     """Compare PII sensitivity for all columns across sheets."""
     records = []
     for gt, pred in zip(gt_reports, pred_reports):
-        gt_cols = {c['column_name']: c['pii']['sensitive'] for c in gt['columns']}
-        pred_cols = {c['column_name']: c['pii']['sensitive'] for c in pred['columns']}
+        gt_cols = {c['column_name']: c['personal_data']['sensitive'] for c in gt['columns']}
+        pred_cols = {c['column_name']: c['personal_data']['sensitive'] for c in pred['columns']}
         for col_name in gt_cols:
             records.append({'column_name': col_name, 'true': gt_cols[col_name], 'pred': pred_cols.get(col_name, False)})
     return pd.DataFrame(records)
@@ -39,7 +39,10 @@ def compare_pii_table_level(gt_reports, pred_reports):
     """Compare PII sensitivity at the table level."""
     records = []
     for gt, pred in zip(gt_reports, pred_reports):
-        records.append({'true': gt.get('pii_sensitive', False), 'pred': pred.get('pii_sensitive', False)})
+        records.append({
+            'true': gt.get('personal_data_sensitive', False),
+            'pred': pred.get('personal_data_sensitive', False)
+        })
     return pd.DataFrame(records)
 
 
@@ -47,7 +50,10 @@ def compare_non_pii_table_level(gt_reports, pred_reports):
     """Compare non-PII sensitivity at the table level."""
     records = []
     for gt, pred in zip(gt_reports, pred_reports):
-        records.append({'true': gt.get('non_pii_sensitive', False), 'pred': pred.get('non_pii_sensitive', False)})
+        records.append({
+            'true': gt.get('non_personal_data_sensitive', False),
+            'pred': pred.get('non_personal_data_sensitive', False)
+        })
     return pd.DataFrame(records)
 
 

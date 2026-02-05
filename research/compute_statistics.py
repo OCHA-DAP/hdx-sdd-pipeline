@@ -96,10 +96,11 @@ def eval_personal_sensitive_data_column_level(llm_model: str):
 
             for col in gt_cols:
                 col_name = col['column_name']
-                gt_label = int(col['pii']['sensitive'])
+                gt_label = int(col['personal_data']['sensitive'])
                 gt_arr.append(gt_label)
 
-                pred_label = int(pd_map.get(col_name, {'pii': {'sensitive': 0}})['pii']['sensitive'])
+                default_col = {'personal_data': {'sensitive': 0}}
+                pred_label = int(pd_map.get(col_name, default_col)['personal_data']['sensitive'])
                 pred_arr.append(pred_label)
 
                 if gt_label != pred_label:
@@ -158,10 +159,10 @@ if __name__ == '__main__':
 
     LLM_MODEL = 'gpt-4.1-nano'
     print(f'Evaluating sheet level non-personal sensitive data for LLM: {LLM_MODEL}')
-    eval_sheet_level_sensitive_data(LLM_MODEL, 'non_pii_sensitive')
+    eval_sheet_level_sensitive_data(LLM_MODEL, 'non_personal_data_sensitive')
     print('--------------------------------')
     print(f'Evaluating sheet level personal sensitive data for LLM: {LLM_MODEL}')
-    eval_sheet_level_sensitive_data(LLM_MODEL, 'pii_sensitive')
+    eval_sheet_level_sensitive_data(LLM_MODEL, 'personal_data_sensitive')
     print('--------------------------------')
     print('Evaluating column level personal sensitive data')
     print('--------------------------------')

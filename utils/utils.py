@@ -16,15 +16,15 @@ def report_exists_in_ckan(ckan, resource_id):
 @handle_exception_wrap()
 def determine_sensitivity(reports: list) -> str:
     """Determine overall sensitivity from sheet-level reports."""
-    pii = any(r.get('pii_sensitive') for r in reports)
-    non_pii = any(r.get('non_pii_sensitive') for r in reports)
+    personal_data = any(r.get('personal_data_sensitive') for r in reports)
+    non_personal_data = any(r.get('non_personal_data_sensitive') for r in reports)
 
-    if pii and non_pii:
-        return 'sensitive-pii-and-non-pii'
-    if pii:
-        return 'sensitive-pii'
-    if non_pii:
-        return 'sensitive-non-pii'
+    if personal_data and non_personal_data:
+        return 'sensitive-personal-data-and-non-personal-data'
+    if personal_data:
+        return 'sensitive-personal-data'
+    if non_personal_data:
+        return 'sensitive-non-personal-data'
     return 'not-sensitive'
 
 
@@ -34,8 +34,8 @@ def table_markdown(report: Dict[str, Any]) -> str:
     column_samples = {}
     for col in report['columns']:
         key = (
-            f'{col["column_name"]} - {col["pii"].get("entity_type", "None")}'
-            if col['pii'].get('entity_type') != 'None'
+            f'{col["column_name"]} - {col["personal_data"].get("entity_type", "None")}'
+            if col['personal_data'].get('entity_type') != 'None'
             else col['column_name']
         )
         column_samples[key] = col['sample_values']

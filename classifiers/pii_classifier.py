@@ -49,7 +49,7 @@ class PIIClassifier(BaseClassifier):
 
         if not sample_values or any(v == '' for v in sample_values) or sample_values == []:
             return (
-                {'column_name': column_name, 'sample_values': sample_values, 'pii': {'entity_type': 'None'}},
+                {'column_name': column_name, 'sample_values': sample_values, 'personal_data': {'entity_type': 'None'}},
                 0,
                 0,
             )
@@ -66,7 +66,7 @@ class PIIClassifier(BaseClassifier):
         entity = self._normalize_prediction(prediction)
 
         return (
-            {'column_name': column_name, 'sample_values': sample_values, 'pii': {'entity_type': entity}},
+            {'column_name': column_name, 'sample_values': sample_values, 'personal_data': {'entity_type': entity}},
             completion_tokens,
             prompt_tokens,
         )

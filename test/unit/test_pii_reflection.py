@@ -28,18 +28,18 @@ def test_classify_df(pii_reflection_classifier_instance, sample_report):
 
     pii_reflection_classifier_instance._run_prompt.return_value = ('NON_SENSITIVE', 10, 20)
     sdd_report = pii_reflection_classifier_instance.classify_df(sample_report)
-    assert sdd_report['columns'][0]['pii']['sensitive'] == False
-    assert sdd_report['columns'][1]['pii']['sensitive'] == False
-    assert sdd_report['columns'][2]['pii']['sensitive'] == False
+    assert sdd_report['columns'][0]['personal_data']['sensitive'] == False
+    assert sdd_report['columns'][1]['personal_data']['sensitive'] == False
+    assert sdd_report['columns'][2]['personal_data']['sensitive'] == False
 
 
 def test_classify_df_none_column(pii_reflection_classifier_instance, sample_report):
-    sample_report['columns'][0]['pii']['entity_type'] = 'None'
+    sample_report['columns'][0]['personal_data']['entity_type'] = 'None'
     pii_reflection_classifier_instance._run_prompt.return_value = ('SENSITIVE', 10, 20)
     sdd_report = pii_reflection_classifier_instance.classify_df(sample_report)
-    assert sdd_report['columns'][0]['pii']['sensitive'] == False
-    assert sdd_report['columns'][1]['pii']['sensitive'] == True
-    assert sdd_report['columns'][2]['pii']['sensitive'] == True
+    assert sdd_report['columns'][0]['personal_data']['sensitive'] == False
+    assert sdd_report['columns'][1]['personal_data']['sensitive'] == True
+    assert sdd_report['columns'][2]['personal_data']['sensitive'] == True
     assert sdd_report['completion_tokens'] == 20
     assert sdd_report['prompt_tokens'] == 40
 

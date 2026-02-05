@@ -12,8 +12,8 @@
   "pii_classifier_model": "gpt-4.1-mini",
   "pii_reflection_model": "gpt-4.1-mini",
   "non_pii_model": "gpt-4.1-mini",
-  "pii_sensitive": false,
-  "non_pii_sensitive": false,
+  "personal_data_sensitive": false,
+  "non_personal_data_sensitive": false,
   "columns": [
     {
       "column_name": "Name",
@@ -22,7 +22,7 @@
         "Bob",
         "Charlie"
       ],
-      "pii": {
+      "personal_data": {
         "entity_type": "PERSON_NAME",
         "sensitive": true
       }
@@ -34,7 +34,7 @@
         "34",
         "25"
       ],
-      "pii": {
+      "personal_data": {
         "entity_type": "AGE",
         "sensitive": true
       }
@@ -46,7 +46,7 @@
         "Somalia",
         "Ethiopia"
       ],
-      "pii": {
+      "personal_data": {
         "entity_type": "None",
         "sensitive": false
       }
@@ -58,13 +58,13 @@
         "Shelter",
         "Medical"
       ],
-      "pii": {
+      "personal_data": {
         "entity_type": "None",
         "sensitive": false
       }
     }
   ],
-  "non_pii": {
+  "non_personal_data": {
     "model_name": "gpt-4.1-mini",
     "isp_used": "default",
     "sensitivity": "SEVERE_SENSITIVE",

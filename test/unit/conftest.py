@@ -175,10 +175,14 @@ def sample_report(mock_sdd_report):
             {
                 'column_name': 'name',
                 'sample_values': ['Alice', 'Bob', 'Charlie'],
-                'pii': {'entity_type': 'PERSON_NAME'},
+                'personal_data': {'entity_type': 'PERSON_NAME'},
             },
-            {'column_name': 'age', 'sample_values': ['25', '30', '35'], 'pii': {'entity_type': 'AGE'}},
-            {'column_name': 'country', 'sample_values': ['US', 'UK', 'DE'], 'pii': {'entity_type': 'STREET_ADDRESS'}},
+            {'column_name': 'age', 'sample_values': ['25', '30', '35'], 'personal_data': {'entity_type': 'AGE'}},
+            {
+                'column_name': 'country',
+                'sample_values': ['US', 'UK', 'DE'],
+                'personal_data': {'entity_type': 'STREET_ADDRESS'}
+            },
         ],
     }
     return report

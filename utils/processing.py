@@ -34,8 +34,8 @@ def create_report(url: str, resource_id: str = None, download_url: str = None, s
             'n_columns': len(sheets[sheet_name].columns),
             'completion_tokens': 0,
             'prompt_tokens': 0,
-            'pii_sensitive': False,
-            'non_pii_sensitive': False,
+            'personal_data_sensitive': False,
+            'non_personal_data_sensitive': False,
             'columns': [],
         }
         if 'readme' in sheet_name.lower().replace(' ', ''):
@@ -48,7 +48,7 @@ def create_report(url: str, resource_id: str = None, download_url: str = None, s
                 {
                     'column_name': col,
                     'sample_values': item,
-                    'pii': {'entity_type': 'TODO', 'sensitive': False},
+                    'personal_data': {'entity_type': 'TODO', 'sensitive': False},
                 }
             )
         reports.append(sdd_report)
