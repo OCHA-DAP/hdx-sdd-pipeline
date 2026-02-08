@@ -112,7 +112,7 @@ class CKANClient:
         file_path = output_dir / filename
         logger.info('Downloading file: %s', url)
 
-        response = requests.get(url, timeout=30)
+        response = requests.get(url, timeout=30, headers=self.headers)
         response.raise_for_status()
         file_path.write_bytes(response.content)
 
