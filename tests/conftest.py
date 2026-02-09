@@ -33,8 +33,8 @@ def sample_sheet_report_data():
         'n_columns': 5,
         'completion_tokens': 150,
         'prompt_tokens': 500,
-        'pii_sensitive': True,
-        'non_pii_sensitive': False,
+        'personal_data_sensitive': True,
+        'non_personal_data_sensitive': False,
         'columns': [
             {
                 'column_name': 'email',

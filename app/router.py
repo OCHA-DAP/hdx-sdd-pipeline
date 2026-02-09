@@ -300,7 +300,7 @@ async def generate_all_reports(
         Summary of generated reports
     """
     # Available models
-    models = ['gpt-5-nano', 'gpt-5-mini', 'gpt-4.1-nano', 'gpt-4.1-mini', 'gpt-4.1', 'DeepSeek-V3.1']
+    models = ['gpt-5-nano', 'gpt-5-mini', 'gpt-5.1', 'gpt-4.1-nano', 'gpt-4.1-mini', 'gpt-4.1', 'DeepSeek-V3.1']
     
     # Read dataset file
     dataset_file = DATASETS_DIR / dataset_filename
@@ -445,8 +445,8 @@ async def create_groundtruth_template(
                 'n_columns': len(sample_dict),
                 'completion_tokens': 0,
                 'prompt_tokens': 0,
-                'pii_sensitive': False,
-                'non_pii_sensitive': False,
+                'personal_data_sensitive': False,
+                'non_personal_data_sensitive': False,
                 'columns': columns
             }
             
@@ -494,12 +494,12 @@ def compute_file_level_metrics(model_name: str) -> Dict[str, Any]:
     for filename in common_files:
         gt_data = load_json_file(GROUNDTRUTH_DIR / filename)
         pred_data = load_json_file(model_dir / filename)
-        # File is sensitive if ANY sheet has pii_sensitive OR non_pii_sensitive
+        # File is sensitive if ANY sheet has personal_data_sensitive OR non_personal_data_sensitive
         gt_sensitive = any(
-            sheet.get('pii_sensitive', False) or sheet.get('non_pii_sensitive', False) for sheet in gt_data
+            sheet.get('personal_data_sensitive', False) or sheet.get('non_personal_data_sensitive', False) for sheet in gt_data
         )
         pred_sensitive = any(
-            sheet.get('pii_sensitive', False) or sheet.get('non_pii_sensitive', False) for sheet in pred_data
+            sheet.get('personal_data_sensitive', False) or sheet.get('non_personal_data_sensitive', False) for sheet in pred_data
         )
         gt_arr.append(int(gt_sensitive))
         pred_arr.append(int(pred_sensitive))
@@ -548,9 +548,9 @@ def compute_file_level_pii_metrics(model_name: str) -> Dict[str, Any]:
     for filename in common_files:
         gt_data = load_json_file(GROUNDTRUTH_DIR / filename)
         pred_data = load_json_file(model_dir / filename)
-        # File has PII if ANY sheet has pii_sensitive
-        gt_pii = any(sheet.get('pii_sensitive', False) for sheet in gt_data)
-        pred_pii = any(sheet.get('pii_sensitive', False) for sheet in pred_data)
+        # File has PII if ANY sheet has personal_data_sensitive
+        gt_pii = any(sheet.get('personal_data_sensitive', False) for sheet in gt_data)
+        pred_pii = any(sheet.get('personal_data_sensitive', False) for sheet in pred_data)
         gt_arr.append(int(gt_pii))
         pred_arr.append(int(pred_pii))
         if gt_pii != pred_pii:
@@ -595,9 +595,9 @@ def compute_file_level_non_pii_metrics(model_name: str) -> Dict[str, Any]:
     for filename in common_files:
         gt_data = load_json_file(GROUNDTRUTH_DIR / filename)
         pred_data = load_json_file(model_dir / filename)
-        # File has non-PII sensitive if ANY sheet has non_pii_sensitive
-        gt_non_pii = any(sheet.get('non_pii_sensitive', False) for sheet in gt_data)
-        pred_non_pii = any(sheet.get('non_pii_sensitive', False) for sheet in pred_data)
+        # File has non-PII sensitive if ANY sheet has non_personal_data_sensitive
+        gt_non_pii = any(sheet.get('non_personal_data_sensitive', False) for sheet in gt_data)
+        pred_non_pii = any(sheet.get('non_personal_data_sensitive', False) for sheet in pred_data)
         gt_arr.append(int(gt_non_pii))
         pred_arr.append(int(pred_non_pii))
         if gt_non_pii != pred_non_pii:
@@ -628,7 +628,7 @@ def compute_file_level_non_pii_metrics(model_name: str) -> Dict[str, Any]:
 
 
 def compute_sheet_level_metrics(model_name: str, category: str) -> Dict[str, Any]:
-    """Compute sheet-level metrics for pii_sensitive or non_pii_sensitive."""
+    """Compute sheet-level metrics for personal_data_sensitive or non_personal_data_sensitive."""
     model_dir = REPORTS_DIR / model_name
     if not model_dir.exists():
         return {'error': f'Model directory {model_name} not found'}
@@ -700,14 +700,14 @@ async def get_statistics(
         file_level = compute_file_level_metrics(model)
         file_level_pii = compute_file_level_pii_metrics(model)
         file_level_non_pii = compute_file_level_non_pii_metrics(model)
-        pii_sheet_level = compute_sheet_level_metrics(model, 'pii_sensitive')
-        non_pii_sheet_level = compute_sheet_level_metrics(model, 'non_pii_sensitive')
+        pii_sheet_level = compute_sheet_level_metrics(model, 'personal_data_sensitive')
+        non_pii_sheet_level = compute_sheet_level_metrics(model, 'non_personal_data_sensitive')
         results[model] = {
             'file_level': file_level,
-            'file_level_pii': file_level_pii,
-            'file_level_non_pii': file_level_non_pii,
-            'sheet_level_pii': pii_sheet_level,
-            'sheet_level_non_pii': non_pii_sheet_level,
+            'file_level_personal_data': file_level_pii,
+            'file_level_non_personal_data': file_level_non_pii,
+            'sheet_level_personal_data': pii_sheet_level,
+            'sheet_level_non_personal_data': non_pii_sheet_level,
         }
     return {
         'models': results,
@@ -754,8 +754,8 @@ async def compare_models(
             'n_records': gt_sheet.get('n_records'),
             'n_columns': gt_sheet.get('n_columns'),
             'ground_truth': {
-                'pii_sensitive': gt_sheet.get('pii_sensitive', False),
-                'non_pii_sensitive': gt_sheet.get('non_pii_sensitive', False),
+                'personal_data_sensitive': gt_sheet.get('personal_data_sensitive', False),
+                'non_personal_data_sensitive': gt_sheet.get('non_personal_data_sensitive', False),
             },
             'model_predictions': {},
             'columns': [],
@@ -766,12 +766,12 @@ async def compare_models(
             if sheet_idx < len(pred_data):
                 pred_sheet = pred_data[sheet_idx]
                 sheet_comparison['model_predictions'][model] = {
-                    'pii_sensitive': pred_sheet.get('pii_sensitive', False),
-                    'non_pii_sensitive': pred_sheet.get('non_pii_sensitive', False),
+                    'personal_data_sensitive': pred_sheet.get('personal_data_sensitive', False),
+                    'non_personal_data_sensitive': pred_sheet.get('non_personal_data_sensitive', False),
                     'non_pii_sensitivity_explanation': pred_sheet.get('non_pii', {}).get('explanation'),
-                    'pii_correct': pred_sheet.get('pii_sensitive', False) == gt_sheet.get('pii_sensitive', False),
-                    'non_pii_correct': pred_sheet.get('non_pii_sensitive', False)
-                    == gt_sheet.get('non_pii_sensitive', False),
+                    'pii_correct': pred_sheet.get('personal_data_sensitive', False) == gt_sheet.get('personal_data_sensitive', False),
+                    'non_pii_correct': pred_sheet.get('non_personal_data_sensitive', False)
+                    == gt_sheet.get('non_personal_data_sensitive', False),
                 }
 
         # For each column in ground truth
@@ -782,7 +782,7 @@ async def compare_models(
                     'sample_values': gt_col.get('sample_values', []),
                     'ground_truth': {
                         'pii_entity_type': gt_col.get('pii', {}).get('entity_type'),
-                        'pii_sensitive': gt_col.get('pii', {}).get('sensitive', False),
+                        'personal_data_sensitive': gt_col.get('pii', {}).get('sensitive', False),
                         'non_pii_sensitivity': gt_col.get('non_pii', {}).get('sensitivity'),
                     },
                     'model_predictions': {},
@@ -795,17 +795,17 @@ async def compare_models(
                         if col_idx < len(pred_columns):
                             pred_col = pred_columns[col_idx]
 
-                            gt_pii_sensitive = gt_col.get('pii', {}).get('sensitive', False)
-                            pred_pii_sensitive = pred_col.get('pii', {}).get('sensitive', False)
+                            gt_personal_data_sensitive = gt_col.get('pii', {}).get('sensitive', False)
+                            pred_personal_data_sensitive = pred_col.get('pii', {}).get('sensitive', False)
 
                             gt_non_pii = gt_col.get('non_pii', {}).get('sensitivity')
                             pred_non_pii = pred_col.get('non_pii', {}).get('sensitivity')
 
                             col_comparison['model_predictions'][model] = {
                                 'pii_entity_type': pred_col.get('pii', {}).get('entity_type'),
-                                'pii_sensitive': pred_pii_sensitive,
+                                'personal_data_sensitive': pred_personal_data_sensitive,
                                 'non_pii_sensitivity': pred_non_pii,
-                                'pii_correct': pred_pii_sensitive == gt_pii_sensitive,
+                                'pii_correct': pred_personal_data_sensitive == gt_personal_data_sensitive,
                                 'non_pii_correct': pred_non_pii == gt_non_pii,
                             }
 
@@ -819,7 +819,8 @@ async def compare_models(
 @router.get('/cost-analysis')
 async def get_cost_analysis():
     """
-    Calculate token usage and costs for all models across all reports.
+    Calculate token usage and costs for all models.
+    Only processes files that exist in ALL models (intersection) for fair comparison.
     
     Returns:
         Dictionary with cost analysis for each model
@@ -831,6 +832,7 @@ async def get_cost_analysis():
         'gpt-4.1': 3.5,
         'gpt-5-nano': 0.15,
         'gpt-5-mini': 0.69,
+        'gpt-5.1': 3.44,
         'DeepSeek-V3.1': 0.84,
     }
     
@@ -839,6 +841,17 @@ async def get_cost_analysis():
         d.name for d in REPORTS_DIR.iterdir() 
         if d.is_dir() and d.name not in ('groundtruth', 'groundtruth2')
     ]
+    
+    # Find common files across all models (intersection)
+    model_files = {}
+    for model in available_models:
+        model_dir = REPORTS_DIR / model
+        model_files[model] = set(f.name for f in model_dir.glob('*.json'))
+    
+    # Get intersection of all files
+    common_files = set.intersection(*model_files.values()) if model_files else set()
+    
+    logger.info(f'Cost analysis using {len(common_files)} common files across {len(available_models)} models')
     
     cost_analysis = {}
     
@@ -851,8 +864,13 @@ async def get_cost_analysis():
         reports_processed = 0
         reports_with_errors = 0
         
-        # Iterate through all JSON files for this model
-        for report_file in model_dir.glob('*.json'):
+        # Only process common files
+        for filename in common_files:
+            report_file = model_dir / filename
+            
+            if not report_file.exists():
+                continue
+                
             try:
                 with open(report_file, 'r', encoding='utf-8') as f:
                     report_data = json.load(f)
@@ -894,4 +912,5 @@ async def get_cost_analysis():
     return {
         'models': cost_analysis,
         'pricing': PRICING,
+        'common_files_count': len(common_files),
     }

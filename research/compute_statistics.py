@@ -85,7 +85,7 @@ def eval_file_level_sensitive_any_sheets(llm_model: str):
     """
     Evaluate file-level sensitive data detection.
     A file is considered sensitive if any sheet in it is sensitive
-    (pii_sensitive or non_pii_sensitive).
+    (personal_data_sensitive or non_personal_data_sensitive).
 
     Returns:
         metrics: dict
@@ -104,10 +104,10 @@ def eval_file_level_sensitive_any_sheets(llm_model: str):
 
         # File is sensitive if any sheet in it is sensitive (pii or non-pii)
         gt_file_sensitive = int(
-            any(sheet.get('pii_sensitive', False) or sheet.get('non_pii_sensitive', False) for sheet in gt_data)
+            any(sheet.get('personal_data_sensitive', False) or sheet.get('non_personal_data_sensitive', False) for sheet in gt_data)
         )
         pred_file_sensitive = int(
-            any(sheet.get('pii_sensitive', False) or sheet.get('non_pii_sensitive', False) for sheet in pd_data)
+            any(sheet.get('personal_data_sensitive', False) or sheet.get('non_personal_data_sensitive', False) for sheet in pd_data)
         )
 
         gt_arr.append(gt_file_sensitive)
@@ -232,10 +232,10 @@ if __name__ == '__main__':
 
     LLM_MODEL = 'gpt-4.1-nano'
     print(f'Evaluating sheet level non-personal sensitive data for LLM: {LLM_MODEL}')
-    eval_sheet_level_sensitive_data(LLM_MODEL, 'non_pii_sensitive')
+    eval_sheet_level_sensitive_data(LLM_MODEL, 'non_personal_data_sensitive')
     print('--------------------------------')
     print(f'Evaluating sheet level personal sensitive data for LLM: {LLM_MODEL}')
-    eval_sheet_level_sensitive_data(LLM_MODEL, 'pii_sensitive')
+    eval_sheet_level_sensitive_data(LLM_MODEL, 'personal_data_sensitive')
     print('--------------------------------')
     print('Evaluating column level personal sensitive data')
     print('--------------------------------')

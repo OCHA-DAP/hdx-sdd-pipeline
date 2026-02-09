@@ -189,7 +189,7 @@ class ProcessDatasetUseCase:
 
         logger.info(
             f"Data report complete for '{sheet_name}': "
-            f'pii_sensitive={report.has_sensitive_pii}, '
+            f'personal_data_sensitive={report.has_sensitive_pii}, '
             f'non_pii_sensitivity={report.non_pii_classification.sensitivity}, '
             f'tokens={report.total_tokens()}'
         )

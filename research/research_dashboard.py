@@ -73,7 +73,7 @@ file_errors = []
 # -----------------------------------------------------------------------------
 # Evaluation
 # -----------------------------------------------------------------------------
-sheet_categories = ['non_pii_sensitive', 'pii_sensitive']
+sheet_categories = ['non_personal_data_sensitive', 'personal_data_sensitive']
 
 for model in models:
     # -------------------------
@@ -107,7 +107,7 @@ for model in models:
         metrics.update(
             {
                 'model': model,
-                'category': 'column: pii_sensitive',
+                'category': 'column: personal_data_sensitive',
                 'level': 'column',
             }
         )

@@ -29,9 +29,9 @@ interface Metrics {
 
 interface ModelStatistics {
   file_level: Metrics;
-  file_level_pii: Metrics;
+  file_level_personal_data: Metrics;
   file_level_non_personal_data: Metrics;
-  sheet_level_pii: Metrics;
+  sheet_level_personal_data: Metrics;
   sheet_level_non_personal_data: Metrics;
 }
 
@@ -285,16 +285,16 @@ export default function StatisticsTab() {
         <tbody>
           ${Object.entries(statistics.models)
             .map(([modelName, stats]: [string, any]) => {
-              const bestF1 = Math.max(...Object.values(statistics.models).map((s: any) => s.file_level_pii?.f1 || 0));
-              const isBest = (stats.file_level_pii?.f1 || 0) === bestF1;
+              const bestF1 = Math.max(...Object.values(statistics.models).map((s: any) => s.file_level_personal_data?.f1 || 0));
+              const isBest = (stats.file_level_personal_data?.f1 || 0) === bestF1;
               return `
                 <tr>
                   <td><strong>${modelName}</strong>${isBest ? '<span class="best-badge">Best</span>' : ''}</td>
-                  <td class="text-center metric-value">${formatPercent(stats.file_level_pii?.accuracy || 0)}</td>
-                  <td class="text-center metric-value">${formatPercent(stats.file_level_pii?.precision || 0)}</td>
-                  <td class="text-center metric-value">${formatPercent(stats.file_level_pii?.recall || 0)}</td>
-                  <td class="text-center metric-value">${(stats.file_level_pii?.f1 || 0).toFixed(3)}</td>
-                  <td class="text-center">${stats.file_level_pii?.total_files || 0}</td>
+                  <td class="text-center metric-value">${formatPercent(stats.file_level_personal_data?.accuracy || 0)}</td>
+                  <td class="text-center metric-value">${formatPercent(stats.file_level_personal_data?.precision || 0)}</td>
+                  <td class="text-center metric-value">${formatPercent(stats.file_level_personal_data?.recall || 0)}</td>
+                  <td class="text-center metric-value">${(stats.file_level_personal_data?.f1 || 0).toFixed(3)}</td>
+                  <td class="text-center">${stats.file_level_personal_data?.total_files || 0}</td>
                 </tr>
               `;
             }).join('')}
@@ -347,16 +347,16 @@ export default function StatisticsTab() {
         <tbody>
           ${Object.entries(statistics.models)
             .map(([modelName, stats]: [string, any]) => {
-              const bestF1 = Math.max(...Object.values(statistics.models).map((s: any) => s.sheet_level_pii.f1));
-              const isBest = stats.sheet_level_pii.f1 === bestF1;
+              const bestF1 = Math.max(...Object.values(statistics.models).map((s: any) => s.sheet_level_personal_data.f1));
+              const isBest = stats.sheet_level_personal_data.f1 === bestF1;
               return `
                 <tr>
                   <td><strong>${modelName}</strong>${isBest ? '<span class="best-badge">Best</span>' : ''}</td>
-                  <td class="text-center metric-value">${formatPercent(stats.sheet_level_pii.accuracy)}</td>
-                  <td class="text-center metric-value">${formatPercent(stats.sheet_level_pii.precision)}</td>
-                  <td class="text-center metric-value">${formatPercent(stats.sheet_level_pii.recall)}</td>
-                  <td class="text-center metric-value">${stats.sheet_level_pii.f1.toFixed(3)}</td>
-                  <td class="text-center">${stats.sheet_level_pii.total_sheets || 0}</td>
+                  <td class="text-center metric-value">${formatPercent(stats.sheet_level_personal_data.accuracy)}</td>
+                  <td class="text-center metric-value">${formatPercent(stats.sheet_level_personal_data.precision)}</td>
+                  <td class="text-center metric-value">${formatPercent(stats.sheet_level_personal_data.recall)}</td>
+                  <td class="text-center metric-value">${stats.sheet_level_personal_data.f1.toFixed(3)}</td>
+                  <td class="text-center">${stats.sheet_level_personal_data.total_sheets || 0}</td>
                 </tr>
               `;
             }).join('')}
@@ -553,12 +553,12 @@ export default function StatisticsTab() {
   }
 
   const modelStats = statistics.models[selectedModel];
-  const hasError = modelStats.file_level.error || modelStats.sheet_level_pii.error || modelStats.sheet_level_non_personal_data.error;
+  const hasError = modelStats.file_level.error || modelStats.sheet_level_personal_data.error || modelStats.sheet_level_non_personal_data.error;
 
   if (hasError) {
     return (
       <div className="text-sm text-red-400 border border-red-500/50 rounded-lg p-6 bg-red-500/10">
-        Error loading statistics: {modelStats.file_level.error || modelStats.sheet_level_pii.error || modelStats.sheet_level_non_personal_data.error}
+        Error loading statistics: {modelStats.file_level.error || modelStats.sheet_level_personal_data.error || modelStats.sheet_level_non_personal_data.error}
       </div>
     );
   }
@@ -715,14 +715,14 @@ export default function StatisticsTab() {
               <div className="grid grid-cols-2 gap-4 mb-4">
                 <MetricCard
                   title="Accuracy"
-                  value={formatPercent(modelStats.sheet_level_pii.accuracy)}
+                  value={formatPercent(modelStats.sheet_level_personal_data.accuracy)}
                 />
                 <MetricCard
                   title="F1 Score"
-                  value={formatNumber(modelStats.sheet_level_pii.f1)}
+                  value={formatNumber(modelStats.sheet_level_personal_data.f1)}
                 />
               </div>
-              <ConfusionMatrixDisplay cm={modelStats.sheet_level_pii.confusion_matrix} title="Personal Sensitive Data Confusion Matrix" />
+              <ConfusionMatrixDisplay cm={modelStats.sheet_level_personal_data.confusion_matrix} title="Personal Sensitive Data Confusion Matrix" />
             </div>
 
             <div>
@@ -770,7 +770,7 @@ export default function StatisticsTab() {
                           {formatPercent(stats.file_level.accuracy)}
                         </td>
                         <td className="text-right py-2 text-white">
-                          {formatNumber(stats.sheet_level_pii.f1)}
+                          {formatNumber(stats.sheet_level_personal_data.f1)}
                         </td>
                         <td className="text-right py-2 text-white">
                           {formatNumber(stats.sheet_level_non_personal_data.f1)}
@@ -857,23 +857,23 @@ export default function StatisticsTab() {
               A file is marked as having Personal Sensitive Data if any sheet contains Personal Sensitive Data.
             </p>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-              <MetricCard title="Accuracy" value={formatPercent(modelStats.file_level_pii?.accuracy || 0)} />
-              <MetricCard title="Precision" value={formatPercent(modelStats.file_level_pii?.precision || 0)} />
-              <MetricCard title="Recall" value={formatPercent(modelStats.file_level_pii?.recall || 0)} />
-              <MetricCard title="F1 Score" value={formatNumber(modelStats.file_level_pii?.f1 || 0)} />
+              <MetricCard title="Accuracy" value={formatPercent(modelStats.file_level_personal_data?.accuracy || 0)} />
+              <MetricCard title="Precision" value={formatPercent(modelStats.file_level_personal_data?.precision || 0)} />
+              <MetricCard title="Recall" value={formatPercent(modelStats.file_level_personal_data?.recall || 0)} />
+              <MetricCard title="F1 Score" value={formatNumber(modelStats.file_level_personal_data?.f1 || 0)} />
             </div>
-            {modelStats.file_level_pii?.confusion_matrix && (
+            {modelStats.file_level_personal_data?.confusion_matrix && (
               <ConfusionMatrixDisplay 
-                cm={modelStats.file_level_pii.confusion_matrix} 
+                cm={modelStats.file_level_personal_data.confusion_matrix} 
                 title="Personal Sensitive Data Detection Confusion Matrix" 
               />
             )}
 
             {/* Personal Sensitive Data Misclassifications */}
-            {modelStats.file_level_pii?.misclassifications && modelStats.file_level_pii.misclassifications.length > 0 && (
+            {modelStats.file_level_personal_data?.misclassifications && modelStats.file_level_personal_data.misclassifications.length > 0 && (
               <div className="mt-4">
                 <h4 className="text-lg font-semibold text-white mb-3">
-                  Personal Sensitive Data Misclassifications ({modelStats.file_level_pii.misclassifications.length})
+                  Personal Sensitive Data Misclassifications ({modelStats.file_level_personal_data.misclassifications.length})
                 </h4>
                 <div className="border border-white/20 rounded-lg overflow-hidden bg-white/5">
                   <div className="overflow-x-auto">
@@ -887,7 +887,7 @@ export default function StatisticsTab() {
                         </tr>
                       </thead>
                       <tbody>
-                        {modelStats.file_level_pii.misclassifications.map((error, idx) => (
+                        {modelStats.file_level_personal_data.misclassifications.map((error, idx) => (
                           <tr
                             key={idx}
                             className={`border-t border-white/10 ${
@@ -1001,17 +1001,17 @@ export default function StatisticsTab() {
             <div>
               <h3 className="text-xl font-semibold text-white mb-4">Personal Sensitive Data Sheet-Level Metrics</h3>
               <div className="grid grid-cols-2 gap-4 mb-4">
-                <MetricCard title="Accuracy" value={formatPercent(modelStats.sheet_level_pii.accuracy)} />
-                <MetricCard title="Precision" value={formatPercent(modelStats.sheet_level_pii.precision)} />
-                <MetricCard title="Recall" value={formatPercent(modelStats.sheet_level_pii.recall)} />
-                <MetricCard title="F1 Score" value={formatNumber(modelStats.sheet_level_pii.f1)} />
+                <MetricCard title="Accuracy" value={formatPercent(modelStats.sheet_level_personal_data.accuracy)} />
+                <MetricCard title="Precision" value={formatPercent(modelStats.sheet_level_personal_data.precision)} />
+                <MetricCard title="Recall" value={formatPercent(modelStats.sheet_level_personal_data.recall)} />
+                <MetricCard title="F1 Score" value={formatNumber(modelStats.sheet_level_personal_data.f1)} />
               </div>
-              <ConfusionMatrixDisplay cm={modelStats.sheet_level_pii.confusion_matrix} title="Confusion Matrix" />
+              <ConfusionMatrixDisplay cm={modelStats.sheet_level_personal_data.confusion_matrix} title="Confusion Matrix" />
               
-              {modelStats.sheet_level_pii.misclassifications.length > 0 && (
+              {modelStats.sheet_level_personal_data.misclassifications.length > 0 && (
                 <div className="mt-4">
                   <h4 className="font-semibold text-white mb-2">
-                    Misclassifications ({modelStats.sheet_level_pii.misclassifications.length})
+                    Misclassifications ({modelStats.sheet_level_personal_data.misclassifications.length})
                   </h4>
                   <div className="border border-white/20 rounded-lg overflow-hidden bg-white/5 max-h-64 overflow-y-auto">
                     <table className="w-full text-xs">
@@ -1023,7 +1023,7 @@ export default function StatisticsTab() {
                         </tr>
                       </thead>
                       <tbody>
-                        {modelStats.sheet_level_pii.misclassifications.map((error, idx) => (
+                        {modelStats.sheet_level_personal_data.misclassifications.map((error, idx) => (
                           <tr key={idx} className="border-t border-white/10">
                             <td className="py-1 px-2 text-white/90 font-mono">{error.file}</td>
                             <td className="py-1 px-2 text-white/90">{error.sheet_name}</td>
@@ -1270,11 +1270,11 @@ export default function StatisticsTab() {
                   <tbody>
                     {statistics.available_models.map((model, idx) => {
                       const stats = statistics.models[model];
-                      if (stats.file_level_pii?.error) return null;
+                      if (stats.file_level_personal_data?.error) return null;
                       
                       const isTopF1 = statistics.available_models
-                        .filter(m => !statistics.models[m].file_level_pii?.error)
-                        .every(m => (statistics.models[m].file_level_pii?.f1 || 0) <= (stats.file_level_pii?.f1 || 0));
+                        .filter(m => !statistics.models[m].file_level_personal_data?.error)
+                        .every(m => (statistics.models[m].file_level_personal_data?.f1 || 0) <= (stats.file_level_personal_data?.f1 || 0));
                       
                       return (
                         <tr
@@ -1288,19 +1288,19 @@ export default function StatisticsTab() {
                             {isTopF1 && <span className="ml-2 text-xs bg-green-500/30 text-green-200 px-2 py-0.5 rounded">Best</span>}
                           </td>
                           <td className="text-center py-3 px-3 text-white">
-                            {formatPercent(stats.file_level_pii?.accuracy || 0)}
+                            {formatPercent(stats.file_level_personal_data?.accuracy || 0)}
                           </td>
                           <td className="text-center py-3 px-3 text-white">
-                            {formatPercent(stats.file_level_pii?.precision || 0)}
+                            {formatPercent(stats.file_level_personal_data?.precision || 0)}
                           </td>
                           <td className="text-center py-3 px-3 text-white">
-                            {formatPercent(stats.file_level_pii?.recall || 0)}
+                            {formatPercent(stats.file_level_personal_data?.recall || 0)}
                           </td>
                           <td className="text-center py-3 px-3 text-white font-semibold">
-                            {(stats.file_level_pii?.f1 || 0).toFixed(3)}
+                            {(stats.file_level_personal_data?.f1 || 0).toFixed(3)}
                           </td>
                           <td className="text-center py-3 px-3 text-white/70">
-                            {stats.file_level_pii?.total_files || 0}
+                            {stats.file_level_personal_data?.total_files || 0}
                           </td>
                         </tr>
                       );
@@ -1429,11 +1429,11 @@ export default function StatisticsTab() {
                   <tbody>
                     {statistics.available_models.map((model, idx) => {
                       const stats = statistics.models[model];
-                      if (stats.sheet_level_pii.error) return null;
+                      if (stats.sheet_level_personal_data.error) return null;
                       
                       const isTopF1 = statistics.available_models
-                        .filter(m => !statistics.models[m].sheet_level_pii.error)
-                        .every(m => statistics.models[m].sheet_level_pii.f1 <= stats.sheet_level_pii.f1);
+                        .filter(m => !statistics.models[m].sheet_level_personal_data.error)
+                        .every(m => statistics.models[m].sheet_level_personal_data.f1 <= stats.sheet_level_personal_data.f1);
                       
                       return (
                         <tr
@@ -1447,19 +1447,19 @@ export default function StatisticsTab() {
                             {isTopF1 && <span className="ml-2 text-xs bg-green-500/30 text-green-200 px-2 py-0.5 rounded">Best</span>}
                           </td>
                           <td className="text-center py-3 px-3 text-white">
-                            {formatPercent(stats.sheet_level_pii.accuracy)}
+                            {formatPercent(stats.sheet_level_personal_data.accuracy)}
                           </td>
                           <td className="text-center py-3 px-3 text-white">
-                            {formatPercent(stats.sheet_level_pii.precision)}
+                            {formatPercent(stats.sheet_level_personal_data.precision)}
                           </td>
                           <td className="text-center py-3 px-3 text-white">
-                            {formatPercent(stats.sheet_level_pii.recall)}
+                            {formatPercent(stats.sheet_level_personal_data.recall)}
                           </td>
                           <td className="text-center py-3 px-3 text-white font-semibold">
-                            {stats.sheet_level_pii.f1.toFixed(3)}
+                            {stats.sheet_level_personal_data.f1.toFixed(3)}
                           </td>
                           <td className="text-center py-3 px-3 text-white/70">
-                            {stats.sheet_level_pii.total_sheets || 0}
+                            {stats.sheet_level_personal_data.total_sheets || 0}
                           </td>
                         </tr>
                       );

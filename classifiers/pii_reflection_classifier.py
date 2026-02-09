@@ -80,7 +80,7 @@ class PIIReflectionClassifier(BaseClassifier):
             sensitive = False
             if pred == 'SENSITIVE':
                 sensitive = True
-                sdd_report['pii_sensitive'] = True
+                sdd_report['personal_data_sensitive'] = True
 
             col['pii']['sensitive'] = sensitive
 
