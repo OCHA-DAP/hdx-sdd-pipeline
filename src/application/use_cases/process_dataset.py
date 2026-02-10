@@ -184,12 +184,11 @@ class ProcessDatasetUseCase:
         report = self._classify_non_pii(report, isp_rules)
 
         # Step 6: Update sensitivity flags
-        report.update_pii_sensitivity()
         report.update_non_pii_sensitivity()
 
         logger.info(
             f"Data report complete for '{sheet_name}': "
-            f'personal_data_sensitive={report.has_sensitive_pii}, '
+            f'personal_data_sensitive={report.personal_data_sensitive}, '
             f'non_pii_sensitivity={report.non_pii_classification.sensitivity}, '
             f'tokens={report.total_tokens()}'
         )
@@ -217,9 +216,6 @@ class ProcessDatasetUseCase:
                     context={'column_name': column.name, 'sample_values': column.sample_values},
                 )
 
-                # Log prompt for debugging
-                logger.debug(f"[PII Detection] Prompt for column '{column.name}':\n{prompt}\n")
-
                 # Call LLM
                 result, comp_tokens, prompt_tokens = self.pii_llm.generate(prompt, max_tokens=8)
 
@@ -245,10 +241,6 @@ class ProcessDatasetUseCase:
             logger.info('PII sensitivity classification disabled - skipping')
             return report
 
-        pii_columns = [col for col in report.columns if col.has_pii()]
-
-        logger.info(f'Classifying PII sensitivity for {len(pii_columns)} PII columns')
-
         # Generate table markdown context for all columns
         table_markdown = self._generate_table_markdown(report)
         logger.info(f'Table context:\n{table_markdown}\n')
@@ -261,8 +253,6 @@ class ProcessDatasetUseCase:
                 'table_markdown': table_markdown,
             },
         )
-
-
         # Call LLM
         result, comp_tokens, prompt_tokens = self.pii_reflection_llm.generate(prompt, max_tokens=16)
 
@@ -278,6 +268,7 @@ class ProcessDatasetUseCase:
         # Update token counts
         report.completion_tokens += comp_tokens
         report.prompt_tokens += prompt_tokens
+        report.pii_reflection_model = self.pii_reflection_llm.model_name
 
         return report
 
@@ -291,7 +282,7 @@ class ProcessDatasetUseCase:
 
         try:
             # Prepare table summary
-            table_summary = self._create_table_summary(report)
+            table_summary = self._generate_table_markdown(report)
 
             # Render prompt (use latest version)
             prompt = self.prompt_manager.get_prompt(

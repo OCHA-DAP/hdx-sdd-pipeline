@@ -41,6 +41,7 @@ class PipelineFactory:
         logger.info(f'  CKAN update: {self.config.CKAN_UPDATE}')
         logger.info('===========================================')
 
+
     def create_pipeline(self, sample_size: int = 5) -> ProcessDatasetUseCase:
         """
         Create a configured processing pipeline.

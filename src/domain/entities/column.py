@@ -12,7 +12,6 @@ class PIIClassification:
     """PII classification result for a column."""
 
     entity_type: PIIEntityType = PIIEntityType.NONE
-    sensitive: bool = False
     confidence: Optional[float] = None
     explanation: Optional[str] = None
 
@@ -20,7 +19,6 @@ class PIIClassification:
         """Convert to dictionary representation."""
         result = {
             'entity_type': str(self.entity_type),
-            'sensitive': self.sensitive,
         }
         if self.confidence is not None:
             result['confidence'] = self.confidence
@@ -64,10 +62,6 @@ class Column:
     def has_pii(self) -> bool:
         """Check if this column contains PII."""
         return self.pii_classification.entity_type.is_pii()
-
-    def is_sensitive(self) -> bool:
-        """Check if this column is classified as sensitive."""
-        return self.pii_classification.sensitive
 
     def has_valid_samples(self) -> bool:
         """Check if column has valid sample values."""

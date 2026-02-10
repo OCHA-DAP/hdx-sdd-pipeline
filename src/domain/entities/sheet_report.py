@@ -73,14 +73,6 @@ class SheetReport:
         """Check if any column contains PII."""
         return any(col.has_pii() for col in self.columns)
 
-    def has_sensitive_pii(self) -> bool:
-        """Check if any column has sensitive PII."""
-        return any(col.is_sensitive() for col in self.columns)
-
-    def update_pii_sensitivity(self) -> None:
-        """Update the personal_data_sensitive flag based on column classifications."""
-        self.personal_data_sensitive = self.has_sensitive_pii()
-
     def update_non_pii_sensitivity(self) -> None:
         """Update the non_personal_data_sensitive flag based on non-PII classification."""
         self.non_personal_data_sensitive = self.non_pii_classification.is_sensitive()
