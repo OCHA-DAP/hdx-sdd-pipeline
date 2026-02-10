@@ -1,7 +1,7 @@
 # utils/processing.py
 from typing import Dict
 import pandas as pd
-# from utils.exception_handler import handle_exception_wrap
+# from utils.exception_handler import handle_exception
 import datetime
 import logging
 import numpy as np
@@ -79,7 +79,7 @@ class DataSampler:
 
     SUPPORTED_EXTENSIONS = ('.csv', '.xls', '.xlsx')
 
-    @handle_exception_wrap()
+    @handle_exception()
     def _validate_url(self, url: str) -> str:
         """Check if the URL points to a supported file type."""
         url_lower = url.lower()
@@ -87,7 +87,7 @@ class DataSampler:
             raise ValueError(f'Unsupported file type. Only {", ".join(self.SUPPORTED_EXTENSIONS)} are supported.')
         return url_lower
 
-    @handle_exception_wrap()
+    @handle_exception()
     def load_from_url(self, url: str) -> Dict[str, pd.DataFrame]:
         """Load CSV/XLS/XLSX from a URL into a dictionary of DataFrames keyed by sheet name."""
         url = self._validate_url(url)
@@ -107,7 +107,7 @@ class DataSampler:
         df_dict = pd.read_excel(url, sheet_name=None, nrows=1000, header=None)
         return {sheet_name: self._concatenate_header(df) for sheet_name, df in df_dict.items()}
 
-    @handle_exception_wrap()
+    @handle_exception()
     def _concatenate_header(self, df: pd.DataFrame) -> pd.DataFrame:
         """
         Attempts to detect header rows and flatten them into single column names.
@@ -148,7 +148,7 @@ class DataSampler:
         cleaned_df.columns = final_columns
         return cleaned_df.reset_index(drop=True)
 
-    @handle_exception_wrap()
+    @handle_exception()
     def sample_dataframe(self, df: pd.DataFrame, sample_size: int = 10) -> dict:
         """Return a dict of column -> sample values, using rows with the most non-null values first."""
 
@@ -188,7 +188,7 @@ class DataSampler:
 
         return sample_dict
 
-    @handle_exception_wrap()
+    @handle_exception()
     def sample(self, url: str, sample_size: int = 5) -> Dict[str, pd.DataFrame]:
         """Main entrypoint: load and sample dataset(s) from a URL."""
         sheets = self.load_from_url(url)

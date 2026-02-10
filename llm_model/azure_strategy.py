@@ -3,7 +3,7 @@ import json
 from dotenv import load_dotenv
 from openai import AzureOpenAI
 
-from utils.exception_handler import handle_exception_wrap
+from src.shared.utils.exception_handler import handle_exception
 
 import os
 
@@ -26,14 +26,14 @@ class AzureOpenAIStrategy:
         """Return the model type identifier."""
         return 'azure'
 
-    @handle_exception_wrap()
+    @handle_exception()
     def _setup_client(self) -> None:
         """Initialize Azure OpenAI client."""
         self.client = AzureOpenAI(
             api_version='2024-12-01-preview', azure_endpoint=self.azure_endpoint, api_key=self.api_key
         )
 
-    @handle_exception_wrap()
+    @handle_exception()
     def generate(self, prompt: str, temperature: float = 0.3, max_new_tokens: int = 200) -> tuple[str, int, int]:
         """Generate text using Azure OpenAI API."""
         if 'gpt-5' in self.model_name:
@@ -52,7 +52,7 @@ class AzureOpenAIStrategy:
             )
         return response.choices[0].message.content, response.usage.completion_tokens, response.usage.prompt_tokens
 
-    @handle_exception_wrap()
+    @handle_exception()
     def generate_json(self, prompt: str, temperature: float = 0.3, max_new_tokens: int = 300) -> tuple[dict, int, int]:
         """Generate JSON using Azure OpenAI API."""
         if self.model_name == 'gpt-5-nano' or self.model_name == 'gpt-5-mini':
@@ -78,7 +78,7 @@ class AzureOpenAIStrategy:
             json_response.usage.prompt_tokens,
         )
 
-    @handle_exception_wrap()
+    @handle_exception()
     def get_azure_config(self) -> dict[str, str]:
         """Get Azure configuration details."""
         return {

@@ -33,6 +33,13 @@ class Config:
     NON_PII_DETECT_MODEL: str = os.getenv('NON_PII_DETECT_MODEL', 'non-pii-detect-v1')
     README_SCAN_MODEL: str = os.getenv('README_SCAN_MODEL', 'readme-scan-v1')
 
+    # Processing steps
+    PERSONAL_DATA_DETECTION=os.getenv('PERSONAL_DATA_DETECTION', 'true').lower() == 'true'
+    PERSONAL_DATA_REFLECTION=os.getenv('PERSONAL_DATA_REFLECTION', 'true').lower() == 'true'
+    NON_PERSONAL_DATA_DETECTION=os.getenv('NON_PERSONAL_DATA_DETECTION', 'true').lower() == 'true'
+    README_SCAN=os.getenv('README_SCAN', 'true').lower() == 'true'
+    CKAN_UPDATE=os.getenv('CKAN_UPDATE', 'true').lower() == 'true'
+
     # Directories
     OUTPUT_DIR: str = os.getenv('OUTPUT_DIR', '/tmp/reports')
     DOWNLOAD_DIR: str = os.getenv('DOWNLOAD_DIR', '/tmp/download')

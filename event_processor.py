@@ -1,4 +1,4 @@
-"""
+"""  
 Event processor for HDX resource events.
 
 This is the main entry point for processing events from Redis streams.
@@ -7,18 +7,16 @@ It uses the clean architecture use cases to process datasets.
 
 import json
 import logging
-import os
 from typing import Dict, Any, Tuple
 from dotenv import load_dotenv
 
-from src.application.use_cases.process_dataset import ProcessDatasetUseCase
-from src.infrastructure.llm.azure_openai_provider import AzureOpenAIProvider
-from src.infrastructure.storage.data_loader import SmartDataLoader
-from src.shared.utils.prompt_manager import PromptManager
+from src.infrastructure.factories import PipelineFactory
 from src.domain.entities import SheetReport
 
 # Legacy imports for CKAN and Redis (to be refactored later)
-from utils.ckan import CKANClient
+from src.shared.utils.ckan import CKANClient
+
+from config import get_config
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -38,52 +36,25 @@ class EventProcessor:
         """Initialize event processor with all dependencies."""
         logger.info('Initializing Event Processor...')
 
-        # Setup pipeline
-        self.pipeline = self._setup_pipeline()
+        # Load configuration
+        self.config = get_config()
 
-        # Setup CKAN client
-        self.ckan = CKANClient(
-            base_url=os.getenv('HDX_URL', 'https://data.humdata.org'), api_token=os.getenv('HDX_KEY', '')
-        )
+        # Create pipeline using factory
+        factory = PipelineFactory(self.config)
+        self.pipeline = factory.create_pipeline(sample_size=5)
+
+        # Setup CKAN client if CKAN_UPDATE is enabled
+        if self.config.CKAN_UPDATE:
+            self.ckan = CKANClient(
+                base_url=self.config.HDX_URL,
+                api_token=self.config.HDX_KEY
+            )
+            logger.info('CKAN client initialized')
+        else:
+            logger.info('CKAN_UPDATE is disabled - CKAN operations will be skipped')
+            self.ckan = None
 
         logger.info('Event Processor initialized')
-
-    def _setup_pipeline(self) -> ProcessDatasetUseCase:
-        """Setup the processing pipeline."""
-        # Data loader
-        data_loader = SmartDataLoader(max_rows=1000)
-
-        # LLM providers
-        pii_llm = AzureOpenAIProvider(
-            model_name=os.getenv('PII_DETECT_MODEL', 'gpt-4.1-nano'),
-            azure_endpoint=os.getenv('AZURE_OPENAI_ENDPOINT'),
-            api_key=os.getenv('AZURE_OPENAI_API_KEY'),
-        )
-
-        pii_reflection_llm = AzureOpenAIProvider(
-            model_name=os.getenv('PII_REFLECT_MODEL', 'gpt-4.1-nano'),
-            azure_endpoint=os.getenv('AZURE_OPENAI_ENDPOINT'),
-            api_key=os.getenv('AZURE_OPENAI_API_KEY'),
-        )
-
-        non_pii_llm = AzureOpenAIProvider(
-            model_name=os.getenv('NON_PII_DETECT_MODEL', 'gpt-4.1-nano'),
-            azure_endpoint=os.getenv('AZURE_OPENAI_ENDPOINT'),
-            api_key=os.getenv('AZURE_OPENAI_API_KEY'),
-        )
-
-        # Prompt manager
-        prompt_manager = PromptManager(prompts_dir='src/prompts')
-
-        # Create use case
-        return ProcessDatasetUseCase(
-            data_loader=data_loader,
-            pii_llm_provider=pii_llm,
-            pii_reflection_llm_provider=pii_reflection_llm,
-            non_pii_llm_provider=non_pii_llm,
-            prompt_manager=prompt_manager,
-            sample_size=5,
-        )
 
     def process_event(self, event: Dict[str, Any]) -> Tuple[bool, str]:
         """
@@ -104,14 +75,18 @@ class EventProcessor:
             return False, 'Missing resource_id'
 
         try:
-            # Check if already processed
-            if self._report_exists(resource_id):
+            # Check if already processed (skip if CKAN disabled)
+            if self.ckan and self._report_exists(resource_id):
                 logger.info(f'Report already exists for {resource_id}')
                 return True, 'Already processed'
 
             # Get resource info from CKAN
-            resource = self.ckan.resource_show(resource_id)
-            download_url = resource.get('download_url')
+            if self.ckan:
+                resource = self.ckan.resource_show(resource_id)
+                download_url = resource.get('download_url')
+            else:
+                # When CKAN is disabled, expect download_url in event
+                download_url = event.get('download_url')
 
             if not download_url:
                 logger.error(f'No download URL for resource {resource_id}')
@@ -142,6 +117,9 @@ class EventProcessor:
 
     def _report_exists(self, resource_id: str) -> bool:
         """Check if report already exists in CKAN."""
+        if self.ckan is None:
+            return False
+        
         try:
             resource = self.ckan.resource_show(resource_id)
             return 'sdd_report' in resource and resource['sdd_report']
@@ -151,7 +129,29 @@ class EventProcessor:
     def _get_isp_rules(self, package_id: str) -> Dict[str, Any]:
         """Get ISP rules based on dataset location."""
         if not package_id:
-            return {}
+            logger.debug('No package_id provided - using default ISP')
+            try:
+                with open('data/isps.json', 'r', encoding='utf-8') as f:
+                    isps = json.load(f)
+                default_isp = isps.get('default', {})
+                logger.info('Using ISP: default')
+                return default_isp
+            except Exception as e:
+                logger.error(f'Failed to load default ISP rules: {e}')
+                return {}
+
+        # If CKAN is disabled, return default ISP
+        if self.ckan is None:
+            logger.debug('CKAN disabled - using default ISP rules')
+            try:
+                with open('data/isps.json', 'r', encoding='utf-8') as f:
+                    isps = json.load(f)
+                default_isp = isps.get('default', {})
+                logger.info('Using ISP: default')
+                return default_isp
+            except Exception as e:
+                logger.error(f'Failed to load default ISP rules: {e}')
+                return {}
 
         try:
             # Load ISP rules
@@ -168,7 +168,9 @@ class EventProcessor:
             countries = solr_additions.get('countries', [])
 
             if not countries:
-                return {'default': isps.get('default', {})}
+                default_isp = isps.get('default', {})
+                logger.info('No countries found - using ISP: default')
+                return default_isp
 
             # Find matching ISP
             if isinstance(countries, str):
@@ -177,9 +179,12 @@ class EventProcessor:
             for country in countries:
                 for isp_name, isp_data in isps.items():
                     if isp_data.get('country', '').lower() in country.lower():
-                        return {isp_name: isp_data}
+                        logger.info(f'Using ISP: {isp_name} (matched country: {country})')
+                        return isp_data
 
-            return {'default': isps.get('default', {})}
+            default_isp = isps.get('default', {})
+            logger.info('No matching ISP found - using ISP: default')
+            return default_isp
 
         except Exception as e:
             logger.error(f'Failed to get ISP rules: {e}')
@@ -193,9 +198,15 @@ class EventProcessor:
         return 'non-sensitive'
 
     def _save_to_ckan(self, resource_id: str, reports: list, sensitivity: str):
-        """Save results to CKAN."""
+        """Save results to CKAN or local file."""
         # Convert reports to dict
         reports_dict = [report.to_dict() if isinstance(report, SheetReport) else report for report in reports]
+
+        # Check if CKAN updates are enabled
+        if self.ckan is None:
+            logger.warning('CKAN_UPDATE is disabled - saving to dev.json instead')
+            self._save_to_local_file(resource_id, reports_dict, sensitivity)
+            return
 
         # Update CKAN resource
         self.ckan.update_resource_fields(
@@ -203,6 +214,32 @@ class EventProcessor:
         )
 
         logger.info(f'Saved report to CKAN for resource {resource_id}')
+
+    def _save_to_local_file(self, resource_id: str, reports_dict: list, sensitivity: str):
+        """Save report to local dev.json file for testing."""
+        from pathlib import Path
+        from datetime import datetime
+
+        # Create output directory if it doesn't exist
+        output_dir = Path('dev_reports')
+        output_dir.mkdir(exist_ok=True)
+
+        # Create report structure
+        report_data = {
+            'resource_id': resource_id,
+            'sensitive': sensitivity,
+            'timestamp': datetime.now().isoformat(),
+            'sdd_report': reports_dict
+        }
+
+        # Save to dev.json
+        output_file = output_dir / 'dev.json'
+
+        # Save updated data
+        with open(output_file, 'w', encoding='utf-8') as f:
+            json.dump(report_data, f, indent=2, default=str)
+
+        logger.info(f'Saved report to {output_file} (sensitivity={sensitivity}, {len(reports_dict)} sheets)')
 
 
 def main():
@@ -215,8 +252,9 @@ def main():
 
     # Example: Process a test event
     test_event = {
-        'resource_id': 'test-resource-123',
-        'package_id': 'test-package-456',
+        'resource_id': 'e7624ce3-a90a-4c94-958b-07468f513ee8',
+        'package_id': 'test-package-123',
+        'download_url': 'https://dev.data-humdata-org.ahconu.org/dataset/b9ba0513-f923-437e-9810-aa2ee02e91ad/resource/e7624ce3-a90a-4c94-958b-07468f513ee8/download/pii_dummy_dataset.csv',
         'event_type': 'resource-data-changed',
     }
 
@@ -230,3 +268,29 @@ def main():
 
 if __name__ == '__main__':
     main()
+    
+    # Test the dev.json file
+    with open('dev_reports/dev.json', 'r', encoding='utf-8') as f:
+        dev_data = json.load(f)
+        
+    # Assert if sdd_report is list
+    assert isinstance(dev_data['sdd_report'], list)
+
+    for sheet_report in dev_data['sdd_report']:
+        # Check if resource id, file_name, file_url, sheet_name, processing_timestamp, processing_success, n_records, n_columns, pii_classifier_model, pii_reflection_model, non_pii_model, readme_model, columns, non_pii_sensitivity, tokens, personal_data_sensitive, non_personal_data_sensitive, error_source, error_message, is_readme, readme_content are present
+        assert 'resource_id' in sheet_report
+        assert 'file_name' in sheet_report
+        assert 'file_url' in sheet_report
+        assert 'sheet_name' in sheet_report
+        assert 'processing_timestamp' in sheet_report
+        assert 'processing_success' in sheet_report
+        assert 'n_records' in sheet_report
+        assert 'n_columns' in sheet_report
+        assert 'pii_classifier_model' in sheet_report
+        assert 'pii_reflection_model' in sheet_report
+        assert 'non_pii_model' in sheet_report
+        assert 'columns' in sheet_report
+        assert 'completion_tokens' in sheet_report
+        assert 'prompt_tokens' in sheet_report
+        assert 'personal_data_sensitive' in sheet_report
+        assert 'non_personal_data_sensitive' in sheet_report

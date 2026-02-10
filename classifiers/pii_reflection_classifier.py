@@ -4,8 +4,8 @@ from tqdm import tqdm
 
 from .base_classifier import BaseClassifier
 from llm_model.azure_strategy import AzureOpenAIStrategy
-from utils.exception_handler import handle_exception_wrap
-from utils.utils import table_markdown
+from src.shared.utils.exception_handler import handle_exception
+from src.shared.utils.utils import table_markdown
 
 logger = logging.getLogger(__name__)
 
@@ -25,7 +25,7 @@ class PIIReflectionClassifier(BaseClassifier):
         super().__init__(model)
         self.model = model
 
-    @handle_exception_wrap()
+    @handle_exception()
     def classify_column(
         self,
         column_name: str,

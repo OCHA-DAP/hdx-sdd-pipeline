@@ -29,9 +29,9 @@ class ProcessDatasetUseCase:
     def __init__(
         self,
         data_loader: IDataLoader,
-        pii_llm_provider: ILLMProvider,
-        pii_reflection_llm_provider: ILLMProvider,
-        non_pii_llm_provider: ILLMProvider,
+        pii_llm_provider: Optional[ILLMProvider] = None,
+        pii_reflection_llm_provider: Optional[ILLMProvider] = None,
+        non_pii_llm_provider: Optional[ILLMProvider] = None,
         prompt_manager: Optional[PromptManager] = None,
         sample_size: int = 5,
     ):
@@ -40,9 +40,9 @@ class ProcessDatasetUseCase:
 
         Args:
             data_loader: Data loading implementation
-            pii_llm_provider: LLM for PII detection
-            pii_reflection_llm_provider: LLM for PII sensitivity
-            non_pii_llm_provider: LLM for non-PII classification
+            pii_llm_provider: Optional LLM for PII detection (None to skip)
+            pii_reflection_llm_provider: Optional LLM for PII sensitivity (None to skip)
+            non_pii_llm_provider: Optional LLM for non-PII classification (None to skip)
             prompt_manager: Prompt template manager
             sample_size: Number of samples per column
         """
@@ -198,6 +198,10 @@ class ProcessDatasetUseCase:
 
     def _classify_pii(self, report: SheetReport) -> SheetReport:
         """Classify PII for all columns."""
+        if self.pii_llm is None:
+            logger.info('PII classification disabled - skipping')
+            return report
+
         logger.info(f'Classifying PII for {len(report.columns)} columns')
 
         for column in report.columns:
@@ -206,12 +210,15 @@ class ProcessDatasetUseCase:
                 continue
 
             try:
-                # Render prompt
+                # Render prompt (use latest version)
                 prompt = self.prompt_manager.get_prompt(
                     'pii_detection',
-                    version='v0',
+                    version=None,  # Auto-detect latest version
                     context={'column_name': column.name, 'sample_values': column.sample_values},
                 )
+
+                # Log prompt for debugging
+                logger.debug(f"[PII Detection] Prompt for column '{column.name}':\n{prompt}\n")
 
                 # Call LLM
                 result, comp_tokens, prompt_tokens = self.pii_llm.generate(prompt, max_tokens=8)
@@ -234,63 +241,67 @@ class ProcessDatasetUseCase:
 
     def _classify_pii_sensitivity(self, report: SheetReport) -> SheetReport:
         """Classify sensitivity for PII columns."""
+        if self.pii_reflection_llm is None:
+            logger.info('PII sensitivity classification disabled - skipping')
+            return report
+
         pii_columns = [col for col in report.columns if col.has_pii()]
 
         logger.info(f'Classifying PII sensitivity for {len(pii_columns)} PII columns')
 
-        for column in pii_columns:
-            try:
-                # Render prompt
-                prompt = self.prompt_manager.get_prompt(
-                    'pii_reflection',
-                    version='v0',
-                    context={
-                        'column_name': column.name,
-                        'entity_type': str(column.pii_classification.entity_type),
-                        'sample_values': column.sample_values,
-                        'table_context': report.sheet_name,
-                    },
-                )
+        # Generate table markdown context for all columns
+        table_markdown = self._generate_table_markdown(report)
+        logger.info(f'Table context:\n{table_markdown}\n')
+        
+        # Render prompt with table context (use latest version)
+        prompt = self.prompt_manager.get_prompt(
+            'pii_reflection',
+            version=None,  # Auto-detect latest version
+            context={
+                'table_markdown': table_markdown,
+            },
+        )
 
-                # Call LLM
-                result, comp_tokens, prompt_tokens = self.pii_reflection_llm.generate(prompt, max_tokens=16)
 
-                # Parse result (expecting "sensitive" or "non_sensitive")
-                result_lower = result.lower()
-                if 'non_sensitive' in result_lower or 'non-sensitive' in result_lower:
-                    column.pii_classification.sensitive = False
-                elif 'sensitive' in result_lower:
-                    column.pii_classification.sensitive = True
-                else:
-                    column.pii_classification.sensitive = True  # Default to sensitive if unclear
+        # Call LLM
+        result, comp_tokens, prompt_tokens = self.pii_reflection_llm.generate(prompt, max_tokens=16)
 
-                # Update token counts
-                report.completion_tokens += comp_tokens
-                report.prompt_tokens += prompt_tokens
+        # Parse result (expecting "sensitive" or "non_sensitive")
+        result_lower = result.lower()
+        if 'non_sensitive' in result_lower or 'non-sensitive' in result_lower:
+            report.personal_data_sensitive = False
+        elif 'sensitive' in result_lower:
+            report.personal_data_sensitive = True
+        else:
+            report.personal_data_sensitive = True  # Default to sensitive if unclear
 
-                logger.debug(f"Column '{column.name}' sensitivity: {column.pii_classification.sensitive}")
+        # Update token counts
+        report.completion_tokens += comp_tokens
+        report.prompt_tokens += prompt_tokens
 
-            except Exception as e:
-                logger.error(f"PII sensitivity classification failed for '{column.name}': {e}")
-                column.pii_classification.sensitive = True  # Err on side of caution
-
-        report.pii_reflection_model = self.pii_reflection_llm.model_name
         return report
 
     def _classify_non_pii(self, report: SheetReport, isp_rules: Optional[Dict[str, Any]]) -> SheetReport:
         """Classify non-PII sensitivity for the table."""
+        if self.non_pii_llm is None:
+            logger.info('Non-PII classification disabled - skipping')
+            return report
+
         logger.info('Classifying non-PII sensitivity')
 
         try:
             # Prepare table summary
             table_summary = self._create_table_summary(report)
 
-            # Render prompt
+            # Render prompt (use latest version)
             prompt = self.prompt_manager.get_prompt(
                 'non_pii_classification',
-                version='v0',
+                version=None,  # Auto-detect latest version
                 context={'table_name': report.sheet_name, 'table_markdown': table_summary, 'isp': isp_rules or {}},
             )
+
+            # Log prompt for debugging
+            logger.debug(f"[Non-PII Classification] Prompt for table '{report.sheet_name}':\n{prompt}\n")
 
             # Call LLM
             result, comp_tokens, prompt_tokens = self.non_pii_llm.generate(prompt, max_tokens=128)
@@ -389,3 +400,43 @@ class ProcessDatasetUseCase:
             summary_parts.append(f'... and {len(report.columns) - 10} more columns')
 
         return '\n'.join(summary_parts)
+
+    def _generate_table_markdown(self, report: SheetReport) -> str:
+        """
+        Generate a markdown table from the report columns with PII entity types.
+        
+        This creates a table showing column names (with PII entity types if detected)
+        alongside their sample values, providing rich context for PII reflection.
+        
+        Args:
+            report: SheetReport containing columns with classifications
+            
+        Returns:
+            Markdown table string
+        """
+        try:
+            import pandas as pd
+        except ImportError:
+            logger.warning('pandas not available - returning simple table context')
+            return report.sheet_name
+
+        # Build column samples dict with PII entity types in headers
+        column_samples = {}
+        for col in report.columns:
+            # Add entity type to column name if PII detected
+            if col.has_pii():
+                key = f'{col.name} - {col.pii_classification.entity_type}'
+            else:
+                key = col.name
+            column_samples[key] = col.sample_values
+
+        # Pad all columns to same length
+        if column_samples:
+            max_len = max(len(values) for values in column_samples.values())
+            for key, values in column_samples.items():
+                column_samples[key] = values + [''] * (max_len - len(values))
+
+            # Generate markdown table
+            return pd.DataFrame(column_samples).to_markdown(index=False) or ''
+        
+        return ''

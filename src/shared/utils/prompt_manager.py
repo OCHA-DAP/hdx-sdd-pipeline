@@ -2,8 +2,9 @@
 
 import logging
 from pathlib import Path
-from typing import Dict, Any
+from typing import Dict, Any, Optional
 from jinja2 import Environment, FileSystemLoader
+import re
 
 logger = logging.getLogger(__name__)
 
@@ -12,11 +13,12 @@ class PromptManager:
     """
     Manages prompt templates using Jinja2.
 
-    Loads templates from the prompts/ directory and renders them
-    with provided context.
+    Loads templates from the src/prompts/ directory and renders them
+    with provided context. Automatically detects the latest version
+    of each prompt category.
     """
 
-    def __init__(self, prompts_dir: str = 'prompts'):
+    def __init__(self, prompts_dir: str = 'src/prompts'):
         """
         Initialize prompt manager.
 
@@ -25,20 +27,65 @@ class PromptManager:
         """
         self.prompts_dir = Path(prompts_dir)
 
-        if self.prompts_dir.exists():
-            self.env = Environment(loader=FileSystemLoader(str(self.prompts_dir)), trim_blocks=True, lstrip_blocks=True)
-        else:
-            logger.warning(f'Prompts directory not found: {self.prompts_dir}')
-            exit()
-            self.env = None
+        if not self.prompts_dir.exists():
+            raise FileNotFoundError(f'Prompts directory not found: {self.prompts_dir}')
 
-    def get_prompt(self, prompt_name: str, version: str = 'v0', context: Dict[str, Any] = None) -> str:
+        self.env = Environment(
+            loader=FileSystemLoader(str(self.prompts_dir)),
+            trim_blocks=True,
+            lstrip_blocks=True
+        )
+        
+
+    def get_latest_version(self, prompt_name: str) -> Optional[str]:
+        """
+        Get the latest version for a prompt category.
+        
+        Args:
+            prompt_name: Name of the prompt category
+            
+        Returns:
+            Latest version string (e.g., 'v1') or None if not found
+        """
+        prompt_dir = self.prompts_dir / prompt_name
+        
+        if not prompt_dir.exists():
+            logger.warning(f'Prompt category not found: {prompt_name}')
+            return None
+        
+        # Find all version files (v0.jinja, v1.jinja, etc.)
+        version_files = list(prompt_dir.glob('v*.jinja'))
+        
+        if not version_files:
+            logger.warning(f'No version files found for prompt: {prompt_name}')
+            return None
+        
+        # Extract version numbers and find the highest
+        versions = []
+        for file in version_files:
+            match = re.match(r'v(\d+)\.jinja', file.name)
+            if match:
+                versions.append((int(match.group(1)), file.stem))
+        
+        if not versions:
+            return None
+        
+        # Sort by version number and return the highest
+        latest = sorted(versions, key=lambda x: x[0], reverse=True)[0][1]
+        return latest
+
+    def get_prompt(
+        self,
+        prompt_name: str,
+        version: Optional[str] = None,
+        context: Dict[str, Any] = None
+    ) -> str:
         """
         Get and render a prompt template.
 
         Args:
-            prompt_name: Name of the prompt (without extension)
-            version: Version of the prompt (subdirectory)
+            prompt_name: Name of the prompt category (e.g., 'pii_detection')
+            version: Version of the prompt (e.g., 'v0', 'v1', or None for latest)
             context: Context variables for template rendering
 
         Returns:
@@ -50,56 +97,24 @@ class PromptManager:
         if context is None:
             context = {}
 
-        # Try to load template (FileSystemLoader already searches in prompts_dir)
+        # Auto-detect latest version if not specified
+        if version is None or version == 'latest':
+            version = self.get_latest_version(prompt_name)
+            if version is None:
+                raise FileNotFoundError(
+                    f'No versions found for prompt category: {prompt_name}'
+                )
+
+        # Build template path
         template_path = f'{prompt_name}/{version}.jinja'
 
         try:
-            if self.env:
-                template = self.env.get_template(template_path)
-                return template.render(**context)
-            else:
-                # Fallback to simple templates
-                return self._get_fallback_prompt(prompt_name, context)
+            template = self.env.get_template(template_path)
+            rendered = template.render(**context)
+            logger.info(f'Successfully rendered template: {rendered}')
+            return rendered
         except Exception as e:
             logger.error(f'Failed to load template {template_path}: {e}')
-            return self._get_fallback_prompt(prompt_name, context)
-
-    def _get_fallback_prompt(self, prompt_name: str, context: Dict[str, Any]) -> str:
-        """Fallback prompts when templates are not available"""
-
-        if prompt_name == 'pii_detection':
-            return f'''Classify the following column for PII (Personally Identifiable Information).
-
-Column name: {context.get('column_name', 'unknown')}
-Sample values: {context.get('sample_values', [])}
-
-Identify the PII entity type. Respond with ONE of these types:
-PERSON_NAME, EMAIL_ADDRESS, PHONE_NUMBER, LOCATION, ADDRESS, ID_NUMBER, 
-AGE, DATE_OF_BIRTH, CREDIT_CARD, IP_ADDRESS, None
-
-Respond with ONLY the entity type, nothing else.'''
-
-        elif prompt_name == 'pii_reflection':
-            return f'''Determine if the following PII column contains sensitive data.
-
-Column name: {context.get('column_name', 'unknown')}
-Entity type: {context.get('entity_type', 'unknown')}
-Sample values: {context.get('sample_values', [])}
-Table context: {context.get('table_context', 'unknown')}
-
-Is this sensitive data? Respond with ONLY: "sensitive" or "non_sensitive".'''
-
-        elif prompt_name == 'non_pii_classification':
-            return f'''Classify the overall sensitivity of this table for non-PII aspects.
-
-{context.get('table_summary', 'No summary available')}
-
-ISP Rules: {context.get('isp_rules', {})}
-
-Classify the sensitivity level. Respond with ONE of:
-NON_SENSITIVE, MODERATE_SENSITIVE, HIGH_SENSITIVE, SEVERE_SENSITIVE
-
-Provide your classification and brief explanation.'''
-
-        else:
-            return f'Prompt not found: {prompt_name}'
+            raise FileNotFoundError(
+                f'Template not found or failed to render: {template_path}'
+            ) from e
