@@ -20,6 +20,7 @@ logger = logging.getLogger(__name__)
 
 main_config = get_config()
 
+
 def main():
     """
     Main entry point for the HDX SSD Pipeline.
