@@ -42,7 +42,7 @@ def test_push_and_listen_events(event_bus_listener):
     """Test pushing events to Redis stream and listening for them."""
     # Test event data
     test_event = {
-        'event_type': 'resource-data-changed',
+        'event_type': 'sdd-resource-data-changed',
         'event_time': '2025-10-06T10:00:00.000000',
         'event_source': 'ckan',
         'dataset_name': 'test-dataset',
@@ -71,7 +71,7 @@ def test_push_and_listen_events(event_bus_listener):
 
     # Listen for the event (max 1 iteration since we only sent 1 event)
     logger.info('Starting to listen for events')
-    event_bus_listener.hdx_listen(event_processor, allowed_event_types={'resource-data-changed'}, max_iterations=1)
+    event_bus_listener.hdx_listen(event_processor, allowed_event_types={'sdd-resource-data-changed'}, max_iterations=1)
 
     # Verify the event was received
     assert len(received_events) == 1, f'Expected 1 event, but received {len(received_events)}'
@@ -93,7 +93,7 @@ def test_push_and_listen_events(event_bus_listener):
 
 def test_redis_event_calls_event_processor(event_bus_listener):
     test_event = {
-        'event_type': 'resource-data-changed',
+        'event_type': 'sdd-resource-data-changed',
         'resource_id': 'test-resource-id-456',
     }
 
@@ -107,7 +107,7 @@ def test_redis_event_calls_event_processor(event_bus_listener):
 
         event_bus_listener.hdx_listen(
             mock_instance.process_event,
-            allowed_event_types={'resource-data-changed'},
+            allowed_event_types={'sdd-resource-data-changed'},
             max_iterations=1,
         )
 
