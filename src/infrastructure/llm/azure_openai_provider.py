@@ -80,7 +80,7 @@ class AzureOpenAIProvider(ILLMProvider):
             if 'gpt-5' in self.model_name:
                 response = self.client.chat.completions.create(
                     messages=[{'role': 'user', 'content': prompt}],
-                    max_completion_tokens=512,
+                    max_completion_tokens=max_tokens,
                     reasoning_effort='minimal',
                     model=self.model_name,
                 )
@@ -143,7 +143,7 @@ class AzureOpenAIProvider(ILLMProvider):
             if 'gpt-5' in self.model_name.lower():
                 response = self.client.chat.completions.create(
                     messages=[{'role': 'user', 'content': prompt}],
-                    max_completion_tokens=1000,
+                    max_completion_tokens=max_tokens,
                     reasoning_effort='minimal',
                     model=self.model_name,
                     response_format={'type': 'json_object'},

@@ -1,6 +1,7 @@
 "use client";
 import { useState, useEffect } from "react";
 import { generateStatisticsPDF } from "../utils/pdfGenerator";
+import { getApiUrl } from "../services/api";
 
 interface ConfusionMatrix {
   true_negative: number;
@@ -51,7 +52,7 @@ export default function StatisticsTab() {
   const fetchCostAnalysis = async () => {
     setLoadingCosts(true);
     try {
-      const response = await fetch("http://localhost:8000/api/cost-analysis");
+      const response = await fetch(getApiUrl("api/cost-analysis"));
       if (response.ok) {
         const data = await response.json();
         setCostAnalysis(data);
@@ -73,7 +74,8 @@ export default function StatisticsTab() {
   const fetchStatistics = async () => {
     setLoading(true);
     try {
-      const response = await fetch("http://localhost:8000/api/statistics");
+    try {
+      const response = await fetch(getApiUrl("api/statistics"));
       if (response.ok) {
         const data: StatisticsResponse = await response.json();
         setStatistics(data);

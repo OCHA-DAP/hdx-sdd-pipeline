@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
 import { Dataset } from "../types/dataset";
+import { getApiUrl } from "../services/api";
 import UploadTab from "./UploadTab";
 import TabButton from "./TabButton";
 import ResultsTab from "./ResultsTab";
@@ -17,7 +18,7 @@ export default function DatasetApp() {
   const fetchDatasets = async () => {
     setLoading(true);
     try {
-      const res = await fetch("http://localhost:8000/api/list-datasets");
+      const res = await fetch(getApiUrl("api/list-datasets"));
       if (!res.ok) throw new Error("Failed to fetch datasets");
 
       const data = await res.json();

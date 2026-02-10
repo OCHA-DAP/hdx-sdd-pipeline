@@ -3,7 +3,7 @@
 import logging
 from pathlib import Path
 from typing import Dict, Any, Optional
-from jinja2 import Environment, FileSystemLoader
+from jinja2 import Environment, FileSystemLoader, TemplateNotFound
 import re
 
 logger = logging.getLogger(__name__)
@@ -98,8 +98,13 @@ class PromptManager:
 
         try:
             template = self.env.get_template(template_path)
+        except TemplateNotFound as e:
+            logger.error(f'Template not found: {template_path}')
+            raise FileNotFoundError(f'Template not found: {template_path}') from e
+
+        try:
             rendered = template.render(**context)
             return rendered
         except Exception as e:
-            logger.error(f'Failed to load template {template_path}: {e}')
-            raise FileNotFoundError(f'Template not found or failed to render: {template_path}') from e
+            logger.error(f'Failed to render template {template_path}: {e}')
+            raise

@@ -1,5 +1,6 @@
 "use client";
 import { useState, useEffect } from "react";
+import { getApiUrl } from "../services/api";
 
 interface ConfusionMatrix {
     true_negative: number;
@@ -48,7 +49,7 @@ export default function InsightsTab() {
     const fetchStatistics = async () => {
         setLoading(true);
         try {
-            const response = await fetch("http://localhost:8000/api/statistics");
+            const response = await fetch(getApiUrl('api/statistics'));
             if (response.ok) {
                 const data: StatisticsResponse = await response.json();
                 setStatistics(data);

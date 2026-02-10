@@ -3,6 +3,7 @@
 from unittest.mock import Mock, patch
 from pathlib import Path
 import pytest
+from jinja2 import TemplateNotFound
 
 from src.shared.utils.prompt_manager import PromptManager
 
@@ -110,12 +111,28 @@ class TestPromptManager:
         """Test getting a prompt that doesn't exist."""
         with patch('src.shared.utils.prompt_manager.Environment') as MockEnv:
             mock_env_instance = MockEnv.return_value
-            mock_env_instance.get_template.side_effect = Exception('Template not found')
+            mock_env_instance.get_template.side_effect = TemplateNotFound('template_name')
 
             manager = PromptManager()
 
             with patch.object(manager, 'get_latest_version', return_value='v1'):
-                with pytest.raises(FileNotFoundError, match='Template not found or failed to render'):
+                with pytest.raises(FileNotFoundError, match='Template not found'):
+                    manager.get_prompt('pii_detection')
+
+    @patch('src.shared.utils.prompt_manager.Path.exists', return_value=True)
+    def test_get_prompt_render_error(self, mock_exists):
+        """Test error during rendering propagates."""
+        with patch('src.shared.utils.prompt_manager.Environment') as MockEnv:
+            mock_template = Mock()
+            mock_template.render.side_effect = ValueError('Render error')
+
+            mock_env_instance = MockEnv.return_value
+            mock_env_instance.get_template.return_value = mock_template
+
+            manager = PromptManager()
+
+            with patch.object(manager, 'get_latest_version', return_value='v1'):
+                with pytest.raises(ValueError, match='Render error'):
                     manager.get_prompt('pii_detection')
 
     @patch('src.shared.utils.prompt_manager.Path.exists', return_value=True)

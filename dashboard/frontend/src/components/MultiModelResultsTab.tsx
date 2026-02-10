@@ -2,6 +2,7 @@
 import { useEffect, useState } from "react";
 import { Dataset } from "../types/dataset";
 import { ModelReportView } from "./ModelReportView";
+import { getApiUrl } from "../services/api";
 
 const MODEL_OPTIONS = [
     "gpt-5-nano",
@@ -32,7 +33,7 @@ export default function MultiModelResultsTab({ datasets }: Props) {
       });
 
       const res = await fetch(
-        `http://localhost:8000/api/generate-report?${params}`,
+        getApiUrl(`api/generate-report?${params}`),
         { method: "POST" }
       );
 

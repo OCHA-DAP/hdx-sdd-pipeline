@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
 import { Dataset } from "../types/dataset";
+import { getApiUrl } from "../services/api";
 
 interface Props {
     datasets: Dataset[];
@@ -63,7 +64,7 @@ export default function AllModelsPredictionsTab({ datasets }: Props) {
             });
 
             const response = await fetch(
-                `http://localhost:8000/api/compare-models?${params}`,
+                getApiUrl(`api/compare-models?${params}`),
                 { method: "POST" }
             );
 

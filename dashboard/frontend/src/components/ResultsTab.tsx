@@ -1,6 +1,7 @@
 "use client";
 import { useState, useEffect } from "react";
 import { Dataset } from "../types/dataset";
+import { getApiUrl } from "../services/api";
 
 interface Props {
   datasets: Dataset[];
@@ -65,7 +66,7 @@ export default function ResultsTab({ datasets }: Props) {
         model_name: modelName,
       });
 
-      const response = await fetch(`http://localhost:8000/api/has-report?${params}`, {
+      const response = await fetch(`${getApiUrl('has-report')}?${params}`, {
         method: "POST",
       });
 
@@ -105,7 +106,7 @@ export default function ResultsTab({ datasets }: Props) {
         model_name: modelName,
       });
 
-      const response = await fetch(`http://localhost:8000/api/generate-report?${params}`, {
+      const response = await fetch(getApiUrl(`api/generate-report?${params}`), {
         method: "POST",
       });
 
@@ -140,7 +141,7 @@ export default function ResultsTab({ datasets }: Props) {
         model_name: selectedModel,
       });
 
-      const response = await fetch(`http://localhost:8000/api/generate-report?${params}`, {
+      const response = await fetch(getApiUrl(`api/generate-report?${params}`), {
         method: "POST",
       });
 

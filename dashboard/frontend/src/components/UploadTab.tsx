@@ -1,5 +1,6 @@
 "use client";
 import { useState } from "react";
+import { getApiUrl } from "../services/api";
 
 const MODEL_OPTIONS = [
     "gpt-5-nano",
@@ -44,7 +45,7 @@ export default function UploadTab({ onRefresh }: Props) {
     });
 
     try {
-      const response = await fetch("http://localhost:8000/api/upload", {
+      const response = await fetch(getApiUrl("api/upload"), {
         method: "POST",
         body: formData,
       });
@@ -75,7 +76,7 @@ export default function UploadTab({ onRefresh }: Props) {
         model_name: modelName,
       });
 
-      const response = await fetch(`http://localhost:8000/api/generate-report?${params}`, {
+      const response = await fetch(getApiUrl(`api/generate-report?${params}`), {
         method: "POST",
       });
 
@@ -102,7 +103,7 @@ export default function UploadTab({ onRefresh }: Props) {
         dataset_filename: datasetName,
       });
 
-      const response = await fetch(`http://localhost:8000/api/generate-all-reports?${params}`, {
+      const response = await fetch(getApiUrl(`api/generate-all-reports?${params}`), {
         method: "POST",
       });
 
@@ -132,7 +133,7 @@ export default function UploadTab({ onRefresh }: Props) {
         dataset_filename: datasetName,
       });
 
-      const response = await fetch(`http://localhost:8000/api/create-groundtruth-template?${params}`, {
+      const response = await fetch(getApiUrl(`api/create-groundtruth-template?${params}`), {
         method: "POST",
       });
 

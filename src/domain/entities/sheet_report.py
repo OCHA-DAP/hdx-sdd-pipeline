@@ -170,9 +170,9 @@ class SheetReport:
             readme_model=data.get('readme_model'),
             columns=columns,
             non_pii_classification=non_pii_classification,
-            personal_data_sensitive=data.get('personal_data_sensitive', data.get('personal_data_sensitive', False)),
+            personal_data_sensitive=data.get('personal_data_sensitive', False),
             non_personal_data_sensitive=data.get(
-                'non_personal_data_sensitive', data.get('non_personal_data_sensitive', False)
+                'non_personal_data_sensitive', False
             ),
             error_source=data.get('error_source'),
             error_message=data.get('error_message'),
