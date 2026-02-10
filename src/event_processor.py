@@ -253,9 +253,9 @@ def main():
 
     # Example: Process a test event
     test_event = {
-        'resource_id': 'e7624ce3-a90a-4c94-958b-07468f513ee8',
+        'resource_id': 'test-resource-id',
         'package_id': 'test-package-123',
-        'download_url': 'https://dev.data-humdata-org.ahconu.org/dataset/b9ba0513-f923-437e-9810-aa2ee02e91ad/resource/e7624ce3-a90a-4c94-958b-07468f513ee8/download/pii_dummy_dataset.csv',
+        'download_url': 'download-url.nl',
         'event_type': 'resource-data-changed',
     }
 
