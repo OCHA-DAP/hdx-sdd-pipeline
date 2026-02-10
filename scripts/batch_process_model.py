@@ -25,10 +25,7 @@ from src.infrastructure.storage.data_loader import SmartDataLoader
 from src.shared.utils.prompt_manager import PromptManager
 
 # Setup logging
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-)
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
 # Load environment variables
@@ -38,43 +35,43 @@ load_dotenv()
 def setup_pipeline(model_name: str) -> ProcessDatasetUseCase:
     """
     Setup the pipeline with the specified model.
-    
+
     Args:
         model_name: Name of the model to use for all LLM tasks
-        
+
     Returns:
         Configured ProcessDatasetUseCase
     """
     logger.info(f'Setting up pipeline with model: {model_name}')
-    
+
     # Create data loader
     data_loader = SmartDataLoader(max_rows=1000)
-    
+
     # Create LLM providers (using same model for all tasks)
     azure_endpoint = os.getenv('AZURE_OPENAI_ENDPOINT')
     api_key = os.getenv('AZURE_OPENAI_API_KEY')
-    
+
     pii_llm = AzureOpenAIProvider(
         model_name=model_name,
         azure_endpoint=azure_endpoint,
         api_key=api_key,
     )
-    
+
     pii_reflection_llm = AzureOpenAIProvider(
         model_name=model_name,
         azure_endpoint=azure_endpoint,
         api_key=api_key,
     )
-    
+
     non_pii_llm = AzureOpenAIProvider(
         model_name=model_name,
         azure_endpoint=azure_endpoint,
         api_key=api_key,
     )
-    
+
     # Create prompt manager
     prompt_manager = PromptManager(prompts_dir='src/prompts')
-    
+
     # Create use case with all dependencies
     use_case = ProcessDatasetUseCase(
         data_loader=data_loader,
@@ -84,7 +81,7 @@ def setup_pipeline(model_name: str) -> ProcessDatasetUseCase:
         prompt_manager=prompt_manager,
         sample_size=5,
     )
-    
+
     logger.info('Pipeline setup complete!')
     return use_case
 
@@ -92,47 +89,47 @@ def setup_pipeline(model_name: str) -> ProcessDatasetUseCase:
 def load_isp_rules(country: str = 'default') -> dict:
     """
     Load ISP (Information Sensitivity Protocol) rules from data/isps.json.
-    
+
     Args:
         country: Country name to load ISP rules for (default: "default")
-        
+
     Returns:
         Dictionary containing ISP rules for the specified country
     """
     isp_file = Path('data/isps.json')
-    
+
     if not isp_file.exists():
         logger.warning(f'ISP rules file not found: {isp_file}')
         return {}
-    
+
     try:
         with open(isp_file, 'r') as f:
             all_isps = json.load(f)
-        
+
         # If requesting default, return it directly
         if country == 'default':
             isp_rules = all_isps.get('default', {})
             logger.info('Loaded default ISP rules')
             return isp_rules
-        
+
         # Search through ISP entries to find matching country
         country_lower = country.lower()
-        
+
         for isp_key, isp_data in all_isps.items():
             if isp_key == 'default':
                 continue
-            
+
             isp_country = isp_data.get('country', '').lower()
-            
+
             if isp_country == country_lower or country_lower in isp_country or isp_country in country_lower:
                 logger.info(f'Loaded ISP rules for: {isp_key} (matched country: {isp_country})')
                 return isp_data
-        
+
         # If no match found, use default
         isp_rules = all_isps.get('default', {})
         logger.info(f"Country '{country}' not found in ISPs, using default ISP rules")
         return isp_rules
-    
+
     except Exception as e:
         logger.error(f'Failed to load ISP rules: {e}')
         return {}
@@ -141,21 +138,19 @@ def load_isp_rules(country: str = 'default') -> dict:
 def get_groundtruth_datasets() -> List[str]:
     """
     Get list of all dataset filenames from groundtruth2 directory.
-    
+
     Returns:
         List of dataset filenames (without .json extension)
     """
     groundtruth_dir = Path('research/results/test_results/groundtruth2')
-    
+
     if not groundtruth_dir.exists():
         logger.error(f'Groundtruth directory not found: {groundtruth_dir}')
         return []
-    
+
     # Get all JSON files and remove the .json extension
-    datasets = [
-        f.stem for f in groundtruth_dir.glob('*.json')
-    ]
-    
+    datasets = [f.stem for f in groundtruth_dir.glob('*.json')]
+
     logger.info(f'Found {len(datasets)} datasets in groundtruth2')
     return datasets
 
@@ -163,66 +158,62 @@ def get_groundtruth_datasets() -> List[str]:
 def get_source_file_path(dataset_name: str) -> Path:
     """
     Find the source data file for a given dataset name.
-    
+
     Args:
         dataset_name: Name of the dataset (e.g., "Event Data AFG.csv")
-        
+
     Returns:
         Path to the source file
     """
     data_dir = Path('research/data')
-    
+
     # Try to find the file
     source_file = data_dir / dataset_name
-    
+
     if source_file.exists():
         return source_file
-    
+
     # If not found, log warning
     logger.warning(f'Source file not found: {source_file}')
     return None
 
 
 def process_dataset(
-    pipeline: ProcessDatasetUseCase,
-    dataset_name: str,
-    model_name: str,
-    output_dir: Path,
-    skip_existing: bool = False
+    pipeline: ProcessDatasetUseCase, dataset_name: str, model_name: str, output_dir: Path, skip_existing: bool = False
 ) -> bool:
     """
     Process a single dataset with the specified model.
-    
+
     Args:
         pipeline: Configured pipeline
         dataset_name: Name of the dataset file
         model_name: Model name for output directory
         output_dir: Directory to save results
         skip_existing: Skip if output file already exists
-        
+
     Returns:
         True if successful, False otherwise
     """
     output_file = output_dir / f'{dataset_name}.json'
-    
+
     # Check if already processed
     if skip_existing and output_file.exists():
         logger.info(f'⏭️  Skipping {dataset_name} (already exists)')
         return True
-    
+
     # Find source file
     source_file = get_source_file_path(dataset_name)
-    
+
     if source_file is None:
         logger.error(f'❌ Cannot process {dataset_name}: source file not found')
         return False
-    
+
     logger.info(f'📊 Processing: {dataset_name}')
-    
+
     try:
         # Load ISP rules (using default for now)
         isp_rules = load_isp_rules('default')
-        
+
         # Process the dataset
         sheet_reports: List[SheetReport] = pipeline.execute(
             source=str(source_file),
@@ -230,25 +221,21 @@ def process_dataset(
             is_url=False,
             isp_rules=isp_rules,
         )
-        
+
         # Convert to dictionaries
         reports_dict = [report.to_dict() for report in sheet_reports]
-        
+
         # Save results
         output_file.parent.mkdir(parents=True, exist_ok=True)
         with output_file.open('w', encoding='utf-8') as f:
             json.dump(reports_dict, f, indent=2, ensure_ascii=False)
-        
+
         # Log summary
         sensitive_sheets = sum(1 for r in sheet_reports if r.is_sensitive())
-        logger.info(
-            f'✅ Completed {dataset_name}: '
-            f'{len(sheet_reports)} sheets, '
-            f'{sensitive_sheets} sensitive'
-        )
-        
+        logger.info(f'✅ Completed {dataset_name}: {len(sheet_reports)} sheets, {sensitive_sheets} sensitive')
+
         return True
-        
+
     except Exception as e:
         logger.error(f'❌ Failed to process {dataset_name}: {e}', exc_info=True)
         return False
@@ -256,72 +243,56 @@ def process_dataset(
 
 def main():
     """Main execution function."""
-    parser = argparse.ArgumentParser(
-        description='Batch process datasets with a specific model'
-    )
-    parser.add_argument(
-        '--model',
-        type=str,
-        required=True,
-        help='Model name to use (e.g., gpt-4.1, gpt-5-nano)'
-    )
-    parser.add_argument(
-        '--skip-existing',
-        action='store_true',
-        help='Skip datasets that already have results'
-    )
-    parser.add_argument(
-        '--limit',
-        type=int,
-        default=None,
-        help='Limit number of datasets to process (for testing)'
-    )
-    
+    parser = argparse.ArgumentParser(description='Batch process datasets with a specific model')
+    parser.add_argument('--model', type=str, required=True, help='Model name to use (e.g., gpt-4.1, gpt-5-nano)')
+    parser.add_argument('--skip-existing', action='store_true', help='Skip datasets that already have results')
+    parser.add_argument('--limit', type=int, default=None, help='Limit number of datasets to process (for testing)')
+
     args = parser.parse_args()
-    
+
     print('=' * 70)
     print(f'Batch Processing with Model: {args.model}')
     print('=' * 70)
     print()
-    
+
     # Setup pipeline
     pipeline = setup_pipeline(args.model)
-    
+
     # Get list of datasets
     datasets = get_groundtruth_datasets()
-    
+
     if not datasets:
         logger.error('No datasets found in groundtruth2!')
         return
-    
+
     # Apply limit if specified
     if args.limit:
-        datasets = datasets[:args.limit]
+        datasets = datasets[: args.limit]
         logger.info(f'Limited to first {args.limit} datasets')
-    
+
     # Setup output directory
     output_dir = Path(f'research/results/test_results/{args.model}')
     output_dir.mkdir(parents=True, exist_ok=True)
-    
+
     # Process each dataset
     total = len(datasets)
     successful = 0
     failed = 0
     skipped = 0
-    
+
     print(f'\nProcessing {total} datasets...\n')
-    
+
     for i, dataset_name in enumerate(datasets, 1):
         print(f'[{i}/{total}] {dataset_name}')
-        
+
         success = process_dataset(
             pipeline=pipeline,
             dataset_name=dataset_name,
             model_name=args.model,
             output_dir=output_dir,
-            skip_existing=args.skip_existing
+            skip_existing=args.skip_existing,
         )
-        
+
         if success:
             if args.skip_existing and (output_dir / f'{dataset_name}.json').exists():
                 skipped += 1
@@ -329,9 +300,9 @@ def main():
                 successful += 1
         else:
             failed += 1
-        
+
         print()
-    
+
     # Print summary
     print('=' * 70)
     print('BATCH PROCESSING COMPLETE')

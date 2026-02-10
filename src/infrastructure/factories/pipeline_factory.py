@@ -15,7 +15,7 @@ logger = logging.getLogger(__name__)
 class PipelineFactory:
     """
     Factory for creating processing pipelines with configuration-based dependencies.
-    
+
     This centralizes all the conditional logic for enabling/disabling pipeline steps,
     making the main event processor cleaner and more maintainable.
     """
@@ -23,7 +23,7 @@ class PipelineFactory:
     def __init__(self, config: Config):
         """
         Initialize factory with configuration.
-        
+
         Args:
             config: Configuration object with feature flags
         """
@@ -41,14 +41,13 @@ class PipelineFactory:
         logger.info(f'  CKAN update: {self.config.CKAN_UPDATE}')
         logger.info('===========================================')
 
-
     def create_pipeline(self, sample_size: int = 5) -> ProcessDatasetUseCase:
         """
         Create a configured processing pipeline.
-        
+
         Args:
             sample_size: Number of samples per column
-            
+
         Returns:
             Configured ProcessDatasetUseCase instance
         """

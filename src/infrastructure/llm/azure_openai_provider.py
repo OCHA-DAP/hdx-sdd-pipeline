@@ -90,8 +90,8 @@ class AzureOpenAIProvider(ILLMProvider):
                     messages=[{'role': 'user', 'content': prompt}],
                     max_tokens=max_tokens,
                     temperature=temperature,
-                **kwargs,
-            )
+                    **kwargs,
+                )
 
             generated_text = response.choices[0].message.content
             completion_tokens = response.usage.completion_tokens

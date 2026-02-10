@@ -1,11 +1,11 @@
 """Tests for CKAN client."""
 
 import pytest
-from unittest.mock import Mock, patch, MagicMock
-from pathlib import Path
+from unittest.mock import Mock, patch
 import requests
 from src.shared.utils.ckan import CKANClient
 from src.shared.utils.exception_handler import ContextualError
+import logging
 
 
 class TestCKANClient:
@@ -14,10 +14,7 @@ class TestCKANClient:
     @pytest.fixture
     def client(self):
         """Create a CKAN client instance."""
-        return CKANClient(
-            base_url='https://test.hdx.org',
-            api_token='test-token-123'
-        )
+        return CKANClient(base_url='https://test.hdx.org', api_token='test-token-123')
 
     @pytest.fixture
     def client_no_token(self):
@@ -42,10 +39,7 @@ class TestCKANClient:
         """Test successful GET request."""
         mock_response = Mock()
         mock_response.status_code = 200
-        mock_response.json.return_value = {
-            'success': True,
-            'result': {'id': 'test-123', 'name': 'Test Resource'}
-        }
+        mock_response.json.return_value = {'success': True, 'result': {'id': 'test-123', 'name': 'Test Resource'}}
         mock_get.return_value = mock_response
 
         result = client._request('resource_show', method='GET', params={'id': 'test-123'})
@@ -58,10 +52,7 @@ class TestCKANClient:
         """Test successful POST request."""
         mock_response = Mock()
         mock_response.status_code = 200
-        mock_response.json.return_value = {
-            'success': True,
-            'result': {'id': 'test-123', 'updated': True}
-        }
+        mock_response.json.return_value = {'success': True, 'result': {'id': 'test-123', 'updated': True}}
         mock_post.return_value = mock_response
 
         result = client._request('resource_patch', method='POST', json={'id': 'test-123'})
@@ -72,7 +63,7 @@ class TestCKANClient:
     @patch('src.shared.utils.ckan.requests.get')
     def test_request_http_error_401(self, mock_get, client, caplog):
         """Test handling of 401 authentication error."""
-        import logging
+
         mock_response = Mock()
         mock_response.status_code = 401
         mock_response.raise_for_status.side_effect = requests.exceptions.HTTPError(response=mock_response)
@@ -80,16 +71,16 @@ class TestCKANClient:
 
         with pytest.raises(ContextualError) as excinfo:
             client._request('resource_show')
-        
+
         # Verify wrapper captured the 401
         assert isinstance(excinfo.value.original_exc, requests.exceptions.HTTPError)
         assert excinfo.value.original_exc.response.status_code == 401
-        assert "Authentication failed" in caplog.text
+        assert 'Authentication failed' in caplog.text
 
     @patch('src.shared.utils.ckan.requests.get')
     def test_request_http_error_403(self, mock_get, client, caplog):
         """Test handling of 403 permission error."""
-        import logging
+
         mock_response = Mock()
         mock_response.status_code = 403
         mock_response.raise_for_status.side_effect = requests.exceptions.HTTPError(response=mock_response)
@@ -101,25 +92,22 @@ class TestCKANClient:
         # Verify wrapper captured the 403
         assert isinstance(excinfo.value.original_exc, requests.exceptions.HTTPError)
         assert excinfo.value.original_exc.response.status_code == 403
-        assert "Permission denied" in caplog.text
+        assert 'Permission denied' in caplog.text
 
     @patch('src.shared.utils.ckan.requests.get')
     def test_request_api_error(self, mock_get, client, caplog):
         """Test handling of API error response."""
-        import logging
+
         mock_response = Mock()
         mock_response.status_code = 200
-        mock_response.json.return_value = {
-            'success': False,
-            'error': {'message': 'Resource not found'}
-        }
+        mock_response.json.return_value = {'success': False, 'error': {'message': 'Resource not found'}}
         mock_get.return_value = mock_response
 
         with caplog.at_level(logging.ERROR):
             result = client._request('resource_show')
 
         assert result is None
-        assert "CKAN API returned error" in caplog.text
+        assert 'CKAN API returned error' in caplog.text
 
     @patch.object(CKANClient, '_request')
     def test_package_show(self, mock_request, client):
@@ -150,17 +138,15 @@ class TestCKANClient:
 
         assert result == {'id': 'res-123', 'sdd_report': 'updated'}
         mock_request.assert_called_once_with(
-            'resource_patch',
-            method='POST',
-            json={'id': 'res-123', 'sdd_report': 'updated'}
+            'resource_patch', method='POST', json={'id': 'res-123', 'sdd_report': 'updated'}
         )
 
     def test_update_resource_fields_no_token(self, client_no_token):
         """Test update_resource_fields raises error without API token."""
-        
+
         with pytest.raises(ContextualError) as excinfo:
             client_no_token.update_resource_fields('res-123', {'field': 'value'})
-        
+
         # Verify the original exception was EnvironmentError
         assert isinstance(excinfo.value.original_exc, EnvironmentError)
         assert 'HDX_API_TOKEN is required' in str(excinfo.value.original_exc)
@@ -169,42 +155,38 @@ class TestCKANClient:
     def test_update_resource_fields_failure(self, mock_request, client, caplog):
         """Test resource field update failure."""
         import logging
+
         mock_request.return_value = None
 
         with caplog.at_level(logging.ERROR):
             result = client.update_resource_fields('res-123', {'field': 'value'})
 
         assert result is None
-        assert "Failed to update resource" in caplog.text
+        assert 'Failed to update resource' in caplog.text
 
     @patch.object(CKANClient, '_request')
     def test_remove_resource_field(self, mock_request, client):
         """Test removing a resource field."""
         mock_request.return_value = {'id': 'res-123', 'field': None}
 
-        result = client.remove_resource_field('res-123', 'sdd_report')
+        client.remove_resource_field('res-123', 'sdd_report')
 
         mock_request.assert_called_once_with(
-            'resource_patch',
-            method='POST',
-            json={'id': 'res-123', 'sdd_report': None}
+            'resource_patch', method='POST', json={'id': 'res-123', 'sdd_report': None}
         )
 
     def test_remove_resource_field_no_token(self, client_no_token):
         """Test remove_resource_field raises error without API token."""
         with pytest.raises(ContextualError) as excinfo:
             client_no_token.remove_resource_field('res-123', 'field')
-        
+
         assert isinstance(excinfo.value.original_exc, EnvironmentError)
         assert 'HDX_API_TOKEN is required' in str(excinfo.value.original_exc)
 
     @patch.object(CKANClient, 'resource_show')
     def test_get_download_link_success(self, mock_resource_show, client):
         """Test getting download link from resource."""
-        mock_resource_show.return_value = {
-            'id': 'res-123',
-            'download_url': 'https://test.hdx.org/download/file.csv'
-        }
+        mock_resource_show.return_value = {'id': 'res-123', 'download_url': 'https://test.hdx.org/download/file.csv'}
 
         result = client._get_download_link('res-123')
 
@@ -214,13 +196,14 @@ class TestCKANClient:
     def test_get_download_link_no_url(self, mock_resource_show, client, caplog):
         """Test getting download link when URL is missing."""
         import logging
+
         mock_resource_show.return_value = {'id': 'res-123'}
 
         with caplog.at_level(logging.INFO):
             result = client._get_download_link('res-123')
 
         assert result is None
-        assert "No download URL found" in caplog.text
+        assert 'No download URL found' in caplog.text
 
     @patch('src.shared.utils.ckan.requests.get')
     def test_download_file_success(self, mock_get, client, tmp_path):
@@ -256,7 +239,7 @@ class TestCKANClient:
 
         with pytest.raises(ContextualError) as excinfo:
             client.download_resource('res-123')
-        
+
         assert isinstance(excinfo.value.original_exc, ValueError)
         assert 'No download URL found' in str(excinfo.value.original_exc)
 
@@ -267,7 +250,7 @@ class TestCKANClient:
 
         with pytest.raises(ContextualError) as excinfo:
             client._request('resource_show')
-        
+
         assert isinstance(excinfo.value.original_exc, requests.exceptions.Timeout)
 
     @patch('src.shared.utils.ckan.requests.get')
@@ -277,5 +260,5 @@ class TestCKANClient:
 
         with pytest.raises(ContextualError) as excinfo:
             client._request('resource_show')
-            
+
         assert isinstance(excinfo.value.original_exc, requests.exceptions.ConnectionError)

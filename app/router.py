@@ -117,19 +117,19 @@ def load_isp_rules(country: str = 'default') -> dict:
         # Search through ISP entries to find matching country
         # ISP keys are like "OCHA Afghanistan" but the country field inside is "afghanistan"
         country_lower = country.lower()
-        
+
         for isp_key, isp_data in all_isps.items():
             if isp_key == 'default':
                 continue
-            
+
             # Check if the country field matches (case-insensitive)
             isp_country = isp_data.get('country', '').lower()
-            
+
             # Match if the country field contains or equals the search term
             if isp_country == country_lower or country_lower in isp_country or isp_country in country_lower:
                 logger.info(f'Loaded ISP rules for: {isp_key} (matched country: {isp_country})')
                 return isp_data
-        
+
         # If no match found, use default
         isp_rules = all_isps.get('default', {})
         logger.info(f"Country '{country}' not found in ISPs, using default ISP rules")
@@ -213,16 +213,16 @@ async def generate_report(
 ):
     """
     Generate a sensitivity report for a dataset using the clean architecture pipeline.
-    
+
     Args:
         dataset_filename: Name of the dataset file
         model_name: Name of the model to use for classification
-        
+
     Returns:
         Report data including sensitivity classification
     """
     report_file = REPORTS_DIR / model_name / f'{dataset_filename}.json'
-    
+
     # Check if report file exists
     if report_file.exists():
         # Load report file
@@ -234,21 +234,21 @@ async def generate_report(
             'report_path': str(report_file),
             'report': report,
         }
-    
+
     # Read dataset file
     dataset_file = DATASETS_DIR / dataset_filename
     if not dataset_file.exists():
         raise HTTPException(status_code=404, detail='Dataset file not found')
-    
+
     logger.info(f'Generating new report for: {dataset_filename} with model: {model_name}')
-    
+
     try:
         # Setup pipeline with specified model
         pipeline = setup_pipeline(model_name=model_name)
-        
+
         # Load ISP rules (using default for now)
         isp_rules = load_isp_rules('default')
-        
+
         # Process dataset using the clean architecture
         sheet_reports: List[SheetReport] = pipeline.execute(
             source=str(dataset_file),
@@ -256,30 +256,30 @@ async def generate_report(
             is_url=False,
             isp_rules=isp_rules,
         )
-        
+
         # Convert SheetReport entities to dictionaries
         reports_dict = [report.to_dict() for report in sheet_reports]
-        
+
         # Determine overall sensitivity (any sheet is sensitive)
         is_sensitive = any(report.is_sensitive() for report in sheet_reports)
         sensitivity = 'SENSITIVE' if is_sensitive else 'NON-SENSITIVE'
-        
+
         # Ensure report directory exists
         report_file.parent.mkdir(parents=True, exist_ok=True)
-        
+
         # Save report to file
         with report_file.open('w', encoding='utf-8') as f:
             json.dump(reports_dict, f, indent=2, ensure_ascii=False)
-        
+
         logger.info(f'Report saved successfully: {report_file}')
-        
+
         return {
             'message': 'Report generated successfully',
             'report_path': str(report_file),
             'sensitivity': sensitivity,
             'reports': reports_dict,
         }
-        
+
     except Exception as e:
         logger.error(f'Failed to generate report: {e}', exc_info=True)
         raise HTTPException(status_code=500, detail=f'Failed to generate report: {str(e)}')
@@ -292,40 +292,40 @@ async def generate_all_reports(
 ):
     """
     Generate sensitivity reports for a dataset using ALL available models.
-    
+
     Args:
         dataset_filename: Name of the dataset file
-        
+
     Returns:
         Summary of generated reports
     """
     # Available models
     models = ['gpt-5-nano', 'gpt-5-mini', 'gpt-5.1', 'gpt-4.1-nano', 'gpt-4.1-mini', 'gpt-4.1', 'DeepSeek-V3.1']
-    
+
     # Read dataset file
     dataset_file = DATASETS_DIR / dataset_filename
     if not dataset_file.exists():
         raise HTTPException(status_code=404, detail='Dataset file not found')
-    
+
     logger.info(f'Generating reports for all models: {dataset_filename}')
-    
+
     results = {}
     for model_name in models:
         report_file = REPORTS_DIR / model_name / f'{dataset_filename}.json'
-        
+
         # Skip if report already exists
         if report_file.exists():
             logger.info(f'Report already exists for {model_name}, skipping')
             results[model_name] = {'status': 'exists', 'report_path': str(report_file)}
             continue
-        
+
         try:
             # Setup pipeline with specified model
             pipeline = setup_pipeline(model_name=model_name)
-            
+
             # Load ISP rules
             isp_rules = load_isp_rules('default')
-            
+
             # Process dataset
             sheet_reports: List[SheetReport] = pipeline.execute(
                 source=str(dataset_file),
@@ -333,38 +333,37 @@ async def generate_all_reports(
                 is_url=False,
                 isp_rules=isp_rules,
             )
-            
+
             # Convert to dictionaries
             reports_dict = [report.to_dict() for report in sheet_reports]
-            
+
             # Determine overall sensitivity
             is_sensitive = any(report.is_sensitive() for report in sheet_reports)
             sensitivity = 'SENSITIVE' if is_sensitive else 'NON-SENSITIVE'
-            
+
             # Ensure report directory exists
             report_file.parent.mkdir(parents=True, exist_ok=True)
-            
+
             # Save report
             with report_file.open('w', encoding='utf-8') as f:
                 json.dump(reports_dict, f, indent=2, ensure_ascii=False)
-            
+
             logger.info(f'Report saved for {model_name}: {report_file}')
             results[model_name] = {
                 'status': 'generated',
                 'report_path': str(report_file),
                 'sensitivity': sensitivity,
             }
-            
+
         except Exception as e:
             logger.error(f'Failed to generate report for {model_name}: {e}', exc_info=True)
             results[model_name] = {'status': 'error', 'error': str(e)}
-    
+
     return {
         'message': 'Batch generation complete',
         'dataset': dataset_filename,
         'results': results,
     }
-
 
 
 # Create empty ground truth template
@@ -374,13 +373,13 @@ async def create_groundtruth_template(
 ):
     """
     Create an empty ground truth template for manual annotation.
-    
+
     This endpoint reads the file structure WITHOUT running any LLM processing,
     creating a template with TODO placeholders for manual annotation.
-    
+
     Args:
         dataset_filename: Name of the dataset file
-        
+
     Returns:
         Path to created template
     """
@@ -388,9 +387,9 @@ async def create_groundtruth_template(
     dataset_file = DATASETS_DIR / dataset_filename
     if not dataset_file.exists():
         raise HTTPException(status_code=404, detail='Dataset file not found')
-    
+
     gt_file = GROUNDTRUTH_DIR / f'{dataset_filename}.json'
-    
+
     # Check if template already exists
     if gt_file.exists():
         return {
@@ -398,41 +397,39 @@ async def create_groundtruth_template(
             'template_path': str(gt_file),
             'exists': True,
         }
-    
+
     logger.info(f'Creating ground truth template for: {dataset_filename}')
-    
+
     try:
         # Load data without LLM processing - just get structure
         data_loader = SmartDataLoader(max_rows=1000)
-        
+
         if dataset_file.suffix.lower() == '.csv':
             sheets = data_loader.load_from_file(str(dataset_file))
         else:
             sheets = data_loader.load_from_file(str(dataset_file))
 
-        
         # Create template with placeholders
         template = []
-        
+
         for sheet_name, df in sheets.items():
             # Sample the data
             sample_dict = data_loader.sample_dataframe(df, sample_size=5)
-            
+
             # Create columns with TODO placeholders
             columns = []
             for col_name, sample_values in sample_dict.items():
                 # Convert any datetime objects in sample_values to strings
                 serializable_values = make_json_serializable(sample_values)
-                
-                columns.append({
-                    'column_name': col_name,
-                    'sample_values': serializable_values,
-                    'pii': {
-                        'entity_type': 'TODO',
-                        'sensitive': False
+
+                columns.append(
+                    {
+                        'column_name': col_name,
+                        'sample_values': serializable_values,
+                        'pii': {'entity_type': 'TODO', 'sensitive': False},
                     }
-                })
-            
+                )
+
             # Create sheet report with placeholders
             sheet_report = {
                 'resource_id': None,
@@ -447,27 +444,27 @@ async def create_groundtruth_template(
                 'prompt_tokens': 0,
                 'personal_data_sensitive': False,
                 'non_personal_data_sensitive': False,
-                'columns': columns
+                'columns': columns,
             }
-            
+
             template.append(sheet_report)
-        
+
         # Ensure directory exists
         gt_file.parent.mkdir(parents=True, exist_ok=True)
-        
+
         # Save template
         with gt_file.open('w', encoding='utf-8') as f:
             json.dump(template, f, indent=4, ensure_ascii=False)
-        
+
         logger.info(f'Ground truth template created: {gt_file}')
-        
+
         return {
             'message': 'Ground truth template created successfully',
             'template_path': str(gt_file),
             'exists': False,
             'sheets': len(template),
         }
-        
+
     except Exception as e:
         logger.error(f'Failed to create ground truth template: {e}', exc_info=True)
         raise HTTPException(status_code=500, detail=f'Failed to create template: {str(e)}')
@@ -496,10 +493,12 @@ def compute_file_level_metrics(model_name: str) -> Dict[str, Any]:
         pred_data = load_json_file(model_dir / filename)
         # File is sensitive if ANY sheet has personal_data_sensitive OR non_personal_data_sensitive
         gt_sensitive = any(
-            sheet.get('personal_data_sensitive', False) or sheet.get('non_personal_data_sensitive', False) for sheet in gt_data
+            sheet.get('personal_data_sensitive', False) or sheet.get('non_personal_data_sensitive', False)
+            for sheet in gt_data
         )
         pred_sensitive = any(
-            sheet.get('personal_data_sensitive', False) or sheet.get('non_personal_data_sensitive', False) for sheet in pred_data
+            sheet.get('personal_data_sensitive', False) or sheet.get('non_personal_data_sensitive', False)
+            for sheet in pred_data
         )
         gt_arr.append(int(gt_sensitive))
         pred_arr.append(int(pred_sensitive))
@@ -683,7 +682,7 @@ def compute_sheet_level_metrics(model_name: str, category: str) -> Dict[str, Any
 
 @router.get('/statistics')
 async def get_statistics(
-    model_name: str = Query(None, description='Model name (optional, returns all if not specified)')
+    model_name: str = Query(None, description='Model name (optional, returns all if not specified)'),
 ):
     """Get comprehensive statistics for one or all models."""
     available_models = [
@@ -769,7 +768,8 @@ async def compare_models(
                     'personal_data_sensitive': pred_sheet.get('personal_data_sensitive', False),
                     'non_personal_data_sensitive': pred_sheet.get('non_personal_data_sensitive', False),
                     'non_pii_sensitivity_explanation': pred_sheet.get('non_pii', {}).get('explanation'),
-                    'pii_correct': pred_sheet.get('personal_data_sensitive', False) == gt_sheet.get('personal_data_sensitive', False),
+                    'pii_correct': pred_sheet.get('personal_data_sensitive', False)
+                    == gt_sheet.get('personal_data_sensitive', False),
                     'non_pii_correct': pred_sheet.get('non_personal_data_sensitive', False)
                     == gt_sheet.get('non_personal_data_sensitive', False),
                 }
@@ -821,7 +821,7 @@ async def get_cost_analysis():
     """
     Calculate token usage and costs for all models.
     Only processes files that exist in ALL models (intersection) for fair comparison.
-    
+
     Returns:
         Dictionary with cost analysis for each model
     """
@@ -835,69 +835,68 @@ async def get_cost_analysis():
         'gpt-5.1': 3.44,
         'DeepSeek-V3.1': 0.84,
     }
-    
+
     # Get all available models
     available_models = [
-        d.name for d in REPORTS_DIR.iterdir() 
-        if d.is_dir() and d.name not in ('groundtruth', 'groundtruth2')
+        d.name for d in REPORTS_DIR.iterdir() if d.is_dir() and d.name not in ('groundtruth', 'groundtruth2')
     ]
-    
+
     # Find common files across all models (intersection)
     model_files = {}
     for model in available_models:
         model_dir = REPORTS_DIR / model
         model_files[model] = set(f.name for f in model_dir.glob('*.json'))
-    
+
     # Get intersection of all files
     common_files = set.intersection(*model_files.values()) if model_files else set()
-    
+
     logger.info(f'Cost analysis using {len(common_files)} common files across {len(available_models)} models')
-    
+
     cost_analysis = {}
-    
+
     for model in available_models:
         model_dir = REPORTS_DIR / model
-        
+
         total_prompt_tokens = 0
         total_completion_tokens = 0
         total_tokens = 0
         reports_processed = 0
         reports_with_errors = 0
-        
+
         # Only process common files
         for filename in common_files:
             report_file = model_dir / filename
-            
+
             if not report_file.exists():
                 continue
-                
+
             try:
                 with open(report_file, 'r', encoding='utf-8') as f:
                     report_data = json.load(f)
-                
+
                 # report_data is a list of sheet reports
                 if isinstance(report_data, list):
                     for sheet in report_data:
                         if isinstance(sheet, dict):
                             prompt_tokens = sheet.get('prompt_tokens', 0)
                             completion_tokens = sheet.get('completion_tokens', 0)
-                            
+
                             if prompt_tokens or completion_tokens:
                                 total_prompt_tokens += prompt_tokens
                                 total_completion_tokens += completion_tokens
-                                total_tokens += (prompt_tokens + completion_tokens)
-                    
+                                total_tokens += prompt_tokens + completion_tokens
+
                     reports_processed += 1
-                    
+
             except Exception as e:
                 logger.error(f'Error processing {report_file}: {e}')
                 reports_with_errors += 1
                 continue
-        
+
         # Calculate cost
         price_per_million = PRICING.get(model, 0)
         total_cost = (total_tokens / 1_000_000) * price_per_million
-        
+
         cost_analysis[model] = {
             'prompt_tokens': total_prompt_tokens,
             'completion_tokens': total_completion_tokens,
@@ -908,7 +907,7 @@ async def get_cost_analysis():
             'total_cost_usd': round(total_cost, 4),
             'cost_per_report': round(total_cost / reports_processed, 4) if reports_processed > 0 else 0,
         }
-    
+
     return {
         'models': cost_analysis,
         'pricing': PRICING,

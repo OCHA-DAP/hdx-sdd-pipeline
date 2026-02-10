@@ -245,7 +245,7 @@ class ProcessDatasetUseCase:
             # Generate table markdown context for all columns
             table_markdown = self._generate_table_markdown(report)
             logger.info(f'Table context:\n{table_markdown}\n')
-            
+
             # Render prompt with table context (use latest version)
             prompt = self.prompt_manager.get_prompt(
                 'pii_reflection',
@@ -272,12 +272,14 @@ class ProcessDatasetUseCase:
             for column in report.columns:
                 if column.has_pii():
                     column.pii_classification.sensitive = is_sensitive
-                    logger.debug(f"Column '{column.name}' ({column.pii_classification.entity_type}): sensitive={is_sensitive}")
+                    logger.debug(
+                        f"Column '{column.name}' ({column.pii_classification.entity_type}): sensitive={is_sensitive}"
+                    )
 
             # Update token counts
             report.completion_tokens += comp_tokens
             report.prompt_tokens += prompt_tokens
-            
+
         except Exception as e:
             logger.error(f'PII sensitivity classification failed: {e}')
             # Default to sensitive on error (fail safe)
@@ -415,13 +417,13 @@ class ProcessDatasetUseCase:
     def _generate_table_markdown(self, report: SheetReport) -> str:
         """
         Generate a markdown table from the report columns with PII entity types.
-        
+
         This creates a table showing column names (with PII entity types if detected)
         alongside their sample values, providing rich context for PII reflection.
-        
+
         Args:
             report: SheetReport containing columns with classifications
-            
+
         Returns:
             Markdown table string
         """
@@ -449,5 +451,5 @@ class ProcessDatasetUseCase:
 
             # Generate markdown table
             return pd.DataFrame(column_samples).to_markdown(index=False) or ''
-        
+
         return ''

@@ -1,4 +1,4 @@
-"""  
+"""
 Event processor for HDX resource events.
 
 This is the main entry point for processing events from Redis streams.
@@ -25,6 +25,7 @@ logger = logging.getLogger(__name__)
 
 load_dotenv()
 
+
 class EventProcessor:
     """
     Processes HDX resource events from Redis streams.
@@ -47,10 +48,7 @@ class EventProcessor:
 
         # Setup CKAN client if CKAN_UPDATE is enabled
         if self.config.CKAN_UPDATE:
-            self.ckan = CKANClient(
-                base_url=self.config.HDX_URL,
-                api_token=self.config.HDX_KEY
-            )
+            self.ckan = CKANClient(base_url=self.config.HDX_URL, api_token=self.config.HDX_KEY)
             logger.info('CKAN client initialized')
         else:
             logger.info('CKAN_UPDATE is disabled - CKAN operations will be skipped')
@@ -124,7 +122,7 @@ class EventProcessor:
         """Check if report already exists in CKAN."""
         if self.ckan is None:
             return False
-        
+
         try:
             resource = self.ckan.resource_show(resource_id)
             return 'sdd_report' in resource and resource['sdd_report']
@@ -134,7 +132,7 @@ class EventProcessor:
     def _get_isp_rules(self, package_id: str, resource_name: Optional[str] = None) -> Dict[str, Any]:
         """
         Get ISP rules based on dataset location or resource name.
-        
+
         1. Try to match country from package location (CKAN).
         2. If that fails or yields default, try to match country from resource name.
         3. Fallback to default.
@@ -147,10 +145,10 @@ class EventProcessor:
             return {}
 
         default_isp = isps.get('default', {})
-        
+
         # 1. Try Package ID (Dataset Location) if available
         matched_isp = None
-        
+
         if package_id and self.ckan:
             try:
                 # Get package info
@@ -177,10 +175,10 @@ class EventProcessor:
                             break
             except Exception as e:
                 logger.warning(f'Failed to get location from CKAN: {e}')
-        
+
         if matched_isp:
             return matched_isp
-            
+
         # 2. Try Resource Name (Filename)
         if resource_name:
             for isp_name, isp_data in isps.items():
@@ -220,7 +218,7 @@ class EventProcessor:
 
     def _save_to_local_file(self, resource_id: str, reports_dict: list, sensitivity: str):
         """Save report to local dev.json file for testing."""
-        
+
         # Create output directory if it doesn't exist
         output_dir = Path('dev_reports')
         output_dir.mkdir(exist_ok=True)
@@ -230,7 +228,7 @@ class EventProcessor:
             'resource_id': resource_id,
             'sensitive': sensitivity,
             'timestamp': datetime.now().isoformat(),
-            'sdd_report': reports_dict
+            'sdd_report': reports_dict,
         }
 
         # Save to dev.json
@@ -269,11 +267,11 @@ def main():
 
 if __name__ == '__main__':  # pragma: no cover
     main()
-    
+
     # Test the dev.json file
     with open('dev_reports/dev.json', 'r', encoding='utf-8') as f:
         dev_data = json.load(f)
-        
+
     # Assert if sdd_report is list
     assert isinstance(dev_data['sdd_report'], list)
 
@@ -292,9 +290,9 @@ if __name__ == '__main__':  # pragma: no cover
         assert 'prompt_tokens' in sheet_report
         assert 'personal_data_sensitive' in sheet_report
         assert 'non_personal_data_sensitive' in sheet_report
-        
+
         # Model fields are optional (None when steps are disabled)
         # Just verify they exist in the report, even if None
         assert 'non_pii_model' in sheet_report or 'non_personal_data' in sheet_report
-        
+
         logger.info('✅ All required fields present in dev.json')

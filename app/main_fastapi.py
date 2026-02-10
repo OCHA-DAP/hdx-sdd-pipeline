@@ -35,15 +35,15 @@ def create_app() -> FastAPI:
         CORSMiddleware,
         allow_origins=settings.cors_origins,
         allow_credentials=True,
-        allow_methods=["*"],
-        allow_headers=["*"],
+        allow_methods=['*'],
+        allow_headers=['*'],
     )
 
     # Register routers
     app.include_router(
         router,
         prefix=settings.api_prefix,
-        tags=["HDX SSD Pipeline"],
+        tags=['HDX SSD Pipeline'],
     )
 
     return app
@@ -53,10 +53,10 @@ def create_app() -> FastAPI:
 app = create_app()
 
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     uvicorn.run(
-        "main_fastapi:app",
-        host="127.0.0.1",
+        'main_fastapi:app',
+        host='127.0.0.1',
         port=8000,
         reload=True,
     )

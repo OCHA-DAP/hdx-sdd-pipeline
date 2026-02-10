@@ -13,7 +13,7 @@ import pandas as pd
 def make_json_serializable(obj: Any) -> Any:
     """
     Convert objects to JSON-serializable formats.
-    
+
     This function recursively processes objects and converts non-JSON-serializable
     types to their string representations:
     - datetime/date objects -> ISO format strings
@@ -21,10 +21,10 @@ def make_json_serializable(obj: Any) -> Any:
     - pandas Timestamp -> ISO format strings
     - NaN/None -> None
     - Lists and dicts are processed recursively
-    
+
     Args:
         obj: Object to convert
-        
+
     Returns:
         JSON-serializable version of the object
     """
@@ -35,10 +35,10 @@ def make_json_serializable(obj: Any) -> Any:
     # Handle collections first to avoid ambiguity with pd.isna on arrays
     if isinstance(obj, list):
         return [make_json_serializable(item) for item in obj]
-    
+
     if isinstance(obj, tuple):
         return [make_json_serializable(item) for item in obj]
-        
+
     if isinstance(obj, dict):
         return {key: make_json_serializable(value) for key, value in obj.items()}
 
@@ -48,9 +48,7 @@ def make_json_serializable(obj: Any) -> Any:
     # Handle datetime objects
     if isinstance(obj, (datetime, date)):
         return obj.isoformat()
-    
 
-    
     # Handle numpy generic types
     if isinstance(obj, np.generic):
         return make_json_serializable(obj.item())
@@ -62,5 +60,5 @@ def make_json_serializable(obj: Any) -> Any:
     except (ValueError, TypeError):
         # Fallback for types where pd.isna might fail or return array
         pass
-    
+
     return obj

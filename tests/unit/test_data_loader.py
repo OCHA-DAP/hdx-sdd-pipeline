@@ -7,6 +7,7 @@ from src.infrastructure.storage.data_loader import SmartDataLoader
 from src.domain.exceptions import DataProcessingError
 import pytest
 
+
 class TestSmartDataLoader:
     """Test suite for SmartDataLoader."""
 

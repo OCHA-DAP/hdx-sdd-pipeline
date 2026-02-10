@@ -1,11 +1,12 @@
+from hdx_redis_lib import connect_to_hdx_event_bus, RedisConfig
+from redis_streams_event_generator import stream_events_to_redis
 import os
 import time
 import logging
 from unittest.mock import patch
 import pytest
-hdx_redis_lib = pytest.importorskip("hdx_redis_lib")
-from hdx_redis_lib import connect_to_hdx_event_bus, RedisConfig
-from redis_streams_event_generator import stream_events_to_redis
+
+hdx_redis_lib = pytest.importorskip('hdx_redis_lib')
 
 
 logger = logging.getLogger(__name__)

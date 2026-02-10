@@ -8,6 +8,7 @@ It processes HDX resource events from Redis streams.
 import json
 from src.event_processor import EventProcessor
 
+
 def main():
     # Load events.json
     with open('events.json', 'r') as f:
@@ -19,6 +20,7 @@ def main():
     # Process events
     for event in events:
         processor.process_event(event)
+
 
 if __name__ == '__main__':
     main()

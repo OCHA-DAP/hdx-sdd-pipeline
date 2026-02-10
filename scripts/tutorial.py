@@ -189,19 +189,19 @@ def load_isp_rules(country: str = 'default') -> dict:
         # Search through ISP entries to find matching country
         # ISP keys are like "OCHA Afghanistan" but the country field inside is "afghanistan"
         country_lower = country.lower()
-        
+
         for isp_key, isp_data in all_isps.items():
             if isp_key == 'default':
                 continue
-            
+
             # Check if the country field matches (case-insensitive)
             isp_country = isp_data.get('country', '').lower()
-            
+
             # Match if the country field contains or equals the search term
             if isp_country == country_lower or country_lower in isp_country or isp_country in country_lower:
                 logger.info(f'Loaded ISP rules for: {isp_key} (matched country: {isp_country})')
                 return isp_data
-        
+
         # If no match found, use default
         isp_rules = all_isps.get('default', {})
         logger.info(f"Country '{country}' not found in ISPs, using default ISP rules")
