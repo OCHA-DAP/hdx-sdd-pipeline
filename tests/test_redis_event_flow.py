@@ -3,13 +3,11 @@ import time
 import logging
 from unittest.mock import patch
 import pytest
+hdx_redis_lib = pytest.importorskip("hdx_redis_lib")
 from hdx_redis_lib import connect_to_hdx_event_bus, RedisConfig
 from redis_streams_event_generator import stream_events_to_redis
-import main
 
-logging.basicConfig(
-    level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', datefmt='%Y-%m-%d %H:%M:%S'
-)
+
 logger = logging.getLogger(__name__)
 
 
@@ -92,20 +90,24 @@ def test_push_and_listen_events(event_bus_listener):
         logger.warning(f'Failed to delete test stream: {e}')
 
 
-def test_redis_event_calls_main_event_processor(event_bus_listener):
+def test_redis_event_calls_event_processor(event_bus_listener):
     test_event = {
         'event_type': 'resource-data-changed',
         'resource_id': 'test-resource-id-456',
     }
 
-    with patch.object(main, 'event_processor', return_value=(True, 'OK')) as mock_processor:
+    # Patch the EventProcessor class to avoid real initialization
+    with patch('src.event_processor.EventProcessor') as MockEventProcessor:
+        mock_instance = MockEventProcessor.return_value
+        mock_instance.process_event.return_value = (True, 'OK')
+
         stream_events_to_redis([test_event], stream_name='hdx_test_event_stream')
         time.sleep(0.1)
 
         event_bus_listener.hdx_listen(
-            main.event_processor,
+            mock_instance.process_event,
             allowed_event_types={'resource-data-changed'},
             max_iterations=1,
         )
 
-        mock_processor.assert_called_once()
+        mock_instance.process_event.assert_called_once()

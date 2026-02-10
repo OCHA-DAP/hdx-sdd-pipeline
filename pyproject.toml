@@ -38,12 +38,13 @@ skip-string-normalization = true
 pythonpath = ["."]
 testpaths = ["tests"]
 # Coverage options - uncomment if needed
-# addopts = """
-#     --cov=src
-#     --cov=utils
-#     --cov-report=term-missing
-#     --cov-report=html
-# """
+addopts = """
+    --cov=src
+    --cov=utils
+    --cov-report=term-missing
+    --cov-report=html
+
+ """
 
 # ✅ Coverage config added here
 [tool.coverage.run]

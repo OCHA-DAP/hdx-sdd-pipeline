@@ -101,38 +101,25 @@ class TestEndToEndPipeline:
         
         # Mock the LLM responses
         with patch.object(mock_llm_provider, 'generate') as mock_generate:
-            with patch.object(mock_llm_provider, 'generate_json') as mock_generate_json:
-                # Setup mock responses for PII classification
-                mock_generate.side_effect = [
-                    ('PERSON_NAME', 5, 10),  # Name column
-                    ('EMAIL_ADDRESS', 5, 10),  # Email column
-                    ('AGE', 5, 10),  # Age column
-                    ('None', 5, 10),  # Country column
-                    # PII reflection responses
-                    ('SENSITIVE', 3, 8),  # Name - sensitive
-                    ('SENSITIVE', 3, 8),  # Email - sensitive
-                    ('SENSITIVE', 3, 8),  # Age - sensitive
-                ]
-                
-                # Mock non-PII classification response
-                mock_generate_json.return_value = (
-                    {
-                        'sensitivity': 'SEVERE_SENSITIVE',
-                        'sensitive_columns': ['Name - PERSON_NAME', 'Email - EMAIL_ADDRESS', 'Age - AGE'],
-                        'cited_isp_rules': ['Personal data of beneficiaries'],
-                        'explanation': 'Contains personal identifiable information'
-                    },
-                    50,
-                    100
-                )
-                
-                # Execute the pipeline
-                reports = use_case.execute(
-                    source=sample_csv_path,
-                    resource_id='test-123',
-                    is_url=False,
-                    isp_rules=mock_isp_rules
-                )
+            # Setup mock responses for PII classification (4 columns) + Reflection (1 call) + Non-PII (1 call)
+            mock_generate.side_effect = [
+                ('PERSON_NAME', 5, 10),  # Name column
+                ('EMAIL_ADDRESS', 5, 10),  # Email column
+                ('AGE', 5, 10),  # Age column
+                ('None', 5, 10),  # Country column
+                # PII reflection response (ONE call for table)
+                ('SENSITIVE', 10, 20),
+                # Non-PII classification response
+                ('Classification: SEVERE_SENSITIVE\n\nExplanation: Contains personal identifiable information', 50, 100)
+            ]
+            
+            # Execute the pipeline
+            reports = use_case.execute(
+                source=sample_csv_path,
+                resource_id='test-123',
+                is_url=False,
+                isp_rules=mock_isp_rules['default'] # Pass flattened rules
+            )
         
         # Validate results
         assert len(reports) == 1, 'Should create one report for CSV file'
@@ -234,32 +221,23 @@ class TestEndToEndPipeline:
         )
         
         with patch.object(mock_llm_provider, 'generate') as mock_generate:
-            with patch.object(mock_llm_provider, 'generate_json') as mock_generate_json:
-                # All columns classified as None
-                mock_generate.side_effect = [
-                    ('None', 5, 10),  # Region
-                    ('None', 5, 10),  # Population
-                    ('None', 5, 10),  # Year
-                ]
-                
-                # Non-sensitive classification
-                mock_generate_json.return_value = (
-                    {
-                        'sensitivity': 'NON_SENSITIVE',
-                        'sensitive_columns': [],
-                        'cited_isp_rules': ['Public statistics'],
-                        'explanation': 'Aggregated regional data'
-                    },
-                    20,
-                    40
-                )
-                
-                reports = use_case.execute(
-                    source=str(csv_file),
-                    resource_id='test-456',
-                    is_url=False,
-                    isp_rules=mock_isp_rules
-                )
+            # All columns classified as None (3 columns) + Reflection (1 call) + Non-PII (1 call)
+            mock_generate.side_effect = [
+                ('None', 5, 10),  # Region
+                ('None', 5, 10),  # Population
+                ('None', 5, 10),  # Year
+                # PII Reflection
+                ('NON_SENSITIVE', 10, 20),
+                # Non-PII Classification
+                ('Classification: NON_SENSITIVE\n\nExplanation: Aggregated regional data', 20, 40)
+            ]
+            
+            reports = use_case.execute(
+                source=str(csv_file),
+                resource_id='test-456',
+                is_url=False,
+                isp_rules=mock_isp_rules['default']
+            )
         
         report = reports[0]
         if hasattr(report, 'to_dict'):

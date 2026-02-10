@@ -2,6 +2,7 @@
 
 from unittest.mock import Mock, patch
 from pathlib import Path
+import pytest
 
 from src.shared.utils.prompt_manager import PromptManager
 
@@ -18,131 +19,111 @@ class TestPromptManager:
 
     def test_initialization_with_nonexistent_dir(self):
         """Test initialization with non-existent directory."""
-        with patch('pathlib.Path.exists', return_value=False):
-            manager = PromptManager(prompts_dir='nonexistent')
-            assert manager.env is None
+        with patch('src.shared.utils.prompt_manager.Path.exists', return_value=False):
+            with pytest.raises(FileNotFoundError, match="Prompts directory not found"):
+                PromptManager(prompts_dir='nonexistent')
 
-    def test_get_prompt_fallback_pii_detection(self):
-        """Test fallback prompt for PII detection."""
-        with patch('pathlib.Path.exists', return_value=False):
+    @patch('src.shared.utils.prompt_manager.Path.exists')
+    @patch('src.shared.utils.prompt_manager.Path.glob')
+    def test_get_latest_version(self, mock_glob, mock_exists):
+        """Test getting latest version of prompt."""
+        mock_exists.return_value = True
+        
+        # Mock glob to return some version files
+        file1 = Mock()
+        file1.name = 'v1.jinja'
+        file1.stem = 'v1'
+        
+        file2 = Mock()
+        file2.name = 'v2.jinja'
+        file2.stem = 'v2'
+        
+        mock_glob.return_value = [file1, file2]
+
+        with patch('src.shared.utils.prompt_manager.Environment'):
             manager = PromptManager()
+            version = manager.get_latest_version('pii_detection')
+            assert version == 'v2'
 
-            context = {'column_name': 'email', 'sample_values': ['test@example.com', 'user@test.com']}
-
-            prompt = manager.get_prompt('pii_detection', context=context)
-
-            assert 'email' in prompt
-            assert 'test@example.com' in prompt
-            assert 'EMAIL_ADDRESS' in prompt
-
-    def test_get_prompt_fallback_pii_reflection(self):
-        """Test fallback prompt for PII reflection."""
-        with patch('pathlib.Path.exists', return_value=False):
+    @patch('src.shared.utils.prompt_manager.Path.exists')
+    def test_get_latest_version_no_dir(self, mock_exists):
+        """Test getting latest version when prompt dir missing."""
+        # First exists call is for init (True), second for get_latest_version (False)
+        mock_exists.side_effect = [True, False]
+        
+        with patch('src.shared.utils.prompt_manager.Environment'):
             manager = PromptManager()
+            version = manager.get_latest_version('pii_detection')
+            assert version is None
 
-            context = {
-                'column_name': 'email',
-                'entity_type': 'EMAIL_ADDRESS',
-                'sample_values': ['test@example.com'],
-                'table_context': 'UserData',
-            }
-
-            prompt = manager.get_prompt('pii_reflection', context=context)
-
-            assert 'email' in prompt
-            assert 'EMAIL_ADDRESS' in prompt
-            assert 'sensitive' in prompt.lower()
-
-    def test_get_prompt_fallback_non_pii_classification(self):
-        """Test fallback prompt for non-PII classification."""
-        with patch('pathlib.Path.exists', return_value=False):
+    @patch('src.shared.utils.prompt_manager.Path.exists')
+    @patch('src.shared.utils.prompt_manager.Path.glob')
+    def test_get_latest_version_no_files(self, mock_glob, mock_exists):
+        """Test getting latest version when no files found."""
+        mock_exists.return_value = True
+        mock_glob.return_value = []
+        
+        with patch('src.shared.utils.prompt_manager.Environment'):
             manager = PromptManager()
+            version = manager.get_latest_version('pii_detection')
+            assert version is None
 
-            context = {'table_summary': 'Table: TestData\nRows: 100', 'isp_rules': {'country': 'Ukraine'}}
-
-            prompt = manager.get_prompt('non_pii_classification', context=context)
-
-            assert 'TestData' in prompt
-            assert 'Ukraine' in prompt
-            assert 'SENSITIVE' in prompt
-
-    def test_get_prompt_fallback_unknown(self):
-        """Test fallback for unknown prompt."""
-        with patch('pathlib.Path.exists', return_value=False):
-            manager = PromptManager()
-
-            prompt = manager.get_prompt('unknown_prompt', context={})
-
-            assert 'Prompt not found' in prompt
-            assert 'unknown_prompt' in prompt
-
-    def test_get_prompt_with_template(self):
-        """Test getting prompt with Jinja2 template."""
-        with patch('pathlib.Path.exists', return_value=True):
-            manager = PromptManager()
-
-            # Mock template
+    @patch('src.shared.utils.prompt_manager.Path.exists', return_value=True)
+    def test_get_prompt_success(self, mock_exists):
+        """Test successfully getting a prompt."""
+        with patch('src.shared.utils.prompt_manager.Environment') as MockEnv:
             mock_template = Mock()
-            mock_template.render.return_value = 'Rendered prompt'
-
-            manager.env = Mock()
-            manager.env.get_template.return_value = mock_template
-
-            context = {'column_name': 'test'}
-            prompt = manager.get_prompt('pii_detection', context=context)
-
-            assert prompt == 'Rendered prompt'
-            mock_template.render.assert_called_once_with(**context)
-
-    def test_get_prompt_template_error_fallback(self):
-        """Test that template errors fall back to default prompts."""
-        with patch('pathlib.Path.exists', return_value=True):
+            mock_template.render.return_value = "Rendered Prompt"
+            
+            mock_env_instance = MockEnv.return_value
+            mock_env_instance.get_template.return_value = mock_template
+            
             manager = PromptManager()
+            
+            # Mock get_latest_version to return v1
+            with patch.object(manager, 'get_latest_version', return_value='v1'):
+                prompt = manager.get_prompt('pii_detection', context={'key': 'value'})
+                
+                assert prompt == "Rendered Prompt"
+                mock_env_instance.get_template.assert_called_with('pii_detection/v1.jinja')
+                mock_template.render.assert_called_with(key='value')
 
-            manager.env = Mock()
-            manager.env.get_template.side_effect = Exception('Template not found')
-
-            context = {'column_name': 'email', 'sample_values': ['test@example.com']}
-            prompt = manager.get_prompt('pii_detection', context=context)
-
-            # Should fall back to default prompt
-            assert 'email' in prompt
-            assert 'test@example.com' in prompt
-
-    def test_get_prompt_with_version(self):
-        """Test getting prompt with specific version."""
-        with patch('pathlib.Path.exists', return_value=True):
-            manager = PromptManager()
-
+    @patch('src.shared.utils.prompt_manager.Path.exists', return_value=True)
+    def test_get_prompt_with_explicit_version(self, mock_exists):
+        """Test getting a prompt with explicit version."""
+        with patch('src.shared.utils.prompt_manager.Environment') as MockEnv:
             mock_template = Mock()
-            mock_template.render.return_value = 'V1 prompt'
-
-            manager.env = Mock()
-            manager.env.get_template.return_value = mock_template
-
-            manager.get_prompt('pii_detection', version='v1', context={})
-
-            # Should request v1 template
-            manager.env.get_template.assert_called_with('src/prompts/pii_detection/v1.jinja2')
-
-    def test_get_prompt_empty_context(self):
-        """Test getting prompt with empty context."""
-        with patch('pathlib.Path.exists', return_value=False):
+            mock_template.render.return_value = "V2 Prompt"
+            
+            mock_env_instance = MockEnv.return_value
+            mock_env_instance.get_template.return_value = mock_template
+            
             manager = PromptManager()
+            
+            prompt = manager.get_prompt('pii_detection', version='v2')
+            
+            assert prompt == "V2 Prompt"
+            mock_env_instance.get_template.assert_called_with('pii_detection/v2.jinja')
 
-            # Should not raise error with empty context
-            prompt = manager.get_prompt('pii_detection', context={})
-
-            assert isinstance(prompt, str)
-            assert len(prompt) > 0
-
-    def test_get_prompt_none_context(self):
-        """Test getting prompt with None context."""
-        with patch('pathlib.Path.exists', return_value=False):
+    @patch('src.shared.utils.prompt_manager.Path.exists', return_value=True)
+    def test_get_prompt_not_found(self, mock_exists):
+        """Test getting a prompt that doesn't exist."""
+        with patch('src.shared.utils.prompt_manager.Environment') as MockEnv:
+            mock_env_instance = MockEnv.return_value
+            mock_env_instance.get_template.side_effect = Exception("Template not found")
+            
             manager = PromptManager()
+            
+            with patch.object(manager, 'get_latest_version', return_value='v1'):
+                with pytest.raises(FileNotFoundError, match="Template not found or failed to render"):
+                    manager.get_prompt('pii_detection')
 
-            # Should handle None context
-            prompt = manager.get_prompt('pii_detection', context=None)
-
-            assert isinstance(prompt, str)
-            assert len(prompt) > 0
+    @patch('src.shared.utils.prompt_manager.Path.exists', return_value=True)
+    def test_get_prompt_no_versions(self, mock_exists):
+        """Test getting a prompt when no versions exist."""
+        with patch('src.shared.utils.prompt_manager.Environment'):
+            manager = PromptManager()
+            
+            with patch.object(manager, 'get_latest_version', return_value=None):
+                with pytest.raises(FileNotFoundError, match="No versions found"):
+                    manager.get_prompt('pii_detection')

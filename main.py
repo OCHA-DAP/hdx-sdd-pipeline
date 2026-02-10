@@ -12,7 +12,7 @@ from time import sleep
 from dotenv import load_dotenv
 
 from hdx_redis_lib import connect_to_hdx_event_bus, RedisConfig
-from event_processor import EventProcessor
+from src.event_processor import EventProcessor
 
 # Load environment
 load_dotenv()

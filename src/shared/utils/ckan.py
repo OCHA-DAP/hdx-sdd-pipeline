@@ -78,7 +78,7 @@ class CKANClient:
     def update_resource_fields(self, resource_id: str, fields: Dict[str, Any]) -> Optional[dict]:
         """Update one or more fields of a CKAN resource."""
         if not self.api_token:
-            raise EnvironmentError('CKAN_API_TOKEN is required to update resources')
+            raise EnvironmentError('HDX_API_TOKEN is required to update resources')
 
         payload = {'id': resource_id, **fields}
         logger.info('Updating resource %s with fields: %s', resource_id, list(fields.keys()))
@@ -97,7 +97,7 @@ class CKANClient:
         Remove (set to None) a specific field in a CKAN resource.
         """
         if not self.api_token:
-            raise EnvironmentError('CKAN_API_TOKEN is required to modify resources')
+            raise EnvironmentError('HDX_API_TOKEN is required to modify resources')
 
         payload = {'id': resource_id, field_name: None}
         logger.info(f'Removing field {field_name} from resource {resource_id}')

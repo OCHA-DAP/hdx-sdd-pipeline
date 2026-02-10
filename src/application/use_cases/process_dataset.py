@@ -241,33 +241,53 @@ class ProcessDatasetUseCase:
             logger.info('PII sensitivity classification disabled - skipping')
             return report
 
-        # Generate table markdown context for all columns
-        table_markdown = self._generate_table_markdown(report)
-        logger.info(f'Table context:\n{table_markdown}\n')
-        
-        # Render prompt with table context (use latest version)
-        prompt = self.prompt_manager.get_prompt(
-            'pii_reflection',
-            version=None,  # Auto-detect latest version
-            context={
-                'table_markdown': table_markdown,
-            },
-        )
-        # Call LLM
-        result, comp_tokens, prompt_tokens = self.pii_reflection_llm.generate(prompt, max_tokens=16)
+        try:
+            # Generate table markdown context for all columns
+            table_markdown = self._generate_table_markdown(report)
+            logger.info(f'Table context:\n{table_markdown}\n')
+            
+            # Render prompt with table context (use latest version)
+            prompt = self.prompt_manager.get_prompt(
+                'pii_reflection',
+                version=None,  # Auto-detect latest version
+                context={
+                    'table_markdown': table_markdown,
+                },
+            )
+            # Call LLM
+            result, comp_tokens, prompt_tokens = self.pii_reflection_llm.generate(prompt, max_tokens=16)
 
-        # Parse result (expecting "sensitive" or "non_sensitive")
-        result_lower = result.lower()
-        if 'non_sensitive' in result_lower or 'non-sensitive' in result_lower:
-            report.personal_data_sensitive = False
-        elif 'sensitive' in result_lower:
+            # Parse result (expecting "sensitive" or "non_sensitive")
+            result_lower = result.lower()
+            if 'non_sensitive' in result_lower or 'non-sensitive' in result_lower:
+                is_sensitive = False
+            elif 'sensitive' in result_lower:
+                is_sensitive = True
+            else:
+                is_sensitive = True  # Default to sensitive if unclear
+
+            report.personal_data_sensitive = is_sensitive
+
+            # Update individual column sensitivity flags for PII columns
+            for column in report.columns:
+                if column.has_pii():
+                    column.pii_classification.sensitive = is_sensitive
+                    logger.debug(f"Column '{column.name}' ({column.pii_classification.entity_type}): sensitive={is_sensitive}")
+
+            # Update token counts
+            report.completion_tokens += comp_tokens
+            report.prompt_tokens += prompt_tokens
+            
+        except Exception as e:
+            logger.error(f'PII sensitivity classification failed: {e}')
+            # Default to sensitive on error (fail safe)
             report.personal_data_sensitive = True
-        else:
-            report.personal_data_sensitive = True  # Default to sensitive if unclear
+            for column in report.columns:
+                if column.has_pii():
+                    column.pii_classification.sensitive = True
 
-        # Update token counts
-        report.completion_tokens += comp_tokens
-        report.prompt_tokens += prompt_tokens
+        report.pii_reflection_model = self.pii_reflection_llm.model_name
+
         report.pii_reflection_model = self.pii_reflection_llm.model_name
 
         return report

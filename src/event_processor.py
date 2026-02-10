@@ -8,6 +8,8 @@ It uses the clean architecture use cases to process datasets.
 import json
 import logging
 from typing import Dict, Any, Tuple
+from pathlib import Path
+from datetime import datetime
 from dotenv import load_dotenv
 
 from src.infrastructure.factories import PipelineFactory
@@ -23,10 +25,10 @@ logger = logging.getLogger(__name__)
 
 load_dotenv()
 
-
 class EventProcessor:
     """
     Processes HDX resource events from Redis streams.
+
 
     This class bridges the event-driven architecture with our
     clean architecture use cases.
@@ -178,7 +180,8 @@ class EventProcessor:
 
             for country in countries:
                 for isp_name, isp_data in isps.items():
-                    if isp_data.get('country', '').lower() in country.lower():
+                    country_filter = isp_data.get('country', '')
+                    if country_filter and country_filter.lower() in country.lower():
                         logger.info(f'Using ISP: {isp_name} (matched country: {country})')
                         return isp_data
 
@@ -217,9 +220,7 @@ class EventProcessor:
 
     def _save_to_local_file(self, resource_id: str, reports_dict: list, sensitivity: str):
         """Save report to local dev.json file for testing."""
-        from pathlib import Path
-        from datetime import datetime
-
+        
         # Create output directory if it doesn't exist
         output_dir = Path('dev_reports')
         output_dir.mkdir(exist_ok=True)
@@ -266,7 +267,7 @@ def main():
         logger.error(f'❌ {message}')
 
 
-if __name__ == '__main__':
+if __name__ == '__main__':  # pragma: no cover
     main()
     
     # Test the dev.json file

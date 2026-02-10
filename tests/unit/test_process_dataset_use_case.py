@@ -274,11 +274,12 @@ class TestProcessDatasetUseCase:
         assert len(reports) == 1
         mock_data_loader.load_from_file.assert_called_once()
 
-    def test_execute_with_readme_sheet(self, use_case, mock_data_loader):
+    def test_execute_with_readme_sheet(self, use_case, mock_data_loader, mock_llm_provider):
         """Test execute handles README sheets."""
         df = pd.DataFrame({'col1': [1, 2, 3]})
         mock_data_loader.load_from_file.return_value = {'README': df, 'Data': df}
         mock_data_loader.sample_dataframe.return_value = {'col1': ['1', '2', '3', '', '']}
+        mock_llm_provider.generate.return_value = ('PERSON_NAME', 10, 20)
 
         reports = use_case.execute(source='/path/to/data.xlsx', is_url=False)
 

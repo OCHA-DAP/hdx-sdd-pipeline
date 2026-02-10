@@ -1,40 +1,10 @@
 """Column entity representing a single column in a dataset."""
 
 from dataclasses import dataclass, field
-from typing import List, Any, Optional
+from typing import List, Any
 
-from ..value_objects.entity_type import PIIEntityType
+from .pii_classification import PIIClassification
 from ...shared.utils.json_serializer import make_json_serializable
-
-
-@dataclass
-class PIIClassification:
-    """PII classification result for a column."""
-
-    entity_type: PIIEntityType = PIIEntityType.NONE
-    confidence: Optional[float] = None
-    explanation: Optional[str] = None
-
-    def to_dict(self) -> dict:
-        """Convert to dictionary representation."""
-        result = {
-            'entity_type': str(self.entity_type),
-        }
-        if self.confidence is not None:
-            result['confidence'] = self.confidence
-        if self.explanation:
-            result['explanation'] = self.explanation
-        return result
-
-    @classmethod
-    def from_dict(cls, data: dict) -> 'PIIClassification':
-        """Create from dictionary representation."""
-        return cls(
-            entity_type=PIIEntityType.from_string(data.get('entity_type', 'None')),
-            sensitive=data.get('sensitive', False),
-            confidence=data.get('confidence'),
-            explanation=data.get('explanation'),
-        )
 
 
 @dataclass
@@ -68,6 +38,10 @@ class Column:
         if not self.sample_values:
             return False
         return any(v not in (None, '', 'nan', 'NaN') for v in self.sample_values)
+
+    def is_sensitive(self) -> bool:
+        """Check if this column contains sensitive PII."""
+        return self.has_pii() and self.pii_classification.sensitive
 
     def to_dict(self) -> dict:
         """Convert column to dictionary representation."""
