@@ -511,7 +511,6 @@ def compute_file_level_metrics(model_name: str) -> Dict[str, Any]:
                     'error_type': 'False Negative' if gt_sensitive and not pred_sensitive else 'False Positive',
                 }
             )
-    cm = confusion_matrix(gt_arr, pred_arr)
     # Explicitly specify labels to ensure 2x2 matrix even if only one class is present
     cm = confusion_matrix(gt_arr, pred_arr, labels=[0, 1])
     tn, fp, fn, tp = cm.ravel()
