@@ -154,8 +154,6 @@ class TestCKANClient:
     @patch.object(CKANClient, '_request')
     def test_update_resource_fields_failure(self, mock_request, client, caplog):
         """Test resource field update failure."""
-        import logging
-
         mock_request.return_value = None
 
         with caplog.at_level(logging.ERROR):
@@ -195,7 +193,6 @@ class TestCKANClient:
     @patch.object(CKANClient, 'resource_show')
     def test_get_download_link_no_url(self, mock_resource_show, client, caplog):
         """Test getting download link when URL is missing."""
-        import logging
 
         mock_resource_show.return_value = {'id': 'res-123'}
 

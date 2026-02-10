@@ -512,7 +512,6 @@ def compute_file_level_metrics(model_name: str) -> Dict[str, Any]:
                 }
             )
     cm = confusion_matrix(gt_arr, pred_arr)
-    tn, fp, fn, tp = cm.ravel() if cm.size == 4 else (0, 0, 0, 0)
     # Explicitly specify labels to ensure 2x2 matrix even if only one class is present
     cm = confusion_matrix(gt_arr, pred_arr, labels=[0, 1])
     tn, fp, fn, tp = cm.ravel()
@@ -659,8 +658,6 @@ def compute_sheet_level_metrics(model_name: str, category: str) -> Dict[str, Any
                         'error_type': 'False Negative' if gt_val and not pred_val else 'False Positive',
                     }
                 )
-    cm = confusion_matrix(gt_arr, pred_arr)
-    tn, fp, fn, tp = cm.ravel() if cm.size == 4 else (0, 0, 0, 0)
     # Explicitly specify labels to ensure 2x2 matrix even if only one class is present
     cm = confusion_matrix(gt_arr, pred_arr, labels=[0, 1])
     tn, fp, fn, tp = cm.ravel()

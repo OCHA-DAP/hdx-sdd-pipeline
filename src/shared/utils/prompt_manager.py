@@ -99,7 +99,6 @@ class PromptManager:
         try:
             template = self.env.get_template(template_path)
             rendered = template.render(**context)
-            logger.info(f'Successfully rendered template: {rendered}')
             return rendered
         except Exception as e:
             logger.error(f'Failed to load template {template_path}: {e}')

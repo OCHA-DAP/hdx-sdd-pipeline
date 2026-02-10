@@ -12,6 +12,7 @@ from dotenv import load_dotenv
 from hdx_redis_lib import connect_to_hdx_event_bus, RedisConfig
 from src.event_processor import EventProcessor
 from config import get_config
+from src.shared.utils.logging_conf import configure_logging
 
 # Load environment
 load_dotenv()
@@ -28,6 +29,7 @@ def main():
     This connects to the Redis event bus and processes events
     using the clean architecture event processor.
     """
+    configure_logging()
     logger.info('=' * 60)
     logger.info('HDX SSD Pipeline Starting (Clean Architecture)')
     logger.info('=' * 60)

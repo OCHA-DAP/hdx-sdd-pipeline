@@ -67,12 +67,20 @@ export default function DatasetApp() {
         </div>
       </div>
 
-      {activeTab === 'insights' && <InsightsTab />}
-      {activeTab === 'upload' && <UploadTab datasets={datasets} onRefresh={fetchDatasets} />}
-      {activeTab === 'results' && <ResultsTab datasets={datasets} />}
-      {activeTab === 'multi-model-results' && <MultiModelResultsTab datasets={datasets} />}
-      {activeTab === 'all-models' && <AllModelsPredictionsTab datasets={datasets} />}
-      {activeTab === 'statistics' && <StatisticsTab />}
+      {loading ? (
+        <div className="flex justify-center items-center py-20">
+          <div className="animate-spin rounded-full h-16 w-16 border-t-4 border-b-4 border-blue-600"></div>
+        </div>
+      ) : (
+        <>
+          {activeTab === 'insights' && <InsightsTab />}
+          {activeTab === 'upload' && <UploadTab datasets={datasets} onRefresh={fetchDatasets} />}
+          {activeTab === 'results' && <ResultsTab datasets={datasets} />}
+          {activeTab === 'multi-model-results' && <MultiModelResultsTab datasets={datasets} />}
+          {activeTab === 'all-models' && <AllModelsPredictionsTab datasets={datasets} />}
+          {activeTab === 'statistics' && <StatisticsTab />}
+        </>
+      )}
     </div>
   );
 }   

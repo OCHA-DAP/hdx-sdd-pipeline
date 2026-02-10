@@ -40,7 +40,6 @@ testpaths = ["tests"]
 # Coverage options - uncomment if needed
 addopts = """
     --cov=src
-    --cov=utils
     --cov-report=term-missing
     --cov-report=html
 
