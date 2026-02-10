@@ -74,7 +74,6 @@ export default function StatisticsTab() {
   const fetchStatistics = async () => {
     setLoading(true);
     try {
-    try {
       const response = await fetch(getApiUrl("api/statistics"));
       if (response.ok) {
         const data: StatisticsResponse = await response.json();
