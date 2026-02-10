@@ -5,11 +5,6 @@ from typing import List
 
 from hdx_redis_lib import connect_to_hdx_write_only_event_bus, RedisConfig
 
-# Configure logging to print to console
-logging.basicConfig(
-    level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', datefmt='%Y-%m-%d %H:%M:%S'
-)
-
 event_bus = None
 log = logging.getLogger(__name__)
 

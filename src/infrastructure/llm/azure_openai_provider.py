@@ -142,7 +142,7 @@ class AzureOpenAIProvider(ILLMProvider):
         try:
             if 'gpt-5' in self.model_name.lower():
                 temperature = 1.0
-                json_response = self.client.chat.completions.create(
+                response = self.client.chat.completions.create(
                     messages=[{'role': 'user', 'content': prompt}],
                     max_completion_tokens=1000,
                     reasoning_effort='minimal',

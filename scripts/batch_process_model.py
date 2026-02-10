@@ -25,7 +25,6 @@ from src.infrastructure.storage.data_loader import SmartDataLoader
 from src.shared.utils.prompt_manager import PromptManager
 
 # Setup logging
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
 # Load environment variables

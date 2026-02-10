@@ -290,8 +290,6 @@ class ProcessDatasetUseCase:
 
         report.pii_reflection_model = self.pii_reflection_llm.model_name
 
-        report.pii_reflection_model = self.pii_reflection_llm.model_name
-
         return report
 
     def _classify_non_pii(self, report: SheetReport, isp_rules: Optional[Dict[str, Any]]) -> SheetReport:

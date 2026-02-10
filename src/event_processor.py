@@ -20,7 +20,6 @@ from src.shared.utils.ckan import CKANClient
 
 from config import get_config
 
-logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 load_dotenv()
