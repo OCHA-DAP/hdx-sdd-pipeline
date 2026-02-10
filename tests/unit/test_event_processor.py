@@ -242,6 +242,48 @@ def test_get_isp_rules_ckan_disabled_exception(mock_config, mock_pipeline_factor
 
 def test_get_isp_rules_general_exception(mock_config, mock_pipeline_factory, mock_ckan_client):
     processor = EventProcessor()
-    processor.ckan.package_show.side_effect = Exception('CKAN Error')
-    rules = processor._get_isp_rules('pkg123')
-    assert rules == {}
+    # Should fallback to default/other checks but if file load fails or something else
+    # Here checking if CKAN error is handled. 
+    # With new logic, if CKAN fails, it logs warning and continues to check resource_name (which is None here)
+    # Then returns default.
+    
+    mock_isps = {'default': {'rule': 'default'}}
+    with patch('builtins.open', mock_open(read_data=json.dumps(mock_isps))):
+        rules = processor._get_isp_rules('pkg123')
+        
+    assert rules == {'rule': 'default'}
+
+
+def test_get_isp_rules_resource_name_fallback(mock_config, mock_pipeline_factory, mock_ckan_client):
+    processor = EventProcessor()
+    mock_isps = {
+        'default': {'rule': 'default'},
+        'some_isp': {'country': 'testland', 'rule': 'custom'}
+    }
+
+    # CKAN returns no country info
+    processor.ckan.package_show.return_value = {
+        'solr_additions': json.dumps({'countries': []})
+    }
+    
+    with patch('builtins.open', mock_open(read_data=json.dumps(mock_isps))):
+        # Pass resource name that contains 'testland'
+        rules = processor._get_isp_rules('pkg123', 'dataset_testland_2023.csv')
+
+    assert rules == {'country': 'testland', 'rule': 'custom'}
+
+
+def test_get_isp_rules_ckan_disabled_fallback(mock_config, mock_pipeline_factory):
+    mock_config.CKAN_UPDATE = False
+    processor = EventProcessor()
+    
+    mock_isps = {
+        'default': {'rule': 'default'},
+        'some_isp': {'country': 'testland', 'rule': 'custom'}
+    }
+    
+    with patch('builtins.open', mock_open(read_data=json.dumps(mock_isps))):
+        rules = processor._get_isp_rules(None, 'dataset_testland.csv')
+        
+    assert rules == {'country': 'testland', 'rule': 'custom'}
+

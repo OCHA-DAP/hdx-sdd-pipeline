@@ -7,7 +7,7 @@ It uses the clean architecture use cases to process datasets.
 
 import json
 import logging
-from typing import Dict, Any, Tuple
+from typing import Dict, Any, Tuple, Optional
 from pathlib import Path
 from datetime import datetime
 from dotenv import load_dotenv
@@ -83,12 +83,15 @@ class EventProcessor:
                 return True, 'Already processed'
 
             # Get resource info from CKAN
+            resource_name = None
             if self.ckan:
                 resource = self.ckan.resource_show(resource_id)
                 download_url = resource.get('download_url')
+                resource_name = resource.get('name', 'unknown_dataset.csv')
             else:
                 # When CKAN is disabled, expect download_url in event
                 download_url = event.get('download_url')
+                resource_name = event.get('file_name')  # Attempt to get filename from event if available
 
             if not download_url:
                 logger.error(f'No download URL for resource {resource_id}')
@@ -96,7 +99,7 @@ class EventProcessor:
 
             # Get dataset location for ISP rules
             package_id = event.get('package_id')
-            isp_rules = self._get_isp_rules(package_id)
+            isp_rules = self._get_isp_rules(package_id, resource_name)
 
             # Process dataset using our use case
             logger.info(f'Processing dataset from: {download_url}')
@@ -128,70 +131,67 @@ class EventProcessor:
         except Exception:
             return False
 
-    def _get_isp_rules(self, package_id: str) -> Dict[str, Any]:
-        """Get ISP rules based on dataset location."""
-        if not package_id:
-            logger.debug('No package_id provided - using default ISP')
-            try:
-                with open('data/isps.json', 'r', encoding='utf-8') as f:
-                    isps = json.load(f)
-                default_isp = isps.get('default', {})
-                logger.info('Using ISP: default')
-                return default_isp
-            except Exception as e:
-                logger.error(f'Failed to load default ISP rules: {e}')
-                return {}
-
-        # If CKAN is disabled, return default ISP
-        if self.ckan is None:
-            logger.debug('CKAN disabled - using default ISP rules')
-            try:
-                with open('data/isps.json', 'r', encoding='utf-8') as f:
-                    isps = json.load(f)
-                default_isp = isps.get('default', {})
-                logger.info('Using ISP: default')
-                return default_isp
-            except Exception as e:
-                logger.error(f'Failed to load default ISP rules: {e}')
-                return {}
-
+    def _get_isp_rules(self, package_id: str, resource_name: Optional[str] = None) -> Dict[str, Any]:
+        """
+        Get ISP rules based on dataset location or resource name.
+        
+        1. Try to match country from package location (CKAN).
+        2. If that fails or yields default, try to match country from resource name.
+        3. Fallback to default.
+        """
         try:
-            # Load ISP rules
             with open('data/isps.json', 'r', encoding='utf-8') as f:
                 isps = json.load(f)
-
-            # Get package info
-            package = self.ckan.package_show(package_id)
-            solr_additions = package.get('solr_additions', {})
-
-            if isinstance(solr_additions, str):
-                solr_additions = json.loads(solr_additions)
-
-            countries = solr_additions.get('countries', [])
-
-            if not countries:
-                default_isp = isps.get('default', {})
-                logger.info('No countries found - using ISP: default')
-                return default_isp
-
-            # Find matching ISP
-            if isinstance(countries, str):
-                countries = [countries]
-
-            for country in countries:
-                for isp_name, isp_data in isps.items():
-                    country_filter = isp_data.get('country', '')
-                    if country_filter and country_filter.lower() in country.lower():
-                        logger.info(f'Using ISP: {isp_name} (matched country: {country})')
-                        return isp_data
-
-            default_isp = isps.get('default', {})
-            logger.info('No matching ISP found - using ISP: default')
-            return default_isp
-
         except Exception as e:
-            logger.error(f'Failed to get ISP rules: {e}')
+            logger.error(f'Failed to load ISP rules file: {e}')
             return {}
+
+        default_isp = isps.get('default', {})
+        
+        # 1. Try Package ID (Dataset Location) if available
+        matched_isp = None
+        
+        if package_id and self.ckan:
+            try:
+                # Get package info
+                package = self.ckan.package_show(package_id)
+                solr_additions = package.get('solr_additions', {})
+
+                if isinstance(solr_additions, str):
+                    solr_additions = json.loads(solr_additions)
+
+                countries = solr_additions.get('countries', [])
+
+                if countries:
+                    if isinstance(countries, str):
+                        countries = [countries]
+
+                    for country in countries:
+                        for isp_name, isp_data in isps.items():
+                            country_filter = isp_data.get('country', '')
+                            if country_filter and country_filter.lower() in country.lower():
+                                logger.info(f'Using ISP: {isp_name} (matched country: {country})')
+                                matched_isp = isp_data
+                                break
+                        if matched_isp:
+                            break
+            except Exception as e:
+                logger.warning(f'Failed to get location from CKAN: {e}')
+        
+        if matched_isp:
+            return matched_isp
+            
+        # 2. Try Resource Name (Filename)
+        if resource_name:
+            for isp_name, isp_data in isps.items():
+                country_filter = isp_data.get('country', '')
+                if country_filter and country_filter.lower() in resource_name.lower():
+                    logger.info(f'Using ISP: {isp_name} (matched resource name: {resource_name})')
+                    return isp_data
+
+        # 3. Default
+        logger.info('No specific ISP found - using ISP: default')
+        return default_isp
 
     def _determine_sensitivity(self, reports: list) -> str:
         """Determine overall sensitivity from reports."""
