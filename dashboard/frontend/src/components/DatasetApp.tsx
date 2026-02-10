@@ -14,17 +14,6 @@ export default function DatasetApp() {
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('insights');
 
-  const handleUpload = (files: FileList | null) => {
-    if (files) {
-      const newDatasets = Array.from(files).map((file) => ({
-        id: file.name,
-        name: file.name,
-        file: file,
-      }));
-      setDatasets([...datasets, ...newDatasets]);
-    }
-  };
-
   const fetchDatasets = async () => {
     setLoading(true);
     try {

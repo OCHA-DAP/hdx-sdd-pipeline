@@ -2,15 +2,6 @@
 import { useEffect, useState } from "react";
 import { Dataset } from "../types/dataset";
 
-const MODEL_OPTIONS = [
-    "gpt-5-nano",
-    "gpt-5-mini",
-    "gpt-4.1-nano",
-    "gpt-4.1-mini",
-    "gpt-4.1",
-    "DeepSeek-V3.1",
-];
-
 interface Props {
     datasets: Dataset[];
 }

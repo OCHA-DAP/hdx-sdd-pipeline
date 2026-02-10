@@ -107,12 +107,6 @@ export default function InsightsTab() {
 
     // Calculate average performance
     const avgAccuracy = modelStats.reduce((sum, m) => sum + m.stats.file_level.accuracy, 0) / modelStats.length;
-    const avgF1 = modelStats.reduce((sum, m) => sum + m.stats.file_level.f1, 0) / modelStats.length;
-
-    // Count total misclassifications
-    const totalMisclassifications = modelStats.reduce((sum, m) =>
-        sum + m.stats.file_level.misclassifications.length, 0
-    );
 
     // Calculate false negative rate (most critical - missing sensitive data)
     const totalFalseNegatives = modelStats.reduce((sum, m) =>
