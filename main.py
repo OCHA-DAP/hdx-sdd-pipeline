@@ -1,7 +1,9 @@
 """main.py: HDX SDD pipeline listener and event processor."""
 
+import logging
+import utils.logging_conf # noqa # this needs to be at the top to configure logging
+
 import json
-import logging.config
 from hdx_redis_lib import connect_to_hdx_event_bus, RedisConfig
 
 from config.config import get_config
@@ -20,8 +22,6 @@ from classifiers.non_pii_classifier import NonPIIClassifier
 from classifiers.pii_reflection_classifier import PIIReflectionClassifier
 from classifiers.readme_scan import ReadMeScanClassifier
 from llm_model.azure_strategy import AzureOpenAIStrategy
-
-logging.config.fileConfig('logging.conf')
 
 logger = logging.getLogger(__name__)
 

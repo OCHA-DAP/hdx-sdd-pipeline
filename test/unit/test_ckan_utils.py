@@ -170,7 +170,7 @@ def test_download_resource_success(
 
     # Check the file download was requested correctly
     download_url = RESOURCE_SHOW_SUCCESS['result']['download_url']
-    mock_get_download.assert_called_once_with(download_url, timeout=30)
+    mock_get_download.assert_called_once_with(download_url, timeout=30,  headers={'Authorization': 'mock-token'})
 
     # Check that the file content was written (covers L96)
     mock_write_bytes.assert_called_once_with(file_content)
