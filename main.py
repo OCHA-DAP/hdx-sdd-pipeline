@@ -212,7 +212,7 @@ def event_processor(event):
         if 'default' in isp:
             logger.info('No ISP found for dataset location or filename.')
 
-    sdd_reports = create_report(download_url)
+    sdd_reports = create_report(download_url, http_headers=ckan.headers)
     logger.debug(f'SDD report: {sdd_reports}')
 
     for sdd_report in sdd_reports:
