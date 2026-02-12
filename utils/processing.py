@@ -1,5 +1,5 @@
 # utils/processing.py
-from typing import Dict
+from typing import Dict, Optional
 import pandas as pd
 from utils.exception_handler import handle_exception_wrap
 import datetime
@@ -13,9 +13,15 @@ def is_readme_sheet(sheet_name: str) -> bool:
     return 'readme' in normalized
 
 
-def create_report(url: str, resource_id: str = None, download_url: str = None, sample_size: int = 5):
+def create_report(
+    url: str,
+    resource_id: str = None,
+    download_url: str = None,
+    sample_size: int = 5,
+    http_headers: Optional[Dict[str, str]] = None,
+):
     sampler = DataSampler()
-    sheets = sampler.load_from_url(url)
+    sheets = sampler.load_from_url(url, http_headers=http_headers)
     new_sample_dict = {}
     for name, df in sheets.items():
         logger.debug(f'Processing sheet: {name}')
@@ -72,11 +78,16 @@ class DataSampler:
         return url_lower
 
     @handle_exception_wrap()
-    def load_from_url(self, url: str) -> Dict[str, pd.DataFrame]:
+    def load_from_url(self, url: str, http_headers: Optional[Dict[str, str]] = None) -> Dict[str, pd.DataFrame]:
         """Load CSV/XLS/XLSX from a URL into a dictionary of DataFrames keyed by sheet name."""
         url = self._validate_url(url)
+        use_http_headers = bool(http_headers and url.startswith(('http://', 'https://')))
+
         if url.endswith('.csv'):
-            df = pd.read_csv(url, header=None, nrows=200)
+            if use_http_headers:
+                df = pd.read_csv(url, header=None, nrows=200, storage_options=http_headers)
+            else:
+                df = pd.read_csv(url, header=None, nrows=200)
 
             df = self._concatenate_header(df)
             # Put the most complete rows to the top
@@ -88,7 +99,10 @@ class DataSampler:
             return {'sheet1': df_sorted}
 
         # Excel files: can contain multiple sheets
-        df_dict = pd.read_excel(url, sheet_name=None, nrows=1000, header=None)
+        if use_http_headers:
+            df_dict = pd.read_excel(url, sheet_name=None, nrows=1000, header=None, storage_options=http_headers)
+        else:
+            df_dict = pd.read_excel(url, sheet_name=None, nrows=1000, header=None)
         return {sheet_name: self._concatenate_header(df) for sheet_name, df in df_dict.items()}
 
     @handle_exception_wrap()
@@ -173,9 +187,11 @@ class DataSampler:
         return sample_dict
 
     @handle_exception_wrap()
-    def sample(self, url: str, sample_size: int = 5) -> Dict[str, pd.DataFrame]:
+    def sample(
+        self, url: str, sample_size: int = 5, http_headers: Optional[Dict[str, str]] = None
+    ) -> Dict[str, pd.DataFrame]:
         """Main entrypoint: load and sample dataset(s) from a URL."""
-        sheets = self.load_from_url(url)
+        sheets = self.load_from_url(url, http_headers=http_headers)
 
         new_sample_dict = {}
         for name, df in sheets.items():
