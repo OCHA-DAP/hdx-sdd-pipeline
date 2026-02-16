@@ -6,10 +6,10 @@ from utils.utils import determine_sensitivity, table_markdown
 @pytest.mark.parametrize(
     'reports, expected',
     [
-        ([{'personal_data_sensitive': True, 'non_personal_data_sensitive': False}], 'sensitive-personal-data'),
-        ([{'personal_data_sensitive': False, 'non_personal_data_sensitive': True}], 'sensitive-non-personal-data'),
+        ([{'personal_data_sensitive': True, 'non_personal_data_sensitive': False}], 'sensitive-pd'),
+        ([{'personal_data_sensitive': False, 'non_personal_data_sensitive': True}], 'sensitive-non-pd'),
         ([{'personal_data_sensitive': True, 'non_personal_data_sensitive': True}],
-         'sensitive-personal-data-and-non-personal-data'),
+         'sensitive-pd-and-non-pd'),
         ([{'personal_data_sensitive': False, 'non_personal_data_sensitive': False}], 'not-sensitive'),
     ],
 )

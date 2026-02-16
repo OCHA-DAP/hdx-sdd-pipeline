@@ -20,11 +20,11 @@ def determine_sensitivity(reports: list) -> str:
     non_personal_data = any(r.get('non_personal_data_sensitive') for r in reports)
 
     if personal_data and non_personal_data:
-        return 'sensitive-personal-data-and-non-personal-data'
+        return 'sensitive-pd-and-non-pd'
     if personal_data:
-        return 'sensitive-personal-data'
+        return 'sensitive-pd'
     if non_personal_data:
-        return 'sensitive-non-personal-data'
+        return 'sensitive-non-pd'
     return 'not-sensitive'
 
 
