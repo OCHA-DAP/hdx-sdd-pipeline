@@ -297,6 +297,17 @@ class ProcessDatasetUseCase:
 
             report.personal_data_sensitive = is_sensitive
 
+            # Set sensitive flag on each column based on the logic:
+            # - If personal_data_sensitive is True: set sensitive=True for columns with entity_type != 'None'
+            # - If personal_data_sensitive is False: set sensitive=False for all columns
+            for column in report.columns:
+                if is_sensitive:
+                    # Set sensitive=True only for columns with entity_type != 'None'
+                    column.pii_classification.sensitive = column.pii_classification.entity_type != PIIEntityType.NONE
+                else:
+                    # Set sensitive=False for all columns
+                    column.pii_classification.sensitive = False
+
             # Update token counts
             report.completion_tokens += comp_tokens
             report.prompt_tokens += prompt_tokens
@@ -305,9 +316,9 @@ class ProcessDatasetUseCase:
             logger.error(f'PII sensitivity classification failed: {e}')
             # Default to sensitive on error (fail safe)
             report.personal_data_sensitive = True
+            # Set sensitive=True for columns with entity_type != 'None'
             for column in report.columns:
-                if column.has_pii():
-                    column.pii_classification.sensitive = True
+                column.pii_classification.sensitive = column.pii_classification.entity_type != PIIEntityType.NONE
 
         report.pii_reflection_model = self.pii_reflection_llm.model_name
 

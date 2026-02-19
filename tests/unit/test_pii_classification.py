@@ -137,6 +137,6 @@ class TestPIIClassification:
         restored = PIIClassification.from_dict(data)
 
         assert restored.entity_type == original.entity_type
-        assert restored.sensitive is False  # Sensitive flag is not serialized anymore
+        assert restored.sensitive == original.sensitive  # Sensitive flag is now properly serialized
         assert restored.confidence == original.confidence
         assert restored.explanation == original.explanation

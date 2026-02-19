@@ -19,6 +19,7 @@ class PIIClassification:
         """Convert to dictionary representation."""
         result = {
             'entity_type': str(self.entity_type),
+            'sensitive': self.sensitive,
         }
         if self.confidence is not None:
             result['confidence'] = self.confidence

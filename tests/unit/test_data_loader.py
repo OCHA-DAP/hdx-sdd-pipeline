@@ -1,7 +1,7 @@
 """Unit tests for SmartDataLoader."""
 
 import pandas as pd
-from unittest.mock import patch
+from unittest.mock import patch, MagicMock
 
 from src.infrastructure.storage.data_loader import SmartDataLoader
 from src.domain.exceptions import DataProcessingError
@@ -128,11 +128,7 @@ class TestSmartDataLoader:
         """Test sampling pads to sample_size."""
         loader = SmartDataLoader()
 
-        df = pd.DataFrame(
-            {
-                'Name': ['John', 'Jane']  # Only 2 values
-            }
-        )
+        df = pd.DataFrame({'Name': ['John', 'Jane']})  # Only 2 values
 
         samples = loader.sample_dataframe(df, sample_size=5)
 
@@ -175,29 +171,46 @@ class TestSmartDataLoader:
         assert 'Sheet2' in result
         mock_read_excel.assert_called_once()
 
-    @patch('pandas.read_csv')
-    def test_load_from_url_csv(self, mock_read_csv):
+    @patch('src.infrastructure.storage.data_loader.requests.get')
+    def test_load_from_url_csv(self, mock_requests_get):
         """Test load_from_url with CSV."""
         loader = SmartDataLoader()
 
-        mock_df = pd.DataFrame({0: ['Name', 'John'], 1: ['Age', '25']})
-        mock_read_csv.return_value = mock_df
+        # Mock the HTTP response
+        mock_response = MagicMock()
+        mock_response.content = b'Name,Age\nJohn,25\nJane,30'
+        mock_response.raise_for_status.return_value = None
+        mock_requests_get.return_value = mock_response
 
         result = loader.load_from_url('https://example.com/data.csv')
 
         assert 'sheet1' in result
+        assert len(result['sheet1']) == 2  # Two data rows
+        assert list(result['sheet1'].columns) == ['Name', 'Age']
 
-    @patch('pandas.read_excel')
-    def test_load_from_url_excel(self, mock_read_excel):
+    @patch('src.infrastructure.storage.data_loader.requests.get')
+    def test_load_from_url_excel(self, mock_requests_get):
         """Test load_from_url with Excel."""
         loader = SmartDataLoader()
 
-        mock_sheets = {'Sheet1': pd.DataFrame({0: ['Name', 'John']})}
-        mock_read_excel.return_value = mock_sheets
+        # Create a simple Excel file in memory
+        import io
+
+        excel_data = io.BytesIO()
+        df = pd.DataFrame({'Name': ['John'], 'Age': [25]})
+        df.to_excel(excel_data, index=False)
+        excel_data.seek(0)
+
+        # Mock the HTTP response
+        mock_response = MagicMock()
+        mock_response.content = excel_data.getvalue()
+        mock_response.raise_for_status.return_value = None
+        mock_requests_get.return_value = mock_response
 
         result = loader.load_from_url('https://example.com/data.xlsx')
 
         assert 'Sheet1' in result
+        assert len(result['Sheet1']) == 1  # One data row
 
     def test_load_from_url_invalid_format(self):
         """Test load_from_url rejects invalid format."""

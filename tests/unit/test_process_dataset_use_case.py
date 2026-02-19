@@ -180,7 +180,11 @@ class TestProcessDatasetUseCase:
         column = Column(name='city', sample_values=['NYC'])
         report.add_column(column)
 
-        mock_llm_provider.generate.return_value = ('HIGH_SENSITIVE', 10, 20)
+        mock_llm_provider.generate_json.return_value = (
+            {'sensitivity': 'HIGH_SENSITIVE', 'explanation': 'Test explanation', 'confidence': 0.9},
+            10,
+            20,
+        )
 
         result = use_case._classify_non_pii(report, isp_rules=None)
 
@@ -194,7 +198,11 @@ class TestProcessDatasetUseCase:
 
         isp_rules = {'country': 'Ukraine', 'rules': {'location_data': 'HIGH_SENSITIVE'}}
 
-        mock_llm_provider.generate.return_value = ('MODERATE_SENSITIVE', 10, 20)
+        mock_llm_provider.generate_json.return_value = (
+            {'sensitivity': 'MODERATE_SENSITIVE', 'explanation': 'Test explanation', 'confidence': 0.8},
+            10,
+            20,
+        )
 
         result = use_case._classify_non_pii(report, isp_rules=isp_rules)
 
@@ -204,7 +212,7 @@ class TestProcessDatasetUseCase:
         """Test non-PII classification handles errors."""
         report = SheetReport(file_name='test.csv', sheet_name='Sheet1')
 
-        mock_llm_provider.generate.side_effect = Exception('API error')
+        mock_llm_provider.generate_json.side_effect = Exception('API error')
 
         result = use_case._classify_non_pii(report, isp_rules=None)
 
