@@ -1,6 +1,6 @@
 import pandas as pd
 import pytest
-from unittest.mock import patch
+from unittest.mock import patch, MagicMock
 from utils.processing import DataSampler
 from utils.utils import table_markdown
 import utils.exception_handler
@@ -140,23 +140,35 @@ def test_load_from_url_error():
         sampler.load_from_url('test/unit/downloads/nonexistent.csv')
 
 
-@patch('utils.processing.pd.read_csv')
-def test_load_from_url_passes_http_headers_to_csv(mock_read_csv):
+@patch('utils.processing.requests.get')
+def test_load_from_url_passes_http_headers_to_csv(mock_requests_get):
     sampler = DataSampler()
-    mock_read_csv.return_value = pd.DataFrame([['h1', 'h2'], ['v1', 'v2']])
+    mock_response = MagicMock()
+    mock_response.content = b'h1,h2\nv1,v2\n'
+    mock_requests_get.return_value = mock_response
 
     sampler.load_from_url('https://example.com/file.csv', http_headers={'Authorization': 'Bearer token'})
 
-    assert mock_read_csv.called
-    assert mock_read_csv.call_args.kwargs['storage_options'] == {'Authorization': 'Bearer token'}
+    mock_requests_get.assert_called_once_with(
+        'https://example.com/file.csv', headers={'Authorization': 'Bearer token'}, timeout=60
+    )
 
 
-@patch('utils.processing.pd.read_excel')
-def test_load_from_url_passes_http_headers_to_excel(mock_read_excel):
+@patch('utils.processing.requests.get')
+def test_load_from_url_passes_http_headers_to_excel(mock_requests_get):
     sampler = DataSampler()
-    mock_read_excel.return_value = {'Sheet1': pd.DataFrame([['h1', 'h2'], ['v1', 'v2']])}
+    # Create a real Excel file in memory to avoid parse errors
+    from io import BytesIO
+
+    excel_buffer = BytesIO()
+    pd.DataFrame([['h1', 'h2'], ['v1', 'v2']]).to_excel(excel_buffer, index=False, header=False)
+
+    mock_response = MagicMock()
+    mock_response.content = excel_buffer.getvalue()
+    mock_requests_get.return_value = mock_response
 
     sampler.load_from_url('https://example.com/file.xlsx', http_headers={'Authorization': 'Bearer token'})
 
-    assert mock_read_excel.called
-    assert mock_read_excel.call_args.kwargs['storage_options'] == {'Authorization': 'Bearer token'}
+    mock_requests_get.assert_called_once_with(
+        'https://example.com/file.xlsx', headers={'Authorization': 'Bearer token'}, timeout=60
+    )

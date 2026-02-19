@@ -1,6 +1,9 @@
 # utils/processing.py
+from contextlib import contextmanager
 from typing import Dict, Optional
+import tempfile
 import pandas as pd
+import requests
 from utils.exception_handler import handle_exception_wrap
 import datetime
 import logging
@@ -77,17 +80,39 @@ class DataSampler:
             raise ValueError(f'Unsupported file type. Only {", ".join(self.SUPPORTED_EXTENSIONS)} are supported.')
         return url_lower
 
+    @contextmanager
+    def _download_to_tempfile(self, url: str, http_headers: Dict[str, str], suffix: str):
+        """Context manager that downloads a file to a temporary path using requests.
+
+        Uses requests.get to handle authentication and redirects properly
+        (the Authorization header is not forwarded to redirect targets,
+        avoiding 400 errors from cloud storage).
+        Yields the path to the temporary file and deletes it on exit.
+        """
+        response = requests.get(url, headers=http_headers, timeout=60)
+        response.raise_for_status()
+
+        with tempfile.NamedTemporaryFile(suffix=suffix, delete=True) as tmp_file:
+            tmp_file.write(response.content)
+            tmp_file.flush()
+            yield tmp_file.name
+
     @handle_exception_wrap()
     def load_from_url(self, url: str, http_headers: Optional[Dict[str, str]] = None) -> Dict[str, pd.DataFrame]:
         """Load CSV/XLS/XLSX from a URL into a dictionary of DataFrames keyed by sheet name."""
         url = self._validate_url(url)
         use_http_headers = bool(http_headers and url.startswith(('http://', 'https://')))
 
+        if use_http_headers:
+            suffix = url[url.rfind('.'):] if '.' in url else ''
+            with self._download_to_tempfile(url, http_headers, suffix=suffix) as source:
+                return self._read_file(url, source)
+        return self._read_file(url, url)
+
+    def _read_file(self, url: str, source: str) -> Dict[str, pd.DataFrame]:
+        """Read CSV or Excel data from a local path or URL."""
         if url.endswith('.csv'):
-            if use_http_headers:
-                df = pd.read_csv(url, header=None, nrows=200, storage_options=http_headers)
-            else:
-                df = pd.read_csv(url, header=None, nrows=200)
+            df = pd.read_csv(source, header=None, nrows=200)
 
             df = self._concatenate_header(df)
             # Put the most complete rows to the top
@@ -99,10 +124,7 @@ class DataSampler:
             return {'sheet1': df_sorted}
 
         # Excel files: can contain multiple sheets
-        if use_http_headers:
-            df_dict = pd.read_excel(url, sheet_name=None, nrows=1000, header=None, storage_options=http_headers)
-        else:
-            df_dict = pd.read_excel(url, sheet_name=None, nrows=1000, header=None)
+        df_dict = pd.read_excel(source, sheet_name=None, nrows=1000, header=None)
         return {sheet_name: self._concatenate_header(df) for sheet_name, df in df_dict.items()}
 
     @handle_exception_wrap()
