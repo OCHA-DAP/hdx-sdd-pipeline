@@ -1,7 +1,7 @@
 # HDX Sensitive Data Detection (SDD) Pipeline - Internal Workings
 
 **Version:** 1.0  
-**Last Updated:** February 9, 2026  
+**Last Updated:** February 19, 2026  
 **Author:** HDX SDD Team
 
 ---
@@ -13,11 +13,12 @@
 3. [Processing Flow](#processing-flow)
 4. [Evaluation Steps](#evaluation-steps)
 5. [Configuration Options](#configuration-options)
-6. [Data Structures](#data-structures)
-7. [LLM Integration](#llm-integration)
-8. [ISP Rules System](#isp-rules-system)
-9. [Error Handling](#error-handling)
-10. [Performance Considerations](#performance-considerations)
+6. [Dataset Sampling](#dataset-sampling)
+7. [Data Structures](#data-structures)
+8. [LLM Integration](#llm-integration)
+9. [ISP Rules System](#isp-rules-system)
+10. [Error Handling](#error-handling)
+11. [Performance Considerations](#performance-considerations)
 
 ---
 
@@ -133,16 +134,19 @@ The pipeline performs **three distinct evaluation steps**, each with specific ob
 **Objective**: Identify which columns contain personally identifiable information.
 
 **Input**:
+
 - Column name
 - Sample values (default: 5 samples)
 
 **Process**:
+
 1. For each column in the dataset
 2. Render Personal Data Entity detection prompt with column context
 3. Call LLM with `max_tokens=8` (short response expected)
 4. Parse response to extract PII entity type
 
 **Output**: One of the following entity types per column:
+
 - `NONE` - No PII detected
 - `NAME` - Person names
 - `EMAIL` - Email addresses
@@ -156,11 +160,12 @@ The pipeline performs **three distinct evaluation steps**, each with specific ob
 - `UNDETERMINED` - Cannot determine
 
 **Prompt Template** (`src/prompts/pii_detection/v0.jinja`):
+
 ```jinja
 ### INSTRUCTION
-You are a PII classification system. Given a column name **AND** sample values, 
+You are a PII classification system. Given a column name **AND** sample values,
 determine if this column contains a specific type of PII.
-Choose ONE category from the following list or respond with 'None' if the column 
+Choose ONE category from the following list or respond with 'None' if the column
 doesn't contain PII:
 
 PII entities list: {{ PII_ENTITIES_LIST }}
@@ -185,20 +190,24 @@ Column name: {{ column_name }}
 **Objective**: Determine if detected Personal Data Entities are actually sensitive in the given context.
 
 **Input**:
+
 - Detected Personal Data Entity type
 - Table context (sheet name)
 
 **Process**:
+
 1. For each sheet identified as containing Personal Data Entities
 2. Render Personal Data Entity sensitivity reflection prompt with full context
 3. Call LLM with `max_tokens=16`
 4. Parse response to determine sensitivity
 
 **Output**: Binary classification per sheet:
+
 - `SENSITIVE` - Personal Data Entity could identify a person
 - `NON_SENSITIVE` - Personal Data Entity cannot identify a person (e.g., aggregate data)
 
 **Prompt Template** (`src/prompts/pii_reflection/v0.jinja`):
+
 ```jinja
 ### Instruction:
 You are a personal data sensitivity classification system.
@@ -241,12 +250,14 @@ SENSITIVE
 **Objective**: Determine overall table sensitivity based on content and ISP rules.
 
 **Input**:
+
 - Table name
 - Table summary (columns with Personal Data Entity annotations)
 - Number of rows and columns
 - ISP rules for the country/context
 
 **Process**:
+
 1. Create table summary with column overview
 2. Load appropriate ISP rules
 3. Render non-Personal Data classification prompt
@@ -255,6 +266,7 @@ SENSITIVE
 6. Store full explanation
 
 **Output**: Sensitivity level classification:
+
 - `NON_SENSITIVE` - Publicly shareable data
 - `MODERATE_SENSITIVE` - Limited risk if disclosed
 - `HIGH_SENSITIVE` - Significant harm if disclosed
@@ -262,21 +274,22 @@ SENSITIVE
 - `UNDETERMINED` - Cannot determine
 
 **Prompt Template** (`src/prompts/non_pii_classification/v0.jinja`):
+
 ```jinja
 ### Instruction:
-You are a data governance assistant. Your task is to determine the overall 
-sensitivity level of this table, based strictly on the provided Information 
-Sharing Protocols (ISP) and the table's content and state which columns make 
+You are a data governance assistant. Your task is to determine the overall
+sensitivity level of this table, based strictly on the provided Information
+Sharing Protocols (ISP) and the table's content and state which columns make
 the table sensitive.
 
 Follow these exact steps:
 1. Analyze the table schema AND the records of the table.
-2. Use the ISP sensitivity levels: NON_SENSITIVE, MODERATE_SENSITIVE, 
-   HIGH_SENSITIVE, SEVERE_SENSITIVE. Only assign a sensitivity level if 
+2. Use the ISP sensitivity levels: NON_SENSITIVE, MODERATE_SENSITIVE,
+   HIGH_SENSITIVE, SEVERE_SENSITIVE. Only assign a sensitivity level if
    explicitly supported by ISP guidance.
-3. Identify ONLY the columns that are sensitive on their own OR that become 
+3. Identify ONLY the columns that are sensitive on their own OR that become
    sensitive in combination with others, DIRECTLY supported by ISP guidance.
-4. If multiple sensitivity levels might apply, always choose the highest one 
+4. If multiple sensitivity levels might apply, always choose the highest one
    explicitly mentioned in the ISP for the relevant data type.
 
 ### Input:
@@ -301,6 +314,7 @@ Table:
 **Model Configuration**: Uses `NON_PII_DETECT_MODEL` environment variable
 
 **Extraction Logic**: The pipeline uses multiple strategies to extract sensitivity:
+
 1. Look for "Classification: LEVEL" format
 2. Search for sensitivity keywords in text
 3. Fallback to `SensitivityLevel.from_string()` method
@@ -442,6 +456,7 @@ data_loader = SmartDataLoader(
 ```
 
 **Features**:
+
 - Automatic header detection (handles multi-row headers)
 - Empty row/column filtering
 - Smart sampling (prioritizes most complete rows)
@@ -454,21 +469,125 @@ For batch processing multiple datasets:
 
 ```bash
 # Process all datasets with a specific model
-python batch_process_model.py --model gpt-4.1-nano
+uv run python batch_process_model.py --model gpt-4.1-nano
 
 # Skip already-processed datasets
-python batch_process_model.py --model gpt-4.1-nano --skip-existing
+uv run python batch_process_model.py --model gpt-4.1-nano --skip-existing
 
 # Limit number of datasets (for testing)
-python batch_process_model.py --model gpt-4.1-nano --limit 10
+uv run python batch_process_model.py --model gpt-4.1-nano --limit 10
 ```
 
 **Batch Processing Features**:
+
 - Processes all datasets in `research/results/test_results/groundtruth2/`
 - Saves results to `research/results/test_results/{model_name}/`
 - Supports skip-existing flag for incremental processing
-- Automatic ISP rules loading
+- **Automatic ISP rules loading** using EventProcessor's country matching logic
 - Comprehensive progress reporting
+
+---
+
+## Dataset Sampling
+
+The pipeline uses intelligent dataset sampling to provide representative data to the LLMs while minimizing token usage and processing time.
+
+### Sampling Strategy
+
+**SmartDataLoader.sample_dataframe() Method**:
+
+```python
+def sample_dataframe(self, df: pd.DataFrame, sample_size: int = 5) -> Dict[str, List[Any]]:
+    """
+    Sample values from DataFrame using the most complete rows.
+
+    Args:
+        df: DataFrame to sample from
+        sample_size: Number of samples per column (default: 5)
+
+    Returns:
+        Dictionary mapping column names to sample values
+    """
+```
+
+### Sampling Process
+
+1. **Row Ordering**: DataFrames are preprocessed to sort rows by completeness
+   - Rows with the fewest null values appear first
+   - Ensures highest quality samples for LLM analysis
+
+2. **Column Sampling**: For each column:
+   - Drop empty/null values from the column
+   - Take the top `sample_size` values (default: 5)
+   - Pad with empty strings if fewer values exist
+
+3. **Sample Storage**: Samples are stored in `Column` entities:
+   ```python
+   column = Column(name=col_name, sample_values=sample_values)
+   ```
+
+### Configuration
+
+**Sample Size Configuration**:
+
+```python
+# In ProcessDatasetUseCase initialization
+pipeline = ProcessDatasetUseCase(
+    data_loader=data_loader,
+    pii_llm_provider=pii_llm,
+    pii_reflection_llm_provider=pii_reflection_llm,
+    non_pii_llm_provider=non_pii_llm,
+    prompt_manager=prompt_manager,
+    sample_size=5,  # Number of samples per column
+)
+```
+
+**Recommended Sample Sizes**:
+
+- **Default**: 5 samples per column (balanced accuracy vs. cost)
+- **High Variability Data**: 10 samples per column
+- **Large Datasets**: 3 samples per column (cost optimization)
+
+### Sampling in LLM Prompts
+
+**PII Detection Prompt**:
+
+```jinja
+### INPUT
+Column name: {{ column_name }}
+{% if sample_values %}{{ sample_values }}{% endif %}
+```
+
+**PII Reflection Prompt**: Uses sampled data in markdown table format:
+
+```python
+# Sample values are formatted as markdown table
+column_samples = {}
+for col in report.columns:
+    if col.has_pii():
+        key = f'{col.name} - {col.pii_classification.entity_type}'
+    else:
+        key = col.name
+    column_samples[key] = col.sample_values
+```
+
+### Benefits of Smart Sampling
+
+1. **Cost Efficiency**: Reduces token usage by ~90% compared to full dataset analysis
+2. **Quality Focus**: Prioritizes complete, representative data
+3. **Consistency**: Standardized sample size across all evaluations
+4. **Flexibility**: Configurable sample size for different use cases
+
+### Example Output
+
+```python
+# Sample dictionary for a dataset with 3 columns
+{
+    "name": ["John Doe", "Jane Smith", "Bob Johnson", "", ""],
+    "email": ["john@example.com", "jane@example.com", "bob@example.com", "", ""],
+    "age": [25, 30, 35, 28, 42]
+}
+```
 
 ---
 
@@ -486,41 +605,42 @@ class SheetReport:
     file_name: str                          # Source file name
     file_url: Optional[str]                 # Source URL (if applicable)
     sheet_name: str                         # Sheet/table name
-    
+
     # Metadata
     processing_timestamp: datetime          # When processed
     processing_success: bool                # Success flag
     n_records: int                          # Number of rows
     n_columns: int                          # Number of columns
-    
+
     # Token usage tracking
     completion_tokens: int                  # LLM completion tokens
     prompt_tokens: int                      # LLM prompt tokens
-    
+
     # Model information
     pii_classifier_model: Optional[str]     # Model used for PII detection
     pii_reflection_model: Optional[str]     # Model used for PII reflection
     non_pii_model: Optional[str]            # Model used for non-PII
     readme_model: Optional[str]             # Model used for README detection
-    
+
     # Classifications
     columns: List[Column]                   # Column-level classifications
     non_pii_classification: NonPIIClassification  # Table-level classification
-    
+
     # Sensitivity flags (computed)
     personal_data_sensitive: bool           # Has sensitive PII
     non_personal_data_sensitive: bool       # Sensitive per ISP rules
-    
+
     # Error handling
     error_source: Optional[str]             # Error location
     error_message: Optional[str]            # Error details
-    
+
     # Special cases
     is_readme: bool                         # Is this a README sheet?
     readme_content: Optional[str]           # README content
 ```
 
 **Key Methods**:
+
 - `add_column(column)` - Add a column to the report
 - `has_pii_columns()` - Check if any column contains PII
 - `has_sensitive_pii()` - Check if any column has sensitive PII
@@ -544,6 +664,7 @@ class Column:
 ```
 
 **Key Methods**:
+
 - `has_pii()` - Check if column contains PII
 - `is_sensitive()` - Check if column has sensitive PII
 - `has_valid_samples()` - Check if sample values are valid
@@ -560,6 +681,13 @@ class PIIClassification:
     explanation: Optional[str]              # Explanation (optional)
 ```
 
+**Sensitivity Flag Logic**: The `sensitive` field in PIIClassification is determined by the table-level `personal_data_sensitive` flag:
+
+- **If `personal_data_sensitive=True`**: All recognized PII entity columns are marked as `sensitive=True`
+- **If `personal_data_sensitive=False`**: All PII entity columns are marked as `sensitive=False`
+
+This approach ensures that individual column sensitivity aligns with the overall table-level PII sensitivity assessment, providing consistent classification for Jira reporting and downstream processing.
+
 ### NonPIIClassification
 
 Non-PII classification result for a table:
@@ -574,11 +702,13 @@ class NonPIIClassification:
 ```
 
 **Key Methods**:
+
 - `is_sensitive()` - Check if table is sensitive per ISP rules
 
 ### Value Objects
 
 **PIIEntityType** (Enum):
+
 ```python
 class PIIEntityType(Enum):
     NONE = "None"
@@ -595,6 +725,7 @@ class PIIEntityType(Enum):
 ```
 
 **SensitivityLevel** (Enum):
+
 ```python
 class SensitivityLevel(Enum):
     NON_SENSITIVE = "NON_SENSITIVE"
@@ -616,7 +747,7 @@ The pipeline uses Azure OpenAI through a custom provider implementation:
 ```python
 class AzureOpenAIProvider(ILLMProvider):
     """Azure OpenAI implementation with token tracking and error handling."""
-    
+
     def __init__(
         self,
         model_name: str,
@@ -645,12 +776,14 @@ class AzureOpenAIProvider(ILLMProvider):
    - Handles parsing errors
 
 **Token Tracking**:
+
 - All token usage is tracked per request
 - Cumulative tokens stored in `SheetReport`
 - Warnings logged for requests exceeding thresholds
 - Performance metrics included in logs
 
 **Error Handling**:
+
 - API errors caught and logged with context
 - Rate limiting handled with exponential backoff
 - Timeout errors logged with request details
@@ -663,11 +796,11 @@ The `PromptManager` handles template-based prompt generation:
 ```python
 class PromptManager:
     """Manages prompt templates using Jinja2."""
-    
+
     def __init__(self, prompts_dir: str = 'src/prompts'):
         self.prompts_dir = prompts_dir
         self.env = Environment(loader=FileSystemLoader(prompts_dir))
-    
+
     def get_prompt(
         self,
         prompt_type: str,      # e.g., 'pii_detection'
@@ -678,6 +811,7 @@ class PromptManager:
 ```
 
 **Prompt Organization**:
+
 ```
 src/prompts/
 ├── pii_detection/
@@ -739,6 +873,7 @@ Information Sensitivity Protocols (ISP) are country-specific rules stored in `da
 ### Available ISP Rule Sets
 
 The pipeline includes ISP rules for:
+
 - OCHA Afghanistan
 - OCHA Burundi
 - OCHA Cameroon (NWSW)
@@ -769,6 +904,7 @@ def load_isp_rules(country: str = 'default') -> dict:
 ```
 
 **Matching Logic**:
+
 - Exact match on country name
 - Case-insensitive comparison
 - Partial matching (e.g., "ukraine" matches "OCHA Ukraine")
@@ -779,6 +915,7 @@ def load_isp_rules(country: str = 'default') -> dict:
 The default ISP provides general humanitarian data sensitivity guidelines:
 
 **NON_SENSITIVE**:
+
 - HNO/HRP data
 - CODs
 - 3W/4W/5W data at ADM1/ADM2
@@ -786,18 +923,21 @@ The default ISP provides general humanitarian data sensitivity guidelines:
 - Generic contact details
 
 **MODERATE_SENSITIVE**:
+
 - Assessment data at ADM2/ADM3
 - Disaggregated data without personal identifiers
 - Access constraints data
 - Security incident reports (aggregated)
 
 **HIGH_SENSITIVE**:
+
 - Aid-worker contact details (without consent)
 - Community/household-level survey data
 - Detailed operational presence data
 - Facility data with exact coordinates
 
 **SEVERE_SENSITIVE**:
+
 - Personal data of beneficiaries
 - Individual survey responses
 - SEA/GBV/PSEA case data
@@ -832,14 +972,15 @@ class DataLoadingError(Exception):
 try:
     # Load data
     sheets = self.data_loader.load_from_url(source)
-    
+
     # Process each sheet
     for sheet_name, df in sheets.items():
         report = self._create_data_report(...)
         reports.append(report)
-    
+
+    logger.info(f"Successfully processed {len(sheets)} sheets")
     return reports
-    
+
 except Exception as e:
     logger.error(
         f'Failed to process dataset: {e}',
@@ -849,6 +990,13 @@ except Exception as e:
     raise DataProcessingError(f'Dataset processing failed: {e}')
 ```
 
+**Logging Improvements**: The pipeline now uses structured logging throughout:
+
+- `logger.info()` for status updates (replacing `print()` statements)
+- `logger.debug()` for detailed diagnostics
+- `logger.error()` for error conditions with full context
+- `logger.warning()` for important but non-fatal issues
+
 ### Column-Level Error Handling
 
 ```python
@@ -857,7 +1005,7 @@ for column in report.columns:
         # Classify PII
         result, comp_tokens, prompt_tokens = self.pii_llm.generate(...)
         column.pii_classification.entity_type = PIIEntityType.from_string(result)
-        
+
     except Exception as e:
         logger.error(f"PII classification failed for column '{column.name}': {e}")
         column.pii_classification.entity_type = PIIEntityType.UNDETERMINED
@@ -871,7 +1019,7 @@ for column in report.columns:
 try:
     response = self.client.chat.completions.create(...)
     return response.choices[0].message.content
-    
+
 except OpenAIError as e:
     logger.error(
         f'Azure OpenAI API error: {e}',
@@ -891,7 +1039,7 @@ for dataset_name in datasets:
         # Process dataset
         sheet_reports = pipeline.execute(...)
         successful += 1
-        
+
     except Exception as e:
         logger.error(f'Failed to process {dataset_name}: {e}', exc_info=True)
         failed += 1
@@ -903,6 +1051,7 @@ for dataset_name in datasets:
 ### Error Reporting
 
 All errors are:
+
 1. **Logged** with full context and stack traces
 2. **Tracked** in metrics (success/failure counts)
 3. **Stored** in SheetReport (error_source, error_message)
@@ -915,18 +1064,22 @@ All errors are:
 ### Token Usage Optimization
 
 **Per-Column PII Detection**:
+
 - Average: 240 prompt + 5 completion = 245 tokens
 - For 20 columns: ~4,900 tokens
 
 **Per-PII-Column Reflection**:
+
 - Average: 300 prompt + 10 completion = 310 tokens
 - For 5 PII columns: ~1,550 tokens
 
 **Per-Table Non-PII Classification**:
+
 - Average: 700 prompt + 75 completion = 775 tokens
 - For 1 table: ~775 tokens
 
 **Total for typical dataset** (20 columns, 5 PII, 1 table):
+
 - ~7,225 tokens per sheet
 - Cost: ~$0.001-0.01 depending on model
 
@@ -946,6 +1099,7 @@ NON_PII_DETECT_MODEL=gpt-4.1-mini
 ```
 
 **Cost vs. Quality Trade-offs**:
+
 - `gpt-4.1-nano`: Fastest, cheapest, good for simple tasks
 - `gpt-4.1-mini`: Balanced performance and cost
 - `gpt-4.1`: Most capable, highest cost
@@ -953,12 +1107,14 @@ NON_PII_DETECT_MODEL=gpt-4.1-mini
 ### Data Loading Optimization
 
 **SmartDataLoader Features**:
+
 1. **Row Limiting**: Set `max_rows` to limit data loaded
 2. **Smart Sampling**: Prioritizes most complete rows
 3. **Header Detection**: Automatic multi-row header handling
 4. **Empty Filtering**: Removes empty rows/columns
 
 **Recommendations**:
+
 - Set `max_rows=1000` for large datasets
 - Use `sample_size=5` (default) for most cases
 - Increase to `sample_size=10` for highly variable data
@@ -966,6 +1122,7 @@ NON_PII_DETECT_MODEL=gpt-4.1-mini
 ### Batch Processing Optimization
 
 **Parallelization**: Currently sequential, could be parallelized:
+
 ```python
 # Future: Process multiple datasets in parallel
 with ThreadPoolExecutor(max_workers=5) as executor:
@@ -979,11 +1136,13 @@ with ThreadPoolExecutor(max_workers=5) as executor:
 ### Logging Performance
 
 **Log Levels**:
+
 - **Production**: INFO level (minimal overhead)
 - **Development**: DEBUG level (detailed diagnostics)
 - **Performance Testing**: WARNING level (only issues)
 
 **Configuration**:
+
 ```python
 # logging.conf
 [logger_root]
@@ -993,6 +1152,7 @@ level=INFO  # Change to DEBUG for development
 ### Monitoring Metrics
 
 **Key Metrics to Track**:
+
 1. **Processing Time**: Time per sheet, per dataset
 2. **Token Usage**: Total tokens, cost estimation
 3. **Success Rate**: Successful vs. failed classifications
@@ -1000,6 +1160,7 @@ level=INFO  # Change to DEBUG for development
 5. **Model Performance**: Accuracy, precision, recall (with ground truth)
 
 **Example Metrics Output**:
+
 ```
 Successfully processed 3 sheet(s) in 10.23s, total_tokens=1,234
 Sheet 'Data': personal_data_sensitive=True, non_pii_sensitivity=HIGH_SENSITIVE, tokens=456
@@ -1103,6 +1264,7 @@ reports = pipeline.execute(
 The HDX SDD Pipeline is a sophisticated, production-ready system for detecting sensitive data in humanitarian datasets. Its three-stage evaluation process (PII Detection → PII Reflection → Non-PII Classification) provides comprehensive sensitivity analysis while maintaining flexibility through extensive configuration options.
 
 **Key Strengths**:
+
 - ✅ Clean, maintainable architecture
 - ✅ Comprehensive error handling
 - ✅ Flexible model configuration
@@ -1111,6 +1273,7 @@ The HDX SDD Pipeline is a sophisticated, production-ready system for detecting s
 - ✅ Extensive test coverage (97%)
 
 **For More Information**:
+
 - Architecture: See `README.md`
 - API Reference: See code documentation
 - Testing: See `tests/` directory

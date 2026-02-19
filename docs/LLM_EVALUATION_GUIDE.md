@@ -5,11 +5,13 @@ This guide provides step-by-step instructions for generating LLM evaluation repo
 ## Overview
 
 The HDX SSD Pipeline evaluates LLMs on their ability to:
+
 - **Detect PII (Personally Identifiable Information)** in table columns
 - **Assess PII sensitivity levels** (e.g., NON_SENSITIVE, MODERATE_SENSITIVE, HIGH_SENSITIVE, SEVERE_SENSITIVE)
 - **Classify non-PII sensitivity** based on Information Sensitivity Protocol (ISP) rules
 
 You can evaluate models using two methods:
+
 1. **Batch Processing**: Run evaluations programmatically via Python scripts
 2. **Dashboard**: Use the Next.js web interface for interactive evaluation and visualization
 
@@ -102,6 +104,7 @@ HDX_URL="https://data.humdata.org/"
 ### Step 4: Prepare Test Datasets
 
 The evaluation requires:
+
 1. **Test datasets** (CSV/Excel files) in `research/data/`
 2. **Ground truth annotations** in `research/results/test_results/groundtruth/`
 
@@ -121,10 +124,17 @@ mkdir -p research/results/test_results/groundtruth
 
 ## Step 1: Batch Processing Evaluation
 
-Batch processing allows you to evaluate multiple models programmatically and generate comprehensive statistics. 
+Batch processing allows you to evaluate multiple models programmatically and generate comprehensive statistics.
 
 ```bash
-python batch_processing.py --gpt-4.1
+# Process all datasets with a specific model
+uv run python batch_process_model.py --model gpt-4.1-nano
+
+# Skip already-processed datasets
+uv run python batch_process_model.py --model gpt-4.1-nano --skip-existing
+
+# Limit number of datasets (for testing)
+uv run python batch_process_model.py --model gpt-4.1-nano --limit 10
 ```
 
 ## Step 2: Dashboard-Based Evaluation
@@ -147,6 +157,7 @@ python -m uvicorn app.main_fastapi:app --reload --host 127.0.0.1 --port 8000
 ```
 
 **Expected Output:**
+
 ```
 INFO:     Uvicorn running on http://127.0.0.1:8000 (Press CTRL+C to quit)
 INFO:     Started reloader process
@@ -173,6 +184,7 @@ npm run dev
 ```
 
 **Expected Output:**
+
 ```
 > frontend@0.1.0 dev
 > next dev
@@ -266,9 +278,11 @@ The dashboard will be available at: `http://localhost:3000`
 ### Sensitivity Levels
 
 **Personal Data (PII)**:
+
 - `true` / `false`: Whether the column contains sensitive personal data
 
 **Non-Personal Data**:
+
 - `NON_SENSITIVE`: Public or aggregated data
 - `MODERATE_SENSITIVE`: Disaggregated data without personal identifiers
 - `HIGH_SENSITIVE`: Community/household-level data or facility data with coordinates
@@ -277,6 +291,7 @@ The dashboard will be available at: `http://localhost:3000`
 ### Output Files
 
 **Prediction Files** (`research/results/test_results/{MODEL}/dataset.xlsx.json`):
+
 ```json
 [
   {
@@ -302,6 +317,7 @@ The dashboard will be available at: `http://localhost:3000`
 ```
 
 **Metrics Files** (`research/results/test_results/{MODEL}_scores.json`):
+
 ```json
 {
   "pii_columns": {
@@ -357,12 +373,12 @@ After completing evaluations:
 
 ### Available Models
 
-| Model | Description | Use Case |
-|-------|-------------|----------|
-| `gpt-4.1-nano` | Smallest, fastest | Quick evaluations, cost-sensitive |
-| `gpt-4.1-mini` | Balanced | General-purpose evaluations |
-| `gpt-5-nano` | Latest nano version | Testing new capabilities |
-| `gpt-5-mini` | Latest mini version | Best performance |
+| Model          | Description         | Use Case                          |
+| -------------- | ------------------- | --------------------------------- |
+| `gpt-4.1-nano` | Smallest, fastest   | Quick evaluations, cost-sensitive |
+| `gpt-4.1-mini` | Balanced            | General-purpose evaluations       |
+| `gpt-5-nano`   | Latest nano version | Testing new capabilities          |
+| `gpt-5-mini`   | Latest mini version | Best performance                  |
 
 ### Directory Structure
 
