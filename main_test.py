@@ -3,6 +3,7 @@ Main entry point for HDX SSD Pipeline (Refactored).
 
 This is the new main entry point using clean architecture.
 It processes HDX resource events from Redis streams.
+uv run python main_test.py
 """
 
 import json

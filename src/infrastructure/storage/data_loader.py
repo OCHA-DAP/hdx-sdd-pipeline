@@ -1,12 +1,12 @@
 """Data loader implementation with smart preprocessing."""
 
 import logging
-from typing import Dict, List, Any, Optional
+from typing import Dict, List, Any
 from pathlib import Path
-import pandas as pd
-import requests
-import tempfile
 from contextlib import contextmanager
+import tempfile
+import requests
+import pandas as pd
 
 from ...application.interfaces.data_loader import IDataLoader
 from ...domain.exceptions import DataProcessingError
@@ -37,7 +37,7 @@ class SmartDataLoader(IDataLoader):
         """
         self.max_rows = max_rows
 
-    def _validate_url(self, url: str) -> bool:
+    def validate_url(self, url: str) -> bool:
         """
         Validate if URL is supported.
 
@@ -50,51 +50,56 @@ class SmartDataLoader(IDataLoader):
         url_lower = url.lower()
         return any(url_lower.endswith(ext) for ext in self.SUPPORTED_EXTENSIONS)
 
-    @contextmanager
-    def _download_to_tempfile(self, url: str, http_headers: Dict[str, str], suffix: str):
-        """Context manager that downloads a file to a temporary path using requests.
-
-        Uses requests.get to handle authentication and redirects properly
-        (the Authorization header is not forwarded to redirect targets,
-        avoiding 400 errors from cloud storage).
-        Yields the path to the temporary file and deletes it on exit.
+    def load_from_url(self, url: str, http_headers: Dict[str, str] = None) -> Dict[str, pd.DataFrame]:
         """
-        response = requests.get(url, headers=http_headers, timeout=60)
-        response.raise_for_status()
+        Load data from URL into dictionary of DataFrames.
 
-        with tempfile.NamedTemporaryFile(suffix=suffix, delete=True) as tmp_file:
-            tmp_file.write(response.content)
-            tmp_file.flush()
-            yield tmp_file.name
+        Args:
+            url: URL to load data from
+            http_headers: Optional HTTP headers for authentication
 
-    def _read_file(self, url: str, source: str) -> Dict[str, pd.DataFrame]:
-        """Read CSV or Excel data from a local path or URL."""
-        if url.endswith('.csv'):
-            df = pd.read_csv(source, header=None, nrows=200)
+        Returns:
+            Dictionary mapping sheet names to DataFrames
 
-            df = self._concatenate_header(df)
-            # Put the most complete rows to the top
-            df_sorted = (
-                df.assign(num_nans=df.isna().sum(axis=1))
-                .sort_values('num_nans', ascending=True)
-                .drop(columns='num_nans')
+        Raises:
+            DataProcessingError: If loading fails
+        """
+        logger.info(f'Loading data from URL: {url}')
+
+        if not self.validate_url(url):
+            logger.error(f'Unsupported file type for URL: {url}')
+            raise DataProcessingError(
+                f'Unsupported file type. Only {", ".join(self.SUPPORTED_EXTENSIONS)} are supported.'
             )
-            return {'sheet1': df_sorted}
 
-        # Excel files: can contain multiple sheets
-        df_dict = pd.read_excel(source, sheet_name=None, nrows=1000, header=None)
-        return {sheet_name: self._concatenate_header(df) for sheet_name, df in df_dict.items()}
+        if http_headers is None:
+            http_headers = {}
 
-    def load_from_url(self, url: str, http_headers: Optional[Dict[str, str]] = None) -> Dict[str, pd.DataFrame]:
-        """Load CSV/XLS/XLSX from a URL into a dictionary of DataFrames keyed by sheet name."""
-        url = self._validate_url(url)
-        use_http_headers = bool(http_headers and url.startswith(('http://', 'https://')))
+        try:
+            file_type = 'CSV' if url.lower().endswith('.csv') else 'Excel'
+            logger.debug(f'Detected file type: {file_type}')
 
-        if use_http_headers:
-            suffix = url[url.rfind('.') :] if '.' in url else ''
-            with self._download_to_tempfile(url, http_headers, suffix=suffix) as source:
-                return self._read_file(url, source)
-        return self._read_file(url, url)
+            suffix = '.csv' if url.lower().endswith('.csv') else '.xlsx'
+
+            with self._download_to_tempfile(url, http_headers, suffix) as temp_file_path:
+                logger.debug(f'Downloaded to temporary file: {temp_file_path}')
+
+                if url.lower().endswith('.csv'):
+                    result = self._load_csv(temp_file_path)
+                else:
+                    result = self._load_excel(temp_file_path)
+
+            total_rows = sum(len(df) for df in result.values())
+            total_cols = sum(len(df.columns) for df in result.values())
+            logger.info(
+                f'Successfully loaded {len(result)} sheet(s) from URL: '
+                f'{total_rows} total rows, {total_cols} total columns'
+            )
+            return result
+
+        except Exception as e:
+            logger.error(f'Failed to load data from {url}: {e}', exc_info=True)
+            raise DataProcessingError(f'Failed to load data: {e}')
 
     def load_from_file(self, file_path: str) -> Dict[str, pd.DataFrame]:
         """
@@ -113,7 +118,7 @@ class SmartDataLoader(IDataLoader):
             logger.error(f'File not found: {file_path}')
             raise DataProcessingError(f'File not found: {file_path}')
 
-        if not self._validate_url(str(path)):
+        if not self.validate_url(str(path)):
             logger.error(f'Unsupported file type: {file_path}')
             raise DataProcessingError(
                 f'Unsupported file type. Only {", ".join(self.SUPPORTED_EXTENSIONS)} are supported.'
@@ -417,3 +422,20 @@ class SmartDataLoader(IDataLoader):
             sample_dict[str(col)] = values[:sample_size]
 
         return sample_dict
+
+    @contextmanager
+    def _download_to_tempfile(self, url: str, http_headers: Dict[str, str], suffix: str):
+        """Context manager that downloads a file to a temporary path using requests.
+
+        Uses requests.get to handle authentication and redirects properly
+        (the Authorization header is not forwarded to redirect targets,
+        avoiding 400 errors from cloud storage).
+        Yields the path to the temporary file and deletes it on exit.
+        """
+        response = requests.get(url, headers=http_headers, timeout=60)
+        response.raise_for_status()
+
+        with tempfile.NamedTemporaryFile(suffix=suffix, delete=True) as tmp_file:
+            tmp_file.write(response.content)
+            tmp_file.flush()
+            yield tmp_file.name

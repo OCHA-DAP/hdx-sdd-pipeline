@@ -14,6 +14,7 @@ from ...shared.utils.prompt_manager import PromptManager
 
 logger = logging.getLogger(__name__)
 
+
 def parse_llm_json(s: str):
     s = s.strip()
 
@@ -22,6 +23,7 @@ def parse_llm_json(s: str):
         s = s.split("```", 2)[1].strip()
 
     return json.loads(s)
+
 
 class ProcessDatasetUseCase:
     """
@@ -99,6 +101,7 @@ class ProcessDatasetUseCase:
             if is_url:
                 sheets = self.data_loader.load_from_url(source)
             else:
+                print(f"Loading from file: {source}")
                 sheets = self.data_loader.load_from_file(source)
 
             logger.info(f'Loaded {len(sheets)} sheet(s): {list(sheets.keys())}')
@@ -260,7 +263,9 @@ class ProcessDatasetUseCase:
 
         # Check if the only pii entityes detected are none or organization_name then set personal data sensitive on false and skip as well
         pii_entity_types = [column.pii_classification.entity_type for column in report.columns]
-        if all(entity_type in [PIIEntityType.NONE, PIIEntityType.ORGANIZATION_NAME] for entity_type in pii_entity_types):
+        if all(
+            entity_type in [PIIEntityType.NONE, PIIEntityType.ORGANIZATION_NAME] for entity_type in pii_entity_types
+        ):
             print('Only NONE or ORGANIZATION_NAME PII entities detected - skipping sensitivity classification')
             report.personal_data_sensitive = False
             report.pii_reflection_model = "skipped - only NONE or ORGANIZATION_NAME PII entities detected"
@@ -334,7 +339,6 @@ class ProcessDatasetUseCase:
             result, comp_tokens, prompt_tokens = self.non_pii_llm.generate_json(prompt, max_tokens=1024)
 
             report.non_pii_classification = NonPIIClassification.from_dict(result)
-            
 
             # Store ISP name if provided
             if isp_rules:
@@ -460,6 +464,5 @@ class ProcessDatasetUseCase:
 
             # Generate markdown table
             return pd.DataFrame(column_samples).to_markdown(index=False) or ''
-
 
         return ''

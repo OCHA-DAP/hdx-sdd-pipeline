@@ -41,7 +41,7 @@ class IDataLoader(ABC):
         pass
 
     @abstractmethod
-    def _validate_url(self, url: str) -> bool:
+    def validate_url(self, url: str) -> bool:
         """
         Validate if URL is supported.
 
