@@ -37,7 +37,7 @@ class TestPIIClassification:
         result = classification.to_dict()
 
         assert result['entity_type'] == 'PERSON_NAME'
-        assert result['sensitive'] is True
+        assert result['entity_type'] == 'PERSON_NAME'
         assert 'confidence' not in result
         assert 'explanation' not in result
 
@@ -71,7 +71,7 @@ class TestPIIClassification:
         result = classification.to_dict()
 
         assert result['entity_type'] == 'EMAIL_ADDRESS'
-        assert result['sensitive'] is True
+        assert result['entity_type'] == 'EMAIL_ADDRESS'
         assert result['confidence'] == 0.99
         assert result['explanation'] == 'Email column detected'
 
@@ -137,6 +137,6 @@ class TestPIIClassification:
         restored = PIIClassification.from_dict(data)
 
         assert restored.entity_type == original.entity_type
-        assert restored.sensitive == original.sensitive
+        assert restored.sensitive is False  # Sensitive flag is not serialized anymore
         assert restored.confidence == original.confidence
         assert restored.explanation == original.explanation

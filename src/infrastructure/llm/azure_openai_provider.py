@@ -80,7 +80,7 @@ class AzureOpenAIProvider(ILLMProvider):
             if 'gpt-5' in self.model_name:
                 response = self.client.chat.completions.create(
                     messages=[{'role': 'user', 'content': prompt}],
-                    max_completion_tokens=max_tokens,
+                    max_completion_tokens=max_tokens + 512,
                     reasoning_effort='minimal',
                     model=self.model_name,
                 )
@@ -117,7 +117,7 @@ class AzureOpenAIProvider(ILLMProvider):
             raise LLMProviderError(f'LLM generation failed: {e}')
 
     def generate_json(
-        self, prompt: str, max_tokens: int = 256, temperature: float = 0.0, **kwargs
+        self, prompt: str, max_tokens: int = 512, temperature: float = 0.0, **kwargs
     ) -> Tuple[Dict[str, Any], int, int]:
         """
         Generate JSON response from prompt.
@@ -132,7 +132,7 @@ class AzureOpenAIProvider(ILLMProvider):
             Tuple of (json_response, completion_tokens, prompt_tokens)
 
         Raises:
-            LLMProviderError: If API call fails or response is not valid JSON
+            LLMProviderError: If API call fails or response is not valid JSON dictionary
         """
         logger.debug(
             f'Generating JSON: model={self._model_name}, max_tokens={max_tokens}, '
@@ -143,7 +143,7 @@ class AzureOpenAIProvider(ILLMProvider):
             if 'gpt-5' in self.model_name.lower():
                 response = self.client.chat.completions.create(
                     messages=[{'role': 'user', 'content': prompt}],
-                    max_completion_tokens=max_tokens,
+                    max_completion_tokens=max_tokens + 1024,
                     reasoning_effort='minimal',
                     model=self.model_name,
                     response_format={'type': 'json_object'},
@@ -159,18 +159,33 @@ class AzureOpenAIProvider(ILLMProvider):
                 )
 
             generated_text = response.choices[0].message.content
+
             completion_tokens = response.usage.completion_tokens
             prompt_tokens = response.usage.prompt_tokens
 
             # Parse JSON response
             try:
                 json_response = json.loads(generated_text)
+                
+                # Ensure response is a dictionary
+                if not isinstance(json_response, dict):
+                    logger.error(
+                        f'JSON response is not a dictionary: got {type(json_response).__name__}',
+                        extra={'response_text': generated_text[:200]}
+                    )
+                    raise LLMProviderError(
+                        f'Expected JSON object/dictionary, got {type(json_response).__name__}'
+                    )
+                
                 logger.debug(
                     f'JSON generation successful: completion_tokens={completion_tokens}, '
                     f'prompt_tokens={prompt_tokens}, keys={list(json_response.keys())}'
                 )
             except json.JSONDecodeError as e:
-                logger.error(f'Failed to parse JSON response: {e}', extra={'response_text': generated_text[:200]})
+                logger.error(
+                    f'Failed to parse JSON response: {e}', 
+                    extra={'response_text': generated_text[:200]}
+                )
                 raise LLMProviderError(f'Invalid JSON response: {e}')
 
             return json_response, completion_tokens, prompt_tokens

@@ -3,6 +3,8 @@ Main FastAPI application entrypoint.
 
 This module initializes the FastAPI app, loads configuration,
 sets up middleware, and registers all API routers.
+
+uv run uvicorn app.main_fastapi:app --host 127.0.0.1 --port 8000 --reload
 """
 
 from fastapi import FastAPI

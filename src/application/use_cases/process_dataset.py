@@ -3,15 +3,25 @@
 import logging
 from typing import List, Optional, Dict, Any
 from datetime import datetime
+import json
 
-from ...domain.entities import SheetReport, Column
+from ...domain.entities import SheetReport, Column, NonPIIClassification
 from ...domain.value_objects import PIIEntityType, SensitivityLevel
 from ...domain.exceptions import DataProcessingError
 from ..interfaces import ILLMProvider, IDataLoader
 from ...shared.utils.prompt_manager import PromptManager
 
+
 logger = logging.getLogger(__name__)
 
+def parse_llm_json(s: str):
+    s = s.strip()
+
+    if s.startswith("```"):
+        # remove ```json and closing ```
+        s = s.split("```", 2)[1].strip()
+
+    return json.loads(s)
 
 class ProcessDatasetUseCase:
     """
@@ -241,10 +251,24 @@ class ProcessDatasetUseCase:
             logger.info('PII sensitivity classification disabled - skipping')
             return report
 
+        # Check if any PII columns were found
+        if not report.has_pii_columns():
+            print('No PII columns found - skipping sensitivity classification')
+            report.personal_data_sensitive = False
+            report.pii_reflection_model = "skipped - no PII columns"
+            return report
+
+        # Check if the only pii entityes detected are none or organization_name then set personal data sensitive on false and skip as well
+        pii_entity_types = [column.pii_classification.entity_type for column in report.columns]
+        if all(entity_type in [PIIEntityType.NONE, PIIEntityType.ORGANIZATION_NAME] for entity_type in pii_entity_types):
+            print('Only NONE or ORGANIZATION_NAME PII entities detected - skipping sensitivity classification')
+            report.personal_data_sensitive = False
+            report.pii_reflection_model = "skipped - only NONE or ORGANIZATION_NAME PII entities detected"
+            return report
+
         try:
             # Generate table markdown context for all columns
             table_markdown = self._generate_table_markdown(report)
-            logger.info(f'Table context:\n{table_markdown}\n')
 
             # Render prompt with table context (use latest version)
             prompt = self.prompt_manager.get_prompt(
@@ -267,14 +291,6 @@ class ProcessDatasetUseCase:
                 is_sensitive = True  # Default to sensitive if unclear
 
             report.personal_data_sensitive = is_sensitive
-
-            # Update individual column sensitivity flags for PII columns
-            for column in report.columns:
-                if column.has_pii():
-                    column.pii_classification.sensitive = is_sensitive
-                    logger.debug(
-                        f"Column '{column.name}' ({column.pii_classification.entity_type}): sensitive={is_sensitive}"
-                    )
 
             # Update token counts
             report.completion_tokens += comp_tokens
@@ -315,15 +331,10 @@ class ProcessDatasetUseCase:
             logger.debug(f"[Non-PII Classification] Prompt for table '{report.sheet_name}':\n{prompt}\n")
 
             # Call LLM
-            result, comp_tokens, prompt_tokens = self.non_pii_llm.generate(prompt, max_tokens=128)
+            result, comp_tokens, prompt_tokens = self.non_pii_llm.generate_json(prompt, max_tokens=1024)
 
-            # Store the full explanation
-            report.non_pii_classification.explanation = result
-
-            # Extract sensitivity level from the response
-            # LLM often returns "Classification: LEVEL\n\nExplanation: ..."
-            sensitivity = self._extract_sensitivity_from_text(result)
-            report.non_pii_classification.sensitivity = sensitivity
+            report.non_pii_classification = NonPIIClassification.from_dict(result)
+            
 
             # Store ISP name if provided
             if isp_rules:
@@ -449,5 +460,6 @@ class ProcessDatasetUseCase:
 
             # Generate markdown table
             return pd.DataFrame(column_samples).to_markdown(index=False) or ''
+
 
         return ''

@@ -102,8 +102,7 @@ The pipeline processes datasets through a well-defined sequence of steps:
 └─────────────────────────────────────────────────────────────┘
                             ↓
 ┌─────────────────────────────────────────────────────────────┐
-│         4. PII SENSITIVITY REFLECTION (Column-Level)        │
-│  • For each PII column, determine if truly sensitive        │
+│         4. PII SENSITIVITY REFLECTION (Table-Level)         │
 │  • Consider context and use case                            │
 │  • Use PII reflection model                                 │
 └─────────────────────────────────────────────────────────────┘
@@ -181,47 +180,52 @@ Column name: {{ column_name }}
 
 ---
 
-### Step 2: Personal Data Entity Sensitivity Reflection (Column-Level)
+### Step 2: Personal Data Entity Sensitivity Reflection (Table-Level)
 
 **Objective**: Determine if detected Personal Data Entities are actually sensitive in the given context.
 
 **Input**:
-- Column name
 - Detected Personal Data Entity type
-- Sample values
 - Table context (sheet name)
 
 **Process**:
-1. For each column identified as containing Personal Data Entities
+1. For each sheet identified as containing Personal Data Entities
 2. Render Personal Data Entity sensitivity reflection prompt with full context
 3. Call LLM with `max_tokens=16`
 4. Parse response to determine sensitivity
 
-**Output**: Binary classification per Personal Data Entity column:
+**Output**: Binary classification per sheet:
 - `SENSITIVE` - Personal Data Entity could identify a person
 - `NON_SENSITIVE` - Personal Data Entity cannot identify a person (e.g., aggregate data)
 
 **Prompt Template** (`src/prompts/pii_reflection/v0.jinja`):
 ```jinja
 ### Instruction:
-You are a sensitivity classification system. Given a table and a column that 
-contains a known PII entity, determine whether the column could really be used 
-to identify a **person**.
+You are a personal data sensitivity classification system.
 
-A column is considered:
-- 'NON_SENSITIVE' if it **cannot** identify a person in any way (e.g., general 
-  data, aggregate data, location with no identifying features).
-- 'SENSITIVE' if it **could** identify a person (e.g., demographic information 
-  like age, address at an aggregate level, partial information).
+Given a table, a list of detected personal data entities in the table header, and sample rows, determine whether the dataset as a whole could be used to identify one or more individual persons.
 
-Return ONLY the classification (NON_SENSITIVE, SENSITIVE).
+Individual personal data entities may be non-sensitive on their own, but combinations of entities can increase identification risk. Evaluate the dataset at the sheet level, not at the individual column level.
+
+A dataset is considered:
+- NON_SENSITIVE if it cannot reasonably be used to identify individuals, even when considering combinations of columns (e.g., aggregate data, operational dates, non-personal events).
+- SENSITIVE if it could reasonably be used to identify individuals due to the presence of microdata combined with key or quasi-identifying variables.
+
+Important rules:
+- Do NOT assume a column detected as "date" is a date of birth unless supported by context.
+- Treat a date as sensitive ONLY IF:
+  - The dataset represents microdata (row-level data about individuals), AND
+  - Other identifying or quasi-identifying variables are present.
+- Use only the information provided in the table header and sample rows.
 
 ### Input:
-Table: {{ table_markdown }}
-Column name: {{ column_name }}
-# PII entity: {{ column_entity }}
+Table:
+{{ table_markdown }}
 
 ### Response:
+Return ONLY one of the following labels:
+NON_SENSITIVE
+SENSITIVE
 ```
 
 **Token Usage**: ~300 prompt tokens, ~10 completion tokens per PII column
@@ -418,7 +422,7 @@ pipeline = ProcessDatasetUseCase(
 reports = pipeline.execute(
     source="path/to/data.xlsx",     # URL or file path
     resource_id="dataset-123",      # Optional identifier
-    is_url=False,                   # True for URLs, False for files
+    is_url=False,              p     # True for URLs, False for files
     isp_rules=isp_rules,            # ISP rules dictionary (optional)
 )
 ```

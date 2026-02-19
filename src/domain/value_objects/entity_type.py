@@ -10,10 +10,14 @@ class PIIEntityType(str, Enum):
     PERSON_NAME = 'PERSON_NAME'
     EMAIL_ADDRESS = 'EMAIL_ADDRESS'
     PHONE_NUMBER = 'PHONE_NUMBER'
+    AGE = 'AGE'
+    ORGANIZATION_NAME = 'ORGANIZATION_NAME'
 
     # Location data
     LOCATION = 'LOCATION'
     ADDRESS = 'ADDRESS'
+    HOME_ADDRESS = 'HOME_ADDRESS'
+    DISABILITY = 'DISABILITY'
 
     # Identification numbers
     ID_NUMBER = 'ID_NUMBER'
@@ -25,7 +29,6 @@ class PIIEntityType(str, Enum):
     BANK_ACCOUNT = 'BANK_ACCOUNT'
 
     # Demographic
-    AGE = 'AGE'
     DATE_OF_BIRTH = 'DATE_OF_BIRTH'
     GENDER = 'GENDER'
 

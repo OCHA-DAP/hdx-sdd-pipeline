@@ -791,17 +791,19 @@ async def compare_models(
                         if col_idx < len(pred_columns):
                             pred_col = pred_columns[col_idx]
 
-                            gt_personal_data_sensitive = gt_col.get('pii', {}).get('sensitive', False)
                             pred_personal_data_sensitive = pred_col.get('pii', {}).get('sensitive', False)
 
                             gt_non_pii = gt_col.get('non_pii', {}).get('sensitivity')
                             pred_non_pii = pred_col.get('non_pii', {}).get('sensitivity')
 
+                            gt_entity = gt_col.get('pii', {}).get('entity_type', 'None')
+                            pred_entity = pred_col.get('pii', {}).get('entity_type', 'None')
+
                             col_comparison['model_predictions'][model] = {
-                                'pii_entity_type': pred_col.get('pii', {}).get('entity_type'),
+                                'pii_entity_type': pred_entity,
                                 'personal_data_sensitive': pred_personal_data_sensitive,
                                 'non_pii_sensitivity': pred_non_pii,
-                                'pii_correct': pred_personal_data_sensitive == gt_personal_data_sensitive,
+                                'pii_correct': gt_entity == pred_entity,
                                 'non_pii_correct': pred_non_pii == gt_non_pii,
                             }
 

@@ -94,6 +94,26 @@ export default function StatisticsTab() {
   const formatPercent = (value: number) => `${(value * 100).toFixed(1)}%`;
   const formatNumber = (value: number) => value.toFixed(2);
 
+  const getBestMetric = (models: string[], getMetrics: (model: string) => Metrics | undefined) => {
+    const validStats = models
+      .map(m => getMetrics(m))
+      .filter((s): s is Metrics => !!s && !s.error);
+    
+    if (validStats.length === 0) return { metric: 'f1' as keyof Metrics, value: 0 };
+
+    const maxF1 = Math.max(...validStats.map(s => s.f1 || 0));
+    if (maxF1 > 0) return { metric: 'f1' as keyof Metrics, value: maxF1 };
+
+    const maxRecall = Math.max(...validStats.map(s => s.recall || 0));
+    if (maxRecall > 0) return { metric: 'recall' as keyof Metrics, value: maxRecall };
+
+    const maxPrecision = Math.max(...validStats.map(s => s.precision || 0));
+    if (maxPrecision > 0) return { metric: 'precision' as keyof Metrics, value: maxPrecision };
+
+    const maxAccuracy = Math.max(...validStats.map(s => s.accuracy || 0));
+    return { metric: 'accuracy' as keyof Metrics, value: maxAccuracy };
+  };
+
   const exportToHTML = () => {
     if (!statistics || !costAnalysis) {
       alert('Please wait for data to load before exporting');
@@ -255,8 +275,8 @@ export default function StatisticsTab() {
         <tbody>
           ${Object.entries(statistics.models)
             .map(([modelName, stats]: [string, any]) => {
-              const bestF1 = Math.max(...Object.values(statistics.models).map((s: any) => s.file_level.f1));
-              const isBest = stats.file_level.f1 === bestF1;
+              const bestMetric = getBestMetric(statistics.available_models, (m) => statistics.models[m].file_level);
+              const isBest = stats.file_level[bestMetric.metric] === bestMetric.value;
               return `
                 <tr>
                   <td><strong>${modelName}</strong>${isBest ? '<span class="best-badge">Best</span>' : ''}</td>
@@ -286,8 +306,8 @@ export default function StatisticsTab() {
         <tbody>
           ${Object.entries(statistics.models)
             .map(([modelName, stats]: [string, any]) => {
-              const bestF1 = Math.max(...Object.values(statistics.models).map((s: any) => s.file_level_personal_data?.f1 || 0));
-              const isBest = (stats.file_level_personal_data?.f1 || 0) === bestF1;
+              const bestMetric = getBestMetric(statistics.available_models, (m) => statistics.models[m].file_level_personal_data);
+              const isBest = (stats.file_level_personal_data?.[bestMetric.metric] || 0) === bestMetric.value;
               return `
                 <tr>
                   <td><strong>${modelName}</strong>${isBest ? '<span class="best-badge">Best</span>' : ''}</td>
@@ -317,8 +337,8 @@ export default function StatisticsTab() {
         <tbody>
           ${Object.entries(statistics.models)
             .map(([modelName, stats]: [string, any]) => {
-              const bestF1 = Math.max(...Object.values(statistics.models).map((s: any) => s.file_level_non_personal_data?.f1 || 0));
-              const isBest = (stats.file_level_non_personal_data?.f1 || 0) === bestF1;
+              const bestMetric = getBestMetric(statistics.available_models, (m) => statistics.models[m].file_level_non_personal_data);
+              const isBest = (stats.file_level_non_personal_data?.[bestMetric.metric] || 0) === bestMetric.value;
               return `
                 <tr>
                   <td><strong>${modelName}</strong>${isBest ? '<span class="best-badge">Best</span>' : ''}</td>
@@ -348,8 +368,8 @@ export default function StatisticsTab() {
         <tbody>
           ${Object.entries(statistics.models)
             .map(([modelName, stats]: [string, any]) => {
-              const bestF1 = Math.max(...Object.values(statistics.models).map((s: any) => s.sheet_level_personal_data.f1));
-              const isBest = stats.sheet_level_personal_data.f1 === bestF1;
+              const bestMetric = getBestMetric(statistics.available_models, (m) => statistics.models[m].sheet_level_personal_data);
+              const isBest = stats.sheet_level_personal_data[bestMetric.metric] === bestMetric.value;
               return `
                 <tr>
                   <td><strong>${modelName}</strong>${isBest ? '<span class="best-badge">Best</span>' : ''}</td>
@@ -379,8 +399,8 @@ export default function StatisticsTab() {
         <tbody>
           ${Object.entries(statistics.models)
             .map(([modelName, stats]: [string, any]) => {
-              const bestF1 = Math.max(...Object.values(statistics.models).map((s: any) => s.sheet_level_non_personal_data.f1));
-              const isBest = stats.sheet_level_non_personal_data.f1 === bestF1;
+              const bestMetric = getBestMetric(statistics.available_models, (m) => statistics.models[m].sheet_level_non_personal_data);
+              const isBest = stats.sheet_level_non_personal_data[bestMetric.metric] === bestMetric.value;
               return `
                 <tr>
                   <td><strong>${modelName}</strong>${isBest ? '<span class="best-badge">Best</span>' : ''}</td>
@@ -1189,20 +1209,19 @@ export default function StatisticsTab() {
                       const stats = statistics.models[model];
                       if (stats.file_level.error) return null;
                       
-                      const isTopF1 = statistics.available_models
-                        .filter(m => !statistics.models[m].file_level.error)
-                        .every(m => statistics.models[m].file_level.f1 <= stats.file_level.f1);
+                      const bestMetric = getBestMetric(statistics.available_models, (m) => statistics.models[m].file_level);
+                      const isBest = stats.file_level[bestMetric.metric] === bestMetric.value;
                       
                       return (
                         <tr
                           key={model}
                           className={`border-b border-white/10 hover:bg-white/5 transition ${
-                            isTopF1 ? 'bg-green-500/10' : ''
+                            isBest ? 'bg-green-500/10' : ''
                           }`}
                         >
                           <td className="py-3 px-4 text-white font-medium">
                             {model}
-                            {isTopF1 && <span className="ml-2 text-xs bg-green-500/30 text-green-200 px-2 py-0.5 rounded">Best</span>}
+                            {isBest && <span className="ml-2 text-xs bg-green-500/30 text-green-200 px-2 py-0.5 rounded">Best ({bestMetric.metric})</span>}
                           </td>
                           <td className="text-center py-3 px-3 text-white">
                             {formatPercent(stats.file_level.accuracy)}
@@ -1273,20 +1292,19 @@ export default function StatisticsTab() {
                       const stats = statistics.models[model];
                       if (stats.file_level_personal_data?.error) return null;
                       
-                      const isTopF1 = statistics.available_models
-                        .filter(m => !statistics.models[m].file_level_personal_data?.error)
-                        .every(m => (statistics.models[m].file_level_personal_data?.f1 || 0) <= (stats.file_level_personal_data?.f1 || 0));
+                      const bestMetric = getBestMetric(statistics.available_models, (m) => statistics.models[m].file_level_personal_data);
+                      const isBest = (stats.file_level_personal_data?.[bestMetric.metric] || 0) === bestMetric.value;
                       
                       return (
                         <tr
                           key={model}
                           className={`border-b border-white/10 hover:bg-white/5 transition ${
-                            isTopF1 ? 'bg-green-500/10' : ''
+                            isBest ? 'bg-green-500/10' : ''
                           }`}
                         >
                           <td className="py-3 px-4 text-white font-medium">
                             {model}
-                            {isTopF1 && <span className="ml-2 text-xs bg-green-500/30 text-green-200 px-2 py-0.5 rounded">Best</span>}
+                            {isBest && <span className="ml-2 text-xs bg-green-500/30 text-green-200 px-2 py-0.5 rounded">Best ({bestMetric.metric})</span>}
                           </td>
                           <td className="text-center py-3 px-3 text-white">
                             {formatPercent(stats.file_level_personal_data?.accuracy || 0)}
@@ -1352,20 +1370,19 @@ export default function StatisticsTab() {
                       const stats = statistics.models[model];
                       if (stats.file_level_non_personal_data?.error) return null;
                       
-                      const isTopF1 = statistics.available_models
-                        .filter(m => !statistics.models[m].file_level_non_personal_data?.error)
-                        .every(m => (statistics.models[m].file_level_non_personal_data?.f1 || 0) <= (stats.file_level_non_personal_data?.f1 || 0));
+                      const bestMetric = getBestMetric(statistics.available_models, (m) => statistics.models[m].file_level_non_personal_data);
+                      const isBest = (stats.file_level_non_personal_data?.[bestMetric.metric] || 0) === bestMetric.value;
                       
                       return (
                         <tr
                           key={model}
                           className={`border-b border-white/10 hover:bg-white/5 transition ${
-                            isTopF1 ? 'bg-green-500/10' : ''
+                            isBest ? 'bg-green-500/10' : ''
                           }`}
                         >
                           <td className="py-3 px-4 text-white font-medium">
                             {model}
-                            {isTopF1 && <span className="ml-2 text-xs bg-green-500/30 text-green-200 px-2 py-0.5 rounded">Best</span>}
+                            {isBest && <span className="ml-2 text-xs bg-green-500/30 text-green-200 px-2 py-0.5 rounded">Best ({bestMetric.metric})</span>}
                           </td>
                           <td className="text-center py-3 px-3 text-white">
                             {formatPercent(stats.file_level_non_personal_data?.accuracy || 0)}
@@ -1432,20 +1449,19 @@ export default function StatisticsTab() {
                       const stats = statistics.models[model];
                       if (stats.sheet_level_personal_data.error) return null;
                       
-                      const isTopF1 = statistics.available_models
-                        .filter(m => !statistics.models[m].sheet_level_personal_data.error)
-                        .every(m => statistics.models[m].sheet_level_personal_data.f1 <= stats.sheet_level_personal_data.f1);
+                      const bestMetric = getBestMetric(statistics.available_models, (m) => statistics.models[m].sheet_level_personal_data);
+                      const isBest = stats.sheet_level_personal_data[bestMetric.metric] === bestMetric.value;
                       
                       return (
                         <tr
                           key={model}
                           className={`border-b border-white/10 hover:bg-white/5 transition ${
-                            isTopF1 ? 'bg-green-500/10' : ''
+                            isBest ? 'bg-green-500/10' : ''
                           }`}
                         >
                           <td className="py-3 px-4 text-white font-medium">
                             {model}
-                            {isTopF1 && <span className="ml-2 text-xs bg-green-500/30 text-green-200 px-2 py-0.5 rounded">Best</span>}
+                            {isBest && <span className="ml-2 text-xs bg-green-500/30 text-green-200 px-2 py-0.5 rounded">Best ({bestMetric.metric})</span>}
                           </td>
                           <td className="text-center py-3 px-3 text-white">
                             {formatPercent(stats.sheet_level_personal_data.accuracy)}
@@ -1509,20 +1525,19 @@ export default function StatisticsTab() {
                       const stats = statistics.models[model];
                       if (stats.sheet_level_non_personal_data.error) return null;
                       
-                      const isTopF1 = statistics.available_models
-                        .filter(m => !statistics.models[m].sheet_level_non_personal_data.error)
-                        .every(m => statistics.models[m].sheet_level_non_personal_data.f1 <= stats.sheet_level_non_personal_data.f1);
+                      const bestMetric = getBestMetric(statistics.available_models, (m) => statistics.models[m].sheet_level_non_personal_data);
+                      const isBest = stats.sheet_level_non_personal_data[bestMetric.metric] === bestMetric.value;
                       
                       return (
                         <tr
                           key={model}
                           className={`border-b border-white/10 hover:bg-white/5 transition ${
-                            isTopF1 ? 'bg-green-500/10' : ''
+                            isBest ? 'bg-green-500/10' : ''
                           }`}
                         >
                           <td className="py-3 px-4 text-white font-medium">
                             {model}
-                            {isTopF1 && <span className="ml-2 text-xs bg-green-500/30 text-green-200 px-2 py-0.5 rounded">Best</span>}
+                            {isBest && <span className="ml-2 text-xs bg-green-500/30 text-green-200 px-2 py-0.5 rounded">Best ({bestMetric.metric})</span>}
                           </td>
                           <td className="text-center py-3 px-3 text-white">
                             {formatPercent(stats.sheet_level_non_personal_data.accuracy)}

@@ -100,9 +100,26 @@ export default function InsightsTab() {
     })).filter(m => !m.stats.file_level.error);
 
     // Find best performing model
+    // Determine which metric to use for ranking
+    const maxF1 = Math.max(...modelStats.map(m => m.stats.file_level.f1));
+    const maxRecall = Math.max(...modelStats.map(m => m.stats.file_level.recall));
+    const maxPrecision = Math.max(...modelStats.map(m => m.stats.file_level.precision));
+    
+    let rankingMetric: 'f1' | 'recall' | 'precision' | 'accuracy' = 'f1';
+    if (maxF1 === 0) {
+        if (maxRecall > 0) {
+            rankingMetric = 'recall';
+        } else if (maxPrecision > 0) {
+            rankingMetric = 'precision';
+        } else {
+            rankingMetric = 'accuracy';
+        }
+    }
+
+    // Find best performing model based on the determined metric
     const bestModel = modelStats.reduce((best, current) => {
-        const bestScore = best.stats.file_level.f1;
-        const currentScore = current.stats.file_level.f1;
+        const bestScore = best.stats.file_level[rankingMetric];
+        const currentScore = current.stats.file_level[rankingMetric];
         return currentScore > bestScore ? current : best;
     }, modelStats[0]);
 
@@ -397,8 +414,11 @@ export default function InsightsTab() {
                         <div>
                             <h3 className="text-xl font-semibold text-white mb-2">Use {bestModel.name} as Primary Classifier</h3>
                             <p className="text-white/80">
-                                With {formatPercent(bestModel.stats.file_level.accuracy)} accuracy and the best F1 score
-                                ({bestModel.stats.file_level.f1.toFixed(3)}), this model should be your go-to for automated screening.
+                                With {formatPercent(bestModel.stats.file_level.accuracy)} accuracy and the best {rankingMetric.toUpperCase().replace('_', ' ')} score
+                                {rankingMetric === 'f1' ? ` (${bestModel.stats.file_level.f1.toFixed(3)})` : 
+                                 rankingMetric === 'recall' ? ` (${formatPercent(bestModel.stats.file_level.recall)})` :
+                                 rankingMetric === 'precision' ? ` (${formatPercent(bestModel.stats.file_level.precision)})` :
+                                 ` (${formatPercent(bestModel.stats.file_level.accuracy)})`}, this model should be your go-to for automated screening.
                             </p>
                         </div>
                     </div>

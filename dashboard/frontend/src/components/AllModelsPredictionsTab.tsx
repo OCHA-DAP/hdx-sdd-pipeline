@@ -344,7 +344,6 @@ export default function AllModelsPredictionsTab({ datasets }: Props) {
                                                                     <tr className="border-b border-white/20">
                                                                         <th className="text-left py-2 px-2 text-white/70 font-medium w-32">Model</th>
                                                                         <th className="text-left py-2 px-2 text-white/70 font-medium">PII Type</th>
-                                                                        <th className="text-left py-2 px-2 text-white/70 font-medium">PII Sensitive</th>
                                                                     </tr>
                                                                 </thead>
                                                                 <tbody>
@@ -356,11 +355,6 @@ export default function AllModelsPredictionsTab({ datasets }: Props) {
                                                                                 {col.ground_truth.pii_entity_type || 'N/A'}
                                                                             </span>
                                                                         </td>
-                                                                        <td className="py-2 px-2">
-                                                                            <span className="text-xs px-2 py-1 rounded bg-blue-500/30 text-blue-200">
-                                                                                {col.ground_truth.personal_data_sensitive ? 'Yes' : 'No'}
-                                                                            </span>
-                                                                        </td>
                                                                     </tr>
 
                                                                     {/* Model Predictions */}
@@ -370,7 +364,7 @@ export default function AllModelsPredictionsTab({ datasets }: Props) {
                                                                             return (
                                                                                 <tr key={model} className="border-b border-white/10">
                                                                                     <td className="py-2 px-2 text-white/60">{model}</td>
-                                                                                    <td className="py-2 px-2 text-white/40" colSpan={2}>No data</td>
+                                                                                    <td className="py-2 px-2 text-white/40">No data</td>
                                                                                 </tr>
                                                                             );
                                                                         }
@@ -379,12 +373,7 @@ export default function AllModelsPredictionsTab({ datasets }: Props) {
                                                                             <tr key={model} className="border-b border-white/10 hover:bg-white/5">
                                                                                 <td className="py-2 px-2 text-white font-medium">{model}</td>
                                                                                 <td className="py-2 px-2">
-                                                                                    <span className="text-xs px-2 py-1 rounded bg-gray-600/30 text-gray-200">
-                                                                                        {pred.pii_entity_type || 'N/A'}
-                                                                                    </span>
-                                                                                </td>
-                                                                                <td className="py-2 px-2">
-                                                                                    {renderBadge(pred.pii_correct, pred.personal_data_sensitive)}
+                                                                                    {renderBadge(pred.pii_correct, pred.pii_entity_type || 'N/A')}
                                                                                 </td>
                                                                             </tr>
                                                                         );

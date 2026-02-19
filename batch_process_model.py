@@ -5,11 +5,10 @@ This script processes all datasets that exist in groundtruth2 with a specified m
 Useful for running a new model on your test set.
 
 Usage:
-    python batch_process_model.py --model gpt-4.1
+    uv run python batch_process_model.py --model gpt-4.1-nano
     python batch_process_model.py --model gpt-4.1 --skip-existing
 """
 
-import os
 import json
 import logging
 import argparse
@@ -18,11 +17,10 @@ from typing import List
 from dotenv import load_dotenv
 
 # Import from clean architecture
+from config.config import Config
+from src.infrastructure.factories.pipeline_factory import PipelineFactory
 from src.domain.entities import SheetReport
 from src.application.use_cases.process_dataset import ProcessDatasetUseCase
-from src.infrastructure.llm.azure_openai_provider import AzureOpenAIProvider
-from src.infrastructure.storage.data_loader import SmartDataLoader
-from src.shared.utils.prompt_manager import PromptManager
 
 # Setup logging
 logger = logging.getLogger(__name__)
@@ -33,7 +31,7 @@ load_dotenv()
 
 def setup_pipeline(model_name: str) -> ProcessDatasetUseCase:
     """
-    Setup the pipeline with the specified model.
+    Setup the pipeline with the specified model using PipelineFactory.
 
     Args:
         model_name: Name of the model to use for all LLM tasks
@@ -41,47 +39,28 @@ def setup_pipeline(model_name: str) -> ProcessDatasetUseCase:
     Returns:
         Configured ProcessDatasetUseCase
     """
-    logger.info(f'Setting up pipeline with model: {model_name}')
+    print(f'Setting up pipeline with model: {model_name}')
 
-    # Create data loader
-    data_loader = SmartDataLoader(max_rows=1000)
+    # Initialize config
+    config = Config()
 
-    # Create LLM providers (using same model for all tasks)
-    azure_endpoint = os.getenv('AZURE_OPENAI_ENDPOINT')
-    api_key = os.getenv('AZURE_OPENAI_API_KEY')
+    # Override model configuration to use the specified model for all tasks
+    config.PII_DETECT_MODEL = model_name
+    config.PII_REFLECT_MODEL = model_name
+    config.NON_PII_DETECT_MODEL = model_name
 
-    pii_llm = AzureOpenAIProvider(
-        model_name=model_name,
-        azure_endpoint=azure_endpoint,
-        api_key=api_key,
-    )
+    # Ensure all detection steps are enabled
+    config.PERSONAL_DATA_DETECTION = True
+    config.PERSONAL_DATA_REFLECTION = True
+    config.NON_PERSONAL_DATA_DETECTION = True
 
-    pii_reflection_llm = AzureOpenAIProvider(
-        model_name=model_name,
-        azure_endpoint=azure_endpoint,
-        api_key=api_key,
-    )
+    # Initialize factory with overridden config
+    factory = PipelineFactory(config)
 
-    non_pii_llm = AzureOpenAIProvider(
-        model_name=model_name,
-        azure_endpoint=azure_endpoint,
-        api_key=api_key,
-    )
+    # Create pipeline
+    use_case = factory.create_pipeline(sample_size=5)
 
-    # Create prompt manager
-    prompt_manager = PromptManager(prompts_dir='src/prompts')
-
-    # Create use case with all dependencies
-    use_case = ProcessDatasetUseCase(
-        data_loader=data_loader,
-        pii_llm_provider=pii_llm,
-        pii_reflection_llm_provider=pii_reflection_llm,
-        non_pii_llm_provider=non_pii_llm,
-        prompt_manager=prompt_manager,
-        sample_size=5,
-    )
-
-    logger.info('Pipeline setup complete!')
+    print('Pipeline setup complete!')
     return use_case
 
 
@@ -108,7 +87,7 @@ def load_isp_rules(country: str = 'default') -> dict:
         # If requesting default, return it directly
         if country == 'default':
             isp_rules = all_isps.get('default', {})
-            logger.info('Loaded default ISP rules')
+            print('Loaded default ISP rules')
             return isp_rules
 
         # Search through ISP entries to find matching country
@@ -121,12 +100,12 @@ def load_isp_rules(country: str = 'default') -> dict:
             isp_country = isp_data.get('country', '').lower()
 
             if isp_country == country_lower or country_lower in isp_country or isp_country in country_lower:
-                logger.info(f'Loaded ISP rules for: {isp_key} (matched country: {isp_country})')
+                print(f'Loaded ISP rules for: {isp_key} (matched country: {isp_country})')
                 return isp_data
 
         # If no match found, use default
         isp_rules = all_isps.get('default', {})
-        logger.info(f"Country '{country}' not found in ISPs, using default ISP rules")
+        print(f"Country '{country}' not found in ISPs, using default ISP rules")
         return isp_rules
 
     except Exception as e:
@@ -150,7 +129,7 @@ def get_groundtruth_datasets() -> List[str]:
     # Get all JSON files and remove the .json extension
     datasets = [f.stem for f in groundtruth_dir.glob('*.json')]
 
-    logger.info(f'Found {len(datasets)} datasets in groundtruth2')
+    print(f'Found {len(datasets)} datasets in groundtruth2')
     return datasets
 
 
@@ -197,7 +176,7 @@ def process_dataset(
 
     # Check if already processed
     if skip_existing and output_file.exists():
-        logger.info(f'⏭️  Skipping {dataset_name} (already exists)')
+        print(f'⏭️  Skipping {dataset_name} (already exists)')
         return True
 
     # Find source file
@@ -207,7 +186,7 @@ def process_dataset(
         logger.error(f'❌ Cannot process {dataset_name}: source file not found')
         return False
 
-    logger.info(f'📊 Processing: {dataset_name}')
+    print(f'📊 Processing: {dataset_name}')
 
     try:
         # Load ISP rules (using default for now)
@@ -231,7 +210,7 @@ def process_dataset(
 
         # Log summary
         sensitive_sheets = sum(1 for r in sheet_reports if r.is_sensitive())
-        logger.info(f'✅ Completed {dataset_name}: {len(sheet_reports)} sheets, {sensitive_sheets} sensitive')
+        print(f'✅ Completed {dataset_name}: {len(sheet_reports)} sheets, {sensitive_sheets} sensitive')
 
         return True
 
@@ -267,7 +246,7 @@ def main():
     # Apply limit if specified
     if args.limit:
         datasets = datasets[: args.limit]
-        logger.info(f'Limited to first {args.limit} datasets')
+        print(f'Limited to first {args.limit} datasets')
 
     # Setup output directory
     output_dir = Path(f'research/results/test_results/{args.model}')

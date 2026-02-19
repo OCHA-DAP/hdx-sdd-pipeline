@@ -30,7 +30,7 @@ class ILLMProvider(ABC):
 
     @abstractmethod
     def generate_json(
-        self, prompt: str, max_tokens: int = 256, temperature: float = 0.0, **kwargs
+        self, prompt: str, max_tokens: int = 512, temperature: float = 0.0, **kwargs
     ) -> Tuple[Dict[str, Any], int, int]:
         """
         Generate JSON response from prompt.

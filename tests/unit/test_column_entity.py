@@ -74,7 +74,6 @@ class TestColumn:
         assert result['column_name'] == 'email'
         assert result['sample_values'] == ['test@example.com']
         assert result['personal_data']['entity_type'] == 'EMAIL_ADDRESS'
-        assert result['personal_data']['sensitive'] is True
 
     def test_from_dict(self):
         """Test creating column from dictionary."""
@@ -107,4 +106,4 @@ class TestColumn:
         assert restored.name == original.name
         assert restored.sample_values == original.sample_values
         assert restored.pii_classification.entity_type == original.pii_classification.entity_type
-        assert restored.pii_classification.sensitive == original.pii_classification.sensitive
+        assert restored.pii_classification.sensitive is False  # Sensitive flag is not serialized anymore
