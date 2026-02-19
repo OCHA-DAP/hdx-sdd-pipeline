@@ -18,9 +18,9 @@ logger = logging.getLogger(__name__)
 def parse_llm_json(s: str):
     s = s.strip()
 
-    if s.startswith("```"):
+    if s.startswith('```'):
         # remove ```json and closing ```
-        s = s.split("```", 2)[1].strip()
+        s = s.split('```', 2)[1].strip()
 
     return json.loads(s)
 
@@ -101,7 +101,7 @@ class ProcessDatasetUseCase:
             if is_url:
                 sheets = self.data_loader.load_from_url(source)
             else:
-                print(f"Loading from file: {source}")
+                print(f'Loading from file: {source}')
                 sheets = self.data_loader.load_from_file(source)
 
             logger.info(f'Loaded {len(sheets)} sheet(s): {list(sheets.keys())}')
@@ -258,17 +258,18 @@ class ProcessDatasetUseCase:
         if not report.has_pii_columns():
             print('No PII columns found - skipping sensitivity classification')
             report.personal_data_sensitive = False
-            report.pii_reflection_model = "skipped - no PII columns"
+            report.pii_reflection_model = 'skipped - no PII columns'
             return report
 
-        # Check if the only pii entityes detected are none or organization_name then set personal data sensitive on false and skip as well
+        # Check if the only pii entities detected are none or organization_name
+        # then set personal data sensitive on false and skip as well
         pii_entity_types = [column.pii_classification.entity_type for column in report.columns]
         if all(
             entity_type in [PIIEntityType.NONE, PIIEntityType.ORGANIZATION_NAME] for entity_type in pii_entity_types
         ):
             print('Only NONE or ORGANIZATION_NAME PII entities detected - skipping sensitivity classification')
             report.personal_data_sensitive = False
-            report.pii_reflection_model = "skipped - only NONE or ORGANIZATION_NAME PII entities detected"
+            report.pii_reflection_model = 'skipped - only NONE or ORGANIZATION_NAME PII entities detected'
             return report
 
         try:

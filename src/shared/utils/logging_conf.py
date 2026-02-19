@@ -2,6 +2,7 @@ import logging
 import logging.config
 from pathlib import Path
 
+
 def configure_logging(config_path: str = None):
     """
     Configure logging using the specified configuration file.
@@ -29,14 +30,8 @@ def configure_logging(config_path: str = None):
             config_file = cwd_config
         else:
             logging.basicConfig(level=logging.INFO)
-            print(
-                f'Logging configuration file not found at {config_file} or {cwd_config}. '
-                'Using basicConfig.'
-            )
+            print(f'Logging configuration file not found at {config_file} or {cwd_config}. Using basicConfig.')
             return
 
     # Use absolute path to avoid relative path issues
-    logging.config.fileConfig(
-        str(config_file.absolute()), 
-        disable_existing_loggers=False
-    )
+    logging.config.fileConfig(str(config_file.absolute()), disable_existing_loggers=False)

@@ -171,9 +171,7 @@ class SheetReport:
             columns=columns,
             non_pii_classification=non_pii_classification,
             personal_data_sensitive=data.get('personal_data_sensitive', False),
-            non_personal_data_sensitive=data.get(
-                'non_personal_data_sensitive', False
-            ),
+            non_personal_data_sensitive=data.get('non_personal_data_sensitive', False),
             error_source=data.get('error_source'),
             error_message=data.get('error_message'),
             is_readme=data.get('is_readme', False),

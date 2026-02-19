@@ -166,26 +166,21 @@ class AzureOpenAIProvider(ILLMProvider):
             # Parse JSON response
             try:
                 json_response = json.loads(generated_text)
-                
+
                 # Ensure response is a dictionary
                 if not isinstance(json_response, dict):
                     logger.error(
                         f'JSON response is not a dictionary: got {type(json_response).__name__}',
-                        extra={'response_text': generated_text[:200]}
+                        extra={'response_text': generated_text[:200]},
                     )
-                    raise LLMProviderError(
-                        f'Expected JSON object/dictionary, got {type(json_response).__name__}'
-                    )
-                
+                    raise LLMProviderError(f'Expected JSON object/dictionary, got {type(json_response).__name__}')
+
                 logger.debug(
                     f'JSON generation successful: completion_tokens={completion_tokens}, '
                     f'prompt_tokens={prompt_tokens}, keys={list(json_response.keys())}'
                 )
             except json.JSONDecodeError as e:
-                logger.error(
-                    f'Failed to parse JSON response: {e}', 
-                    extra={'response_text': generated_text[:200]}
-                )
+                logger.error(f'Failed to parse JSON response: {e}', extra={'response_text': generated_text[:200]})
                 raise LLMProviderError(f'Invalid JSON response: {e}')
 
             return json_response, completion_tokens, prompt_tokens
