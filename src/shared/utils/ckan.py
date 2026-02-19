@@ -48,7 +48,7 @@ class CKANClient:
                 logger.error('Tip: Set SKIP_CKAN_UPDATE=true in .env to test without updating CKAN')
             raise
 
-        # Print request 200 or error
+        # Log request 200 or error
         if response.status_code == 200:
             logger.info('CKAN request successful')
         else:

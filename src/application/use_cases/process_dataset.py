@@ -101,7 +101,7 @@ class ProcessDatasetUseCase:
             if is_url:
                 sheets = self.data_loader.load_from_url(source)
             else:
-                print(f'Loading from file: {source}')
+                logger.info(f'Loading from file: {source}')
                 sheets = self.data_loader.load_from_file(source)
 
             logger.info(f'Loaded {len(sheets)} sheet(s): {list(sheets.keys())}')
@@ -256,7 +256,7 @@ class ProcessDatasetUseCase:
 
         # Check if any PII columns were found
         if not report.has_pii_columns():
-            print('No PII columns found - skipping sensitivity classification')
+            logger.info('No PII columns found - skipping sensitivity classification')
             report.personal_data_sensitive = False
             report.pii_reflection_model = 'skipped - no PII columns'
             return report
@@ -267,7 +267,7 @@ class ProcessDatasetUseCase:
         if all(
             entity_type in [PIIEntityType.NONE, PIIEntityType.ORGANIZATION_NAME] for entity_type in pii_entity_types
         ):
-            print('Only NONE or ORGANIZATION_NAME PII entities detected - skipping sensitivity classification')
+            logger.info('Only NONE or ORGANIZATION_NAME PII entities detected - skipping sensitivity classification')
             report.personal_data_sensitive = False
             report.pii_reflection_model = 'skipped - only NONE or ORGANIZATION_NAME PII entities detected'
             return report

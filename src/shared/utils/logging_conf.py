@@ -30,7 +30,6 @@ def configure_logging(config_path: str = None):
             config_file = cwd_config
         else:
             logging.basicConfig(level=logging.INFO)
-            print(f'Logging configuration file not found at {config_file} or {cwd_config}. Using basicConfig.')
             return
 
     # Use absolute path to avoid relative path issues

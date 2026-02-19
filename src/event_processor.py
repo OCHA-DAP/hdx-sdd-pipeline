@@ -145,9 +145,47 @@ class EventProcessor:
 
         default_isp = isps.get('default', {})
 
-        # 1. Try Package ID (Dataset Location) if available
-        matched_isp = None
+        # Build country partial mapping for robust matching
+        country_mapping = {}
+        for isp_name, isp_data in isps.items():
+            country_filter = isp_data.get('country', '')
+            if country_filter and country_filter != 'default':
+                # Create partial mappings (first 3-4 chars)
+                if len(country_filter) >= 3:
+                    partial = country_filter[:3].lower()
+                    country_mapping[partial] = country_filter
+                if len(country_filter) >= 4:
+                    partial = country_filter[:4].lower()
+                    country_mapping[partial] = country_filter
 
+        def match_country(text: str) -> Optional[Dict[str, Any]]:
+            """Helper function to match country in text using partial mapping."""
+            if not text:
+                return None
+
+            text_lower = text.lower()
+
+            # First try direct ISP country filter matching
+            for isp_name, isp_data in isps.items():
+                country_filter = isp_data.get('country', '')
+                if country_filter and country_filter.lower() in text_lower:
+                    logger.info(f'Using ISP: {isp_name} (matched: {country_filter} in {text})')
+                    return isp_data
+
+            # Then try partial mapping
+            for partial, full_country in country_mapping.items():
+                if partial in text_lower:
+                    # Find the ISP that matches this full country
+                    for isp_name, isp_data in isps.items():
+                        if isp_data.get('country', '').lower() == full_country.lower():
+                            logger.info(
+                                f'Using ISP: {isp_name} (matched partial: {partial} -> {full_country} in {text})'
+                            )
+                            return isp_data
+
+            return None
+
+        # 1. Try Package ID (Dataset Location) if available
         if package_id and self.ckan:
             try:
                 # Get package info
@@ -164,27 +202,17 @@ class EventProcessor:
                         countries = [countries]
 
                     for country in countries:
-                        for isp_name, isp_data in isps.items():
-                            country_filter = isp_data.get('country', '')
-                            if country_filter and country_filter.lower() in country.lower():
-                                logger.info(f'Using ISP: {isp_name} (matched country: {country})')
-                                matched_isp = isp_data
-                                break
+                        matched_isp = match_country(country)
                         if matched_isp:
-                            break
+                            return matched_isp
             except Exception as e:
-                logger.warning(f'Failed to get location from CKAN: {e}')
+                logger.warning('Failed to get location from CKAN: %s', e)
 
-        if matched_isp:
-            return matched_isp
-
-        # 2. Try Resource Name (Filename)
+        # 2. Try Resource Name (Filename) with partial matching
         if resource_name:
-            for isp_name, isp_data in isps.items():
-                country_filter = isp_data.get('country', '')
-                if country_filter and country_filter.lower() in resource_name.lower():
-                    logger.info(f'Using ISP: {isp_name} (matched resource name: {resource_name})')
-                    return isp_data
+            matched_isp = match_country(resource_name)
+            if matched_isp:
+                return matched_isp
 
         # 3. Default
         logger.info('No specific ISP found - using ISP: default')

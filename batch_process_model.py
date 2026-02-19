@@ -6,7 +6,7 @@ Useful for running a new model on your test set.
 
 Usage:
     uv run python batch_process_model.py --model gpt-4.1-nano
-    python batch_process_model.py --model gpt-4.1 --skip-existing
+    uv run python batch_process_model.py --model gpt-4.1-nano --skip-existing
 """
 
 import json
@@ -64,53 +64,25 @@ def setup_pipeline(model_name: str) -> ProcessDatasetUseCase:
     return use_case
 
 
-def load_isp_rules(country: str = 'default') -> dict:
+def load_isp_rules_from_filename(filename: str) -> dict:
     """
-    Load ISP (Information Sensitivity Protocol) rules from data/isps.json.
+    Load ISP (Information Sensitivity Protocol) rules using EventProcessor's matching logic.
 
     Args:
-        country: Country name to load ISP rules for (default: "default")
+        filename: Name of the file to extract country from
 
     Returns:
-        Dictionary containing ISP rules for the specified country
+        Dictionary containing ISP rules for the matched country or default
     """
-    isp_file = Path('data/isps.json')
+    # Import here to avoid circular imports
+    from src.event_processor import EventProcessor
 
-    if not isp_file.exists():
-        logger.warning(f'ISP rules file not found: {isp_file}')
-        return {}
+    # Create a minimal EventProcessor instance just for ISP matching
+    # (we don't need the full pipeline for this)
+    processor = EventProcessor()
 
-    try:
-        with open(isp_file, 'r') as f:
-            all_isps = json.load(f)
-
-        # If requesting default, return it directly
-        if country == 'default':
-            isp_rules = all_isps.get('default', {})
-            print('Loaded default ISP rules')
-            return isp_rules
-
-        # Search through ISP entries to find matching country
-        country_lower = country.lower()
-
-        for isp_key, isp_data in all_isps.items():
-            if isp_key == 'default':
-                continue
-
-            isp_country = isp_data.get('country', '').lower()
-
-            if isp_country == country_lower or country_lower in isp_country or isp_country in country_lower:
-                print(f'Loaded ISP rules for: {isp_key} (matched country: {isp_country})')
-                return isp_data
-
-        # If no match found, use default
-        isp_rules = all_isps.get('default', {})
-        print(f"Country '{country}' not found in ISPs, using default ISP rules")
-        return isp_rules
-
-    except Exception as e:
-        logger.error(f'Failed to load ISP rules: {e}')
-        return {}
+    # Use the EventProcessor's ISP matching logic
+    return processor._get_isp_rules(package_id=None, resource_name=filename)
 
 
 def get_groundtruth_datasets() -> List[str]:
@@ -189,8 +161,8 @@ def process_dataset(
     print(f'📊 Processing: {dataset_name}')
 
     try:
-        # Load ISP rules (using default for now)
-        isp_rules = load_isp_rules('default')
+        # Load ISP rules based on filename
+        isp_rules = load_isp_rules_from_filename(dataset_name)
 
         # Process the dataset
         sheet_reports: List[SheetReport] = pipeline.execute(

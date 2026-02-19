@@ -37,7 +37,6 @@ class TestPIIClassification:
         result = classification.to_dict()
 
         assert result['entity_type'] == 'PERSON_NAME'
-        assert result['entity_type'] == 'PERSON_NAME'
         assert 'confidence' not in result
         assert 'explanation' not in result
 

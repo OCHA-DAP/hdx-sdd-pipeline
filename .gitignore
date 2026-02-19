@@ -245,4 +245,5 @@ research/results/
 uv.lock
 
 *.json
+!isps.json
 output/
