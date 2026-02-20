@@ -220,10 +220,24 @@ class EventProcessor:
 
     def _determine_sensitivity(self, reports: list) -> str:
         """Determine overall sensitivity from reports."""
+        has_personal_sensitive = False
+        has_non_personal_sensitive = False
+
         for report in reports:
-            if isinstance(report, SheetReport) and report.is_sensitive():
-                return 'sensitive'
-        return 'non-sensitive'
+            if isinstance(report, SheetReport):
+                if report.personal_data_sensitive:
+                    has_personal_sensitive = True
+                if report.non_personal_data_sensitive:
+                    has_non_personal_sensitive = True
+
+        if has_personal_sensitive and has_non_personal_sensitive:
+            return 'sensitive-pd-and-non-pd'
+        elif has_personal_sensitive:
+            return 'sensitive-pd'
+        elif has_non_personal_sensitive:
+            return 'sensitive-non-pd'
+        else:
+            return 'not-sensitive'
 
     def _save_to_ckan(self, resource_id: str, reports: list, sensitivity: str):
         """Save results to CKAN or local file."""
@@ -237,6 +251,8 @@ class EventProcessor:
             return
 
         # Update CKAN resource
+        print(f'Sensitivity: {sensitivity}')
+        print(f'Reports: {json.dumps(reports_dict, indent=2)}')
         self.ckan.update_resource_fields(
             resource_id, {'sdd_report': json.dumps(reports_dict, indent=2), 'sensitive': sensitivity}
         )

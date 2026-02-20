@@ -27,28 +27,20 @@ class CKANClient:
         self.headers = {'Authorization': self.api_token} if self.api_token else {}
 
     # --- Core request helper ---
-    @handle_exception()
+    # @handle_exception()
     def _request(self, action: str, method: str = 'GET', **kwargs) -> Optional[dict]:
         """
         Internal helper for making CKAN API requests.
         """
         url = f'{self.base_url}/api/3/action/{action}'
 
-        try:
-            if method.upper() == 'GET':
-                response = requests.get(url, timeout=30, headers=self.headers, **kwargs)
-            else:
-                response = requests.post(url, timeout=30, headers=self.headers, **kwargs)
-            response.raise_for_status()
-        except requests.exceptions.HTTPError as e:
-            if e.response.status_code == 401:
-                logger.error('Authentication failed - check your HDX_KEY is valid')
-            elif e.response.status_code == 403:
-                logger.error('Permission denied - your API token does not have write access to this resource')
-                logger.error('Tip: Set SKIP_CKAN_UPDATE=true in .env to test without updating CKAN')
-            raise
+        if method.upper() == 'GET':
+            response = requests.get(url, timeout=30, headers=self.headers, **kwargs)
+        else:
+            response = requests.post(url, timeout=30, headers=self.headers, **kwargs)
+        response.raise_for_status()
 
-        # Log request 200 or error
+        # Print request 200 or error
         if response.status_code == 200:
             logger.info('CKAN request successful')
         else:
@@ -74,11 +66,11 @@ class CKANClient:
         logger.info('Fetching resource: %s', resource_id)
         return self._request('resource_show', params={'id': resource_id})
 
-    @handle_exception()
+    # @handle_exception()
     def update_resource_fields(self, resource_id: str, fields: Dict[str, Any]) -> Optional[dict]:
         """Update one or more fields of a CKAN resource."""
         if not self.api_token:
-            raise EnvironmentError('HDX_API_TOKEN is required to update resources')
+            raise EnvironmentError('CKAN_API_TOKEN is required to update resources')
 
         payload = {'id': resource_id, **fields}
         logger.info('Updating resource %s with fields: %s', resource_id, list(fields.keys()))
