@@ -258,7 +258,7 @@ export default function StatisticsTab() {
 
     <!-- MODEL COMPARISON SECTION -->
     <div class="section">
-      <h2>🤖 Model Comparison</h2>
+      <h2>Model Comparison</h2>
       
       <h3>📁 Overall File-Level Performance</h3>
       <table>
@@ -418,7 +418,7 @@ export default function StatisticsTab() {
 
     <!-- COST ANALYSIS SECTION -->
     <div class="section">
-      <h2>💰 Cost Analysis</h2>
+      <h2>Cost Analysis</h2>
       
       <div class="summary-cards">
         <div class="card">
@@ -435,7 +435,7 @@ export default function StatisticsTab() {
         </div>
       </div>
 
-      <h3>💵 Detailed Cost Breakdown</h3>
+      <h3>Detailed Cost Breakdown</h3>
       <table>
         <thead>
           <tr>
@@ -467,7 +467,7 @@ export default function StatisticsTab() {
         </tbody>
       </table>
 
-      <h3>📋 Pricing Reference</h3>
+      <h3>Pricing Reference</h3>
       <table>
         <thead>
           <tr>

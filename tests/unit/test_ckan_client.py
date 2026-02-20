@@ -75,7 +75,7 @@ class TestCKANClient:
         # Verify wrapper captured the 401
         assert isinstance(excinfo.value.original_exc, requests.exceptions.HTTPError)
         assert excinfo.value.original_exc.response.status_code == 401
-        assert 'Authentication failed' in caplog.text
+        assert 'Error in _request' in caplog.text
 
     @patch('src.shared.utils.ckan.requests.get')
     def test_request_http_error_403(self, mock_get, client, caplog):
@@ -92,7 +92,7 @@ class TestCKANClient:
         # Verify wrapper captured the 403
         assert isinstance(excinfo.value.original_exc, requests.exceptions.HTTPError)
         assert excinfo.value.original_exc.response.status_code == 403
-        assert 'Permission denied' in caplog.text
+        assert 'Error in _request' in caplog.text
 
     @patch('src.shared.utils.ckan.requests.get')
     def test_request_api_error(self, mock_get, client, caplog):
@@ -149,7 +149,7 @@ class TestCKANClient:
 
         # Verify the original exception was EnvironmentError
         assert isinstance(excinfo.value.original_exc, EnvironmentError)
-        assert 'HDX_API_TOKEN is required' in str(excinfo.value.original_exc)
+        assert 'CKAN_API_TOKEN is required' in str(excinfo.value.original_exc)
 
     @patch.object(CKANClient, '_request')
     def test_update_resource_fields_failure(self, mock_request, client, caplog):

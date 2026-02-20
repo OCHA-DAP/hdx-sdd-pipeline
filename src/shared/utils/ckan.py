@@ -27,7 +27,7 @@ class CKANClient:
         self.headers = {'Authorization': self.api_token} if self.api_token else {}
 
     # --- Core request helper ---
-    # @handle_exception()
+    @handle_exception()
     def _request(self, action: str, method: str = 'GET', **kwargs) -> Optional[dict]:
         """
         Internal helper for making CKAN API requests.
@@ -66,7 +66,7 @@ class CKANClient:
         logger.info('Fetching resource: %s', resource_id)
         return self._request('resource_show', params={'id': resource_id})
 
-    # @handle_exception()
+    @handle_exception()
     def update_resource_fields(self, resource_id: str, fields: Dict[str, Any]) -> Optional[dict]:
         """Update one or more fields of a CKAN resource."""
         if not self.api_token:

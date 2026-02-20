@@ -143,15 +143,17 @@ def test_get_isp_rules_no_country_match(mock_config, mock_pipeline_factory, mock
 def test_determine_sensitivity_sensitive(mock_config, mock_pipeline_factory):
     processor = EventProcessor()
     report = MagicMock(spec=SheetReport)
-    report.is_sensitive.return_value = True
-    assert processor._determine_sensitivity([report]) == 'sensitive'
+    report.personal_data_sensitive = True
+    report.non_personal_data_sensitive = False
+    assert processor._determine_sensitivity([report]) == 'sensitive-pd'
 
 
 def test_determine_sensitivity_non_sensitive(mock_config, mock_pipeline_factory):
     processor = EventProcessor()
     report = MagicMock(spec=SheetReport)
-    report.is_sensitive.return_value = False
-    assert processor._determine_sensitivity([report]) == 'non-sensitive'
+    report.personal_data_sensitive = False
+    report.non_personal_data_sensitive = False
+    assert processor._determine_sensitivity([report]) == 'not-sensitive'
 
 
 def test_save_to_ckan(mock_config, mock_pipeline_factory, mock_ckan_client):
