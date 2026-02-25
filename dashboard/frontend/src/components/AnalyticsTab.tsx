@@ -105,7 +105,6 @@ export default function AnalyticsTab() {
   useEffect(() => {
     fetchDatasets();
     fetchModels();
-    fetchBatchStatus();
   }, []);
 
   useEffect(() => {
@@ -132,6 +131,10 @@ export default function AnalyticsTab() {
                 <th className="px-4 py-2 text-center text-xs font-medium text-gray-900">Precision</th>
                 <th className="px-4 py-2 text-center text-xs font-medium text-gray-900">Recall</th>
                 <th className="px-4 py-2 text-center text-xs font-medium text-gray-900">F1 Score</th>
+                <th className="px-4 py-2 text-center text-xs font-medium text-gray-900">True Positives</th>
+                <th className="px-4 py-2 text-center text-xs font-medium text-gray-900">False Positives</th>
+                <th className="px-4 py-2 text-center text-xs font-medium text-gray-900">True Negatives</th>
+                <th className="px-4 py-2 text-center text-xs font-medium text-gray-900">False Negatives</th>
                 <th className="px-4 py-2 text-center text-xs font-medium text-gray-900">{testedType}</th>
               </tr>
             </thead>
@@ -149,6 +152,10 @@ export default function AnalyticsTab() {
                       {perf.f1_score.toFixed(3)}
                     </span>
                   </td>
+                  <td className="px-4 py-2 text-center text-xs text-gray-600">{perf.true_positives || 0}</td>
+                  <td className="px-4 py-2 text-center text-xs text-gray-600">{perf.false_positives || 0}</td>
+                  <td className="px-4 py-2 text-center text-xs text-gray-600">{perf.true_negatives || 0}</td>
+                  <td className="px-4 py-2 text-center text-xs text-gray-600">{perf.false_negatives || 0}</td>
                   <td className="px-4 py-2 text-center text-xs text-gray-600">{(perf as any).files_tested || (perf as any).sheets_tested}</td>
                 </tr>
               ))}

@@ -304,7 +304,7 @@ async def get_performance_metrics():
                 gt_personal = False
                 gt_non_personal = False
                 gt_sheets = {}
-                
+
                 if isinstance(groundtruth_data, list):
                     for sheet in groundtruth_data:
                         if isinstance(sheet, dict):
@@ -314,7 +314,7 @@ async def get_performance_metrics():
                                 gt_non_personal = True
                             gt_sheets[sheet.get('sheet_name', 'unknown')] = {
                                 'personal_data_sensitive': sheet.get('personal_data_sensitive', False),
-                                'non_personal_data_sensitive': sheet.get('non_personal_data_sensitive', False)
+                                'non_personal_data_sensitive': sheet.get('non_personal_data_sensitive', False),
                             }
                 elif isinstance(groundtruth_data, dict):
                     gt_personal = groundtruth_data.get('personal_data_sensitive', False)
@@ -322,7 +322,7 @@ async def get_performance_metrics():
                     # For legacy template format, assume one sheet or apply globally
                     gt_sheets['unknown'] = {
                         'personal_data_sensitive': gt_personal,
-                        'non_personal_data_sensitive': gt_non_personal
+                        'non_personal_data_sensitive': gt_non_personal,
                     }
 
                 gt_overall = gt_personal or gt_non_personal
@@ -388,7 +388,7 @@ async def get_performance_metrics():
                         # For sheet-level, we need to compare with ground truth if available
                         sheet_personal = sheet.get('personal_data_sensitive', False)
                         sheet_non_personal = sheet.get('non_personal_data_sensitive', False)
-                        
+
                         sheet_gt = gt_sheets.get(sheet_name, gt_sheets.get('unknown', {}))
                         sheet_gt_personal = sheet_gt.get('personal_data_sensitive', False)
                         sheet_gt_non_personal = sheet_gt.get('non_personal_data_sensitive', False)
@@ -437,6 +437,10 @@ async def get_performance_metrics():
                 "precision": precision,
                 "recall": recall,
                 "f1_score": f1,
+                "true_positives": tp,
+                "false_positives": fp,
+                "true_negatives": tn,
+                "false_negatives": fn,
             }
             if is_sheet:
                 result["sheets_tested"] = confusion_matrix.get("sheets_tested", 0)
@@ -655,16 +659,20 @@ async def get_report_detail(model_name: str, dataset_name: str):
         formatted_groundtruth = None
         if groundtruth_data is not None:
             if isinstance(groundtruth_data, list):
-                has_personal = any(s.get('personal_data_sensitive', False) for s in groundtruth_data if isinstance(s, dict))
-                has_non_personal = any(s.get('non_personal_data_sensitive', False) for s in groundtruth_data if isinstance(s, dict))
+                has_personal = any(
+                    s.get('personal_data_sensitive', False) for s in groundtruth_data if isinstance(s, dict)
+                )
+                has_non_personal = any(
+                    s.get('non_personal_data_sensitive', False) for s in groundtruth_data if isinstance(s, dict)
+                )
                 formatted_groundtruth = {
                     'personal_data_sensitive': has_personal,
-                    'non_personal_data_sensitive': has_non_personal
+                    'non_personal_data_sensitive': has_non_personal,
                 }
             elif isinstance(groundtruth_data, dict):
                 formatted_groundtruth = {
                     'personal_data_sensitive': groundtruth_data.get('personal_data_sensitive', False),
-                    'non_personal_data_sensitive': groundtruth_data.get('non_personal_data_sensitive', False)
+                    'non_personal_data_sensitive': groundtruth_data.get('non_personal_data_sensitive', False),
                 }
 
         # Handle the actual data structure (array of sheet results)
