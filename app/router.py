@@ -911,3 +911,79 @@ async def get_cost_analysis():
         'pricing': PRICING,
         'common_files_count': len(common_files),
     }
+
+
+# Generate ground truth report using a trusted model
+@router.post('/generate-groundtruth-report')
+async def generate_groundtruth_report(
+    dataset_filename: str = Query(..., description='Name of the dataset file'),
+    trusted_model: str = Query('gpt-4.1', description='Trusted model to use for ground truth generation'),
+):
+    """
+    Generate a ground truth report using a trusted model for automatic annotation.
+
+    This endpoint creates a ground truth report by running the pipeline with a trusted model,
+    which can then be used as the ground truth for comparisons and statistics.
+
+    Args:
+        dataset_filename: Name of the dataset file
+        trusted_model: Name of the trusted model to use for ground truth generation
+
+    Returns:
+        Path to generated ground truth report
+    """
+    # Read dataset file
+    dataset_file = DATASETS_DIR / dataset_filename
+    if not dataset_file.exists():
+        raise HTTPException(status_code=404, detail='Dataset file not found')
+
+    gt_file = GROUNDTRUTH_DIR / f'{dataset_filename}.json'
+
+    # Check if ground truth already exists
+    if gt_file.exists():
+        return {
+            'message': 'Ground truth report already exists',
+            'groundtruth_path': str(gt_file),
+            'exists': True,
+        }
+
+    logger.info(f'Generating ground truth report for: {dataset_filename} using model: {trusted_model}')
+
+    try:
+        # Setup pipeline with trusted model
+        pipeline = setup_pipeline(model_name=trusted_model)
+
+        # Load ISP rules (using default for now)
+        isp_rules = load_isp_rules('default')
+
+        # Process dataset using the clean architecture
+        sheet_reports: List[SheetReport] = pipeline.execute(
+            source=str(dataset_file),
+            resource_id=dataset_filename,
+            is_url=False,
+            isp_rules=isp_rules,
+        )
+
+        # Convert SheetReport entities to dictionaries
+        reports_dict = [report.to_dict() for report in sheet_reports]
+
+        # Ensure ground truth directory exists
+        gt_file.parent.mkdir(parents=True, exist_ok=True)
+
+        # Save ground truth report
+        with gt_file.open('w', encoding='utf-8') as f:
+            json.dump(reports_dict, f, indent=2, ensure_ascii=False)
+
+        logger.info(f'Ground truth report generated: {gt_file}')
+
+        return {
+            'message': 'Ground truth report generated successfully',
+            'groundtruth_path': str(gt_file),
+            'exists': False,
+            'sheets': len(reports_dict),
+            'model_used': trusted_model,
+        }
+
+    except Exception as e:
+        logger.error(f'Failed to generate ground truth report: {e}', exc_info=True)
+        raise HTTPException(status_code=500, detail=f'Failed to generate ground truth report: {str(e)}')
