@@ -246,6 +246,277 @@ async def run_batch_processing(datasets: List[Path], models: List[str], skip_exi
         logger.info("Batch processing complete!")
 
 
+@router.get("/analytics/performance")
+async def get_performance_metrics():
+    """Calculate performance metrics for all models from test results."""
+    metrics = {
+        "overall_performance": [],
+        "personal_sensitive": [],
+        "non_personal_sensitive": [],
+        "sheet_personal_sensitive": [],
+        "sheet_non_personal_sensitive": [],
+        "cost_analysis": [],
+    }
+
+    for model_name in AVAILABLE_MODELS:
+        model_dir = REPORTS_DIR / model_name
+
+        if not model_dir.exists():
+            continue
+
+        # Initialize metrics for this model
+        model_metrics = {
+            "model": model_name,
+            "accuracy": 0.0,
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1_score": 0.0,
+            "files_tested": 0,
+            "true_positives": 0,
+            "false_positives": 0,
+            "false_negatives": 0,
+            "true_negatives": 0,
+        }
+
+        personal_metrics = model_metrics.copy()
+        non_personal_metrics = model_metrics.copy()
+        sheet_personal_metrics = model_metrics.copy()
+        sheet_non_personal_metrics = model_metrics.copy()
+
+        sheet_personal_metrics["sheets_tested"] = 0
+        sheet_non_personal_metrics["sheets_tested"] = 0
+
+        # Process each dataset
+        for result_file in model_dir.glob("*.json"):
+            dataset_name = result_file.stem
+            groundtruth_path = GROUNDTRUTH_DIR / f"{dataset_name}.json"
+
+            if not groundtruth_path.exists():
+                continue
+
+            try:
+                # Load model results and ground truth
+                with open(result_file, 'r', encoding='utf-8') as f:
+                    model_data = json.load(f)
+                with open(groundtruth_path, 'r', encoding='utf-8') as f:
+                    groundtruth_data = json.load(f)
+
+                gt_personal = False
+                gt_non_personal = False
+                gt_sheets = {}
+                
+                if isinstance(groundtruth_data, list):
+                    for sheet in groundtruth_data:
+                        if isinstance(sheet, dict):
+                            if sheet.get('personal_data_sensitive', False):
+                                gt_personal = True
+                            if sheet.get('non_personal_data_sensitive', False):
+                                gt_non_personal = True
+                            gt_sheets[sheet.get('sheet_name', 'unknown')] = {
+                                'personal_data_sensitive': sheet.get('personal_data_sensitive', False),
+                                'non_personal_data_sensitive': sheet.get('non_personal_data_sensitive', False)
+                            }
+                elif isinstance(groundtruth_data, dict):
+                    gt_personal = groundtruth_data.get('personal_data_sensitive', False)
+                    gt_non_personal = groundtruth_data.get('non_personal_data_sensitive', False)
+                    # For legacy template format, assume one sheet or apply globally
+                    gt_sheets['unknown'] = {
+                        'personal_data_sensitive': gt_personal,
+                        'non_personal_data_sensitive': gt_non_personal
+                    }
+
+                gt_overall = gt_personal or gt_non_personal
+
+                # Determine model file-level predictions
+                model_personal = False
+                model_non_personal = False
+                model_overall = False
+
+                if isinstance(model_data, list):
+                    for sheet in model_data:
+                        if isinstance(sheet, dict):
+                            if sheet.get('personal_data_sensitive', False):
+                                model_personal = True
+                            if sheet.get('non_personal_data_sensitive', False):
+                                model_non_personal = True
+
+                    model_overall = model_personal or model_non_personal
+
+                # Update file-level confusion matrices
+                # Overall metrics
+                if model_overall and gt_overall:
+                    model_metrics["true_positives"] += 1
+                elif model_overall and not gt_overall:
+                    model_metrics["false_positives"] += 1
+                elif not model_overall and gt_overall:
+                    model_metrics["false_negatives"] += 1
+                else:
+                    model_metrics["true_negatives"] += 1
+
+                # Personal data metrics
+                if model_personal and gt_personal:
+                    personal_metrics["true_positives"] += 1
+                elif model_personal and not gt_personal:
+                    personal_metrics["false_positives"] += 1
+                elif not model_personal and gt_personal:
+                    personal_metrics["false_negatives"] += 1
+                else:
+                    personal_metrics["true_negatives"] += 1
+
+                # Non-personal data metrics
+                if model_non_personal and gt_non_personal:
+                    non_personal_metrics["true_positives"] += 1
+                elif model_non_personal and not gt_non_personal:
+                    non_personal_metrics["false_positives"] += 1
+                elif not model_non_personal and gt_non_personal:
+                    non_personal_metrics["false_negatives"] += 1
+                else:
+                    non_personal_metrics["true_negatives"] += 1
+
+                model_metrics["files_tested"] += 1
+                personal_metrics["files_tested"] += 1
+                non_personal_metrics["files_tested"] += 1
+
+                # Sheet-level metrics
+                if isinstance(model_data, list):
+                    for sheet in model_data:
+                        if not isinstance(sheet, dict):
+                            continue
+
+                        sheet_name = sheet.get('sheet_name', 'unknown')
+
+                        # For sheet-level, we need to compare with ground truth if available
+                        sheet_personal = sheet.get('personal_data_sensitive', False)
+                        sheet_non_personal = sheet.get('non_personal_data_sensitive', False)
+                        
+                        sheet_gt = gt_sheets.get(sheet_name, gt_sheets.get('unknown', {}))
+                        sheet_gt_personal = sheet_gt.get('personal_data_sensitive', False)
+                        sheet_gt_non_personal = sheet_gt.get('non_personal_data_sensitive', False)
+
+                        # Update sheet-level confusion matrices
+                        if sheet_personal and sheet_gt_personal:
+                            sheet_personal_metrics["true_positives"] += 1
+                        elif sheet_personal and not sheet_gt_personal:
+                            sheet_personal_metrics["false_positives"] += 1
+                        elif not sheet_personal and sheet_gt_personal:
+                            sheet_personal_metrics["false_negatives"] += 1
+                        else:
+                            sheet_personal_metrics["true_negatives"] += 1
+
+                        if sheet_non_personal and sheet_gt_non_personal:
+                            sheet_non_personal_metrics["true_positives"] += 1
+                        elif sheet_non_personal and not sheet_gt_non_personal:
+                            sheet_non_personal_metrics["false_positives"] += 1
+                        elif not sheet_non_personal and sheet_gt_non_personal:
+                            sheet_non_personal_metrics["false_negatives"] += 1
+                        else:
+                            sheet_non_personal_metrics["true_negatives"] += 1
+
+                        sheet_personal_metrics["sheets_tested"] += 1
+                        sheet_non_personal_metrics["sheets_tested"] += 1
+
+            except Exception as e:
+                logger.warning(f"Could not process {dataset_name} for {model_name}: {e}")
+                continue
+
+        # Calculate metrics for each category
+        def calculate_metrics(confusion_matrix, is_sheet=False):
+            tp = confusion_matrix["true_positives"]
+            fp = confusion_matrix["false_positives"]
+            fn = confusion_matrix["false_negatives"]
+            tn = confusion_matrix["true_negatives"]
+
+            accuracy = (tp + tn) / (tp + fp + fn + tn) if (tp + fp + fn + tn) > 0 else 0
+            precision = tp / (tp + fp) if (tp + fp) > 0 else 0
+            recall = tp / (tp + fn) if (tp + fn) > 0 else 0
+            f1 = 2 * (precision * recall) / (precision + recall) if (precision + recall) > 0 else 0
+
+            result = {
+                "model": confusion_matrix["model"],
+                "accuracy": accuracy,
+                "precision": precision,
+                "recall": recall,
+                "f1_score": f1,
+            }
+            if is_sheet:
+                result["sheets_tested"] = confusion_matrix.get("sheets_tested", 0)
+            else:
+                result["files_tested"] = confusion_matrix.get("files_tested", 0)
+            return result
+
+        # Add calculated metrics to results
+        metrics["overall_performance"].append(calculate_metrics(model_metrics, False))
+        metrics["personal_sensitive"].append(calculate_metrics(personal_metrics, False))
+        metrics["non_personal_sensitive"].append(calculate_metrics(non_personal_metrics, False))
+        metrics["sheet_personal_sensitive"].append(calculate_metrics(sheet_personal_metrics, True))
+        metrics["sheet_non_personal_sensitive"].append(calculate_metrics(sheet_non_personal_metrics, True))
+
+    return metrics
+
+
+@router.get("/analytics/cost")
+async def get_cost_analysis():
+    """Calculate cost analysis from token usage in results."""
+    cost_data = []
+
+    # Pricing per 1M tokens (adjust as needed)
+    pricing = {
+        "gpt-4.1-nano": 0.17,
+        "gpt-4.1-mini": 0.70,
+        "gpt-4.1": 3.50,
+        "gpt-5-nano": 0.15,
+        "gpt-5-mini": 0.69,
+        "DeepSeek-V3.1": 0.84,
+    }
+
+    for model_name in AVAILABLE_MODELS:
+        model_dir = REPORTS_DIR / model_name
+
+        if not model_dir.exists():
+            continue
+
+        total_prompt_tokens = 0
+        total_completion_tokens = 0
+        reports_count = 0
+
+        for result_file in model_dir.glob("*.json"):
+            try:
+                with open(result_file, 'r', encoding='utf-8') as f:
+                    data = json.load(f)
+
+                # Extract token usage from the data structure
+                if isinstance(data, list):
+                    for sheet in data:
+                        if isinstance(sheet, dict):
+                            total_prompt_tokens += sheet.get('prompt_tokens', 0)
+                            total_completion_tokens += sheet.get('completion_tokens', 0)
+
+                reports_count += 1
+
+            except Exception as e:
+                logger.warning(f"Could not extract token data from {result_file}: {e}")
+                continue
+
+        total_tokens = total_prompt_tokens + total_completion_tokens
+        total_cost = (total_tokens / 1000000) * pricing.get(model_name, 0)
+        cost_per_report = total_cost / reports_count if reports_count > 0 else 0
+
+        cost_data.append(
+            {
+                "model": model_name,
+                "reports": reports_count,
+                "prompt_tokens": total_prompt_tokens,
+                "completion_tokens": total_completion_tokens,
+                "total_tokens": total_tokens,
+                "price_per_1m": pricing.get(model_name, 0),
+                "total_cost": total_cost,
+                "cost_per_report": cost_per_report,
+            }
+        )
+
+    return {"cost_analysis": cost_data, "pricing": pricing}
+
+
 @router.get("/batch-status")
 async def get_batch_status():
     """Get current batch processing status."""
@@ -380,13 +651,29 @@ async def get_report_detail(model_name: str, dataset_name: str):
             with open(groundtruth_path, 'r', encoding='utf-8') as f:
                 groundtruth_data = json.load(f)
 
+        # Format groundtruth data to file-level format for the frontend
+        formatted_groundtruth = None
+        if groundtruth_data is not None:
+            if isinstance(groundtruth_data, list):
+                has_personal = any(s.get('personal_data_sensitive', False) for s in groundtruth_data if isinstance(s, dict))
+                has_non_personal = any(s.get('non_personal_data_sensitive', False) for s in groundtruth_data if isinstance(s, dict))
+                formatted_groundtruth = {
+                    'personal_data_sensitive': has_personal,
+                    'non_personal_data_sensitive': has_non_personal
+                }
+            elif isinstance(groundtruth_data, dict):
+                formatted_groundtruth = {
+                    'personal_data_sensitive': groundtruth_data.get('personal_data_sensitive', False),
+                    'non_personal_data_sensitive': groundtruth_data.get('non_personal_data_sensitive', False)
+                }
+
         # Handle the actual data structure (array of sheet results)
         formatted_data = {
             "dataset_name": dataset_name,
             "model": model_name,
             "processed_at": "Unknown",
             "sheets": {},
-            "groundtruth": groundtruth_data,
+            "groundtruth": formatted_groundtruth,
         }
 
         if isinstance(data, list) and len(data) > 0:
