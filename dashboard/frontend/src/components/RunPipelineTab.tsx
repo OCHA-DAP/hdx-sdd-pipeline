@@ -23,34 +23,62 @@ export default function RunPipelineTab() {
   const [processing, setProcessing] = useState<Record<string, boolean>>({});
   const [modelName, setModelName] = useState(MODEL_OPTIONS[0]);
 
+  const [batchProcessing, setBatchProcessing] = useState(false);
+  const [batchStatus, setBatchStatus] = useState<any>(null);
+
   const handleUpload = async (files: FileList | null) => {
     if (!files) return;
 
-    const formData = new FormData();
-    const newFiles: UploadedFile[] = [];
-
-    Array.from(files).forEach((file) => {
+    for (const file of files) {
+      const formData = new FormData();
       formData.append("file", file);
-      newFiles.push({
-        name: file.name,
-        size: file.size,
-        uploadedAt: new Date(),
-      });
-    });
 
+      try {
+        const response = await fetch(getApiUrl("api/upload"), {
+          method: "POST",
+          body: formData,
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          console.log("Upload successful:", data);
+          setUploadedFiles((prev) => [...prev, {
+            name: data.filename,
+            size: data.size,
+            uploadedAt: new Date(),
+          }]);
+        } else {
+          alert(`Failed to upload ${file.name}. Please try again.`);
+        }
+      } catch (error) {
+        alert(`Error uploading ${file.name}. Please try again.`);
+      }
+    }
+  };
+
+  const handleBatchProcessing = async () => {
+    setBatchProcessing(true);
     try {
-      const response = await fetch(getApiUrl("api/upload"), {
+      const response = await fetch(getApiUrl("api/batch-process"), {
         method: "POST",
-        body: formData,
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ skip_existing: true }),
       });
 
       if (response.ok) {
-        setUploadedFiles((prev) => [...prev, ...newFiles]);
+        const data = await response.json();
+        console.log("Batch processing started:", data);
+        alert("Batch processing started! Check status in Analytics tab.");
       } else {
-        alert("Failed to upload files. Please try again.");
+        const error = await response.json();
+        alert(`Failed to start batch processing: ${error.detail || "Unknown error"}`);
       }
     } catch (error) {
-      alert("Error uploading files. Please try again.");
+      alert("Failed to start batch processing");
+    } finally {
+      setBatchProcessing(false);
     }
   };
 
@@ -116,24 +144,36 @@ export default function RunPipelineTab() {
           </label>
         </div>
 
-        {/* Model Selection */}
+
+
+        {/* Batch Processing Section */}
         <div className="bg-white rounded-xl border border-gray-200 p-6 mb-6">
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between mb-4">
             <div>
-              <h3 className="text-lg font-semibold text-gray-800">AI Model</h3>
-              <p className="text-sm text-gray-600">Choose model for processing</p>
+              <h3 className="text-lg font-semibold text-gray-800">Batch Processing</h3>
+              <p className="text-sm text-gray-600">Process all datasets with all models</p>
             </div>
-            <select
-              value={modelName}
-              onChange={(e) => setModelName(e.target.value)}
-              className="px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium bg-white text-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            <button
+              onClick={handleBatchProcessing}
+              disabled={batchProcessing}
+              className="flex items-center gap-2 px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
             >
-              {MODEL_OPTIONS.map((model) => (
-                <option key={model} value={model}>
-                  {model}
-                </option>
-              ))}
-            </select>
+              {batchProcessing ? (
+                <>
+                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                  Starting...
+                </>
+              ) : (
+                <>
+                  <Play className="w-4 h-4" />
+                  Start Batch
+                </>
+              )}
+            </button>
+          </div>
+          <div className="text-sm text-gray-500">
+            Processes all datasets in groundtruth2 with all available models. 
+            Skips existing results to save time.
           </div>
         </div>
 
