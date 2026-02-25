@@ -45,6 +45,21 @@ interface ReportDetail {
   groundtruth?: any;
 }
 
+interface ErrorAnalysis {
+  dataset: string;
+  model: string;
+  errorType: 'false_positive' | 'false_negative';
+  groundTruth: {
+    personal_data_sensitive: boolean;
+    non_personal_data_sensitive: boolean;
+  };
+  prediction: {
+    personal_data_sensitive: boolean;
+    non_personal_data_sensitive: boolean;
+  };
+  sheetName?: string;
+}
+
 interface Props {
   selectedModel?: string;
 }
@@ -55,6 +70,7 @@ export default function ResultsTab({ selectedModel: propSelectedModel }: Props =
   const [modelResults, setModelResults] = useState<ModelResult[]>([]);
   const [expandedReports, setExpandedReports] = useState<Set<string>>(new Set());
   const [reportDetails, setReportDetails] = useState<Record<string, ReportDetail>>({});
+  const [errorAnalysis, setErrorAnalysis] = useState<ErrorAnalysis[]>([]);
   const [loading, setLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [modelsExpanded, setModelsExpanded] = useState(false);
