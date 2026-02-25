@@ -693,6 +693,10 @@ async def get_report_detail(model_name: str, dataset_name: str):
                 if isinstance(sheet_data, dict):
                     sheet_name = sheet_data.get('sheet_name', 'unknown')
 
+                    # Debug logging to see what we're working with
+                    logger.info(f"Processing sheet: {sheet_name}")
+                    logger.info(f"Non-personal data: {sheet_data.get('non_personal_data', 'NOT FOUND')}")
+
                     # Extract column predictions
                     predictions = {}
                     columns = sheet_data.get('columns', [])
@@ -733,9 +737,19 @@ async def get_report_detail(model_name: str, dataset_name: str):
                             "personal_data_sensitive": sheet_data.get('personal_data_sensitive', False),
                             "non_personal_data_sensitive": sheet_data.get('non_personal_data_sensitive', False),
                             "explanation": sheet_data.get('explanation', ''),
+                            "non_personal_explanation": sheet_data.get('non_personal_data', {}).get('explanation', ''),
+                            "non_personal_sensitivity": sheet_data.get('non_personal_data', {}).get('sensitivity', ''),
                             "isp_used": sheet_data.get('isp_used', 'Unknown'),
                         },
                     }
+
+                    # Debug logging to see what we extracted
+                    logger.info(
+                        f"Extracted non_personal_explanation: {sheet_data.get('non_personal_data', {}).get('explanation', 'NOT FOUND')}"
+                    )
+                    logger.info(
+                        f"Extracted non_personal_sensitivity: {sheet_data.get('non_personal_data', {}).get('sensitivity', 'NOT FOUND')}"
+                    )
 
         return formatted_data
 

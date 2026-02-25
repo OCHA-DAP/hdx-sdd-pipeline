@@ -38,6 +38,8 @@ interface ReportDetail {
         personal_data_sensitive: boolean;
         non_personal_data_sensitive: boolean;
         explanation?: string;
+        non_personal_explanation?: string;
+        non_personal_sensitivity?: string;
         isp_used?: string;
       };
     };
@@ -88,6 +90,16 @@ export default function ResultsTab({ selectedModel: propSelectedModel }: Props =
     }
   }, [currentSelectedModel]);
 
+  // Analyze errors when report details are loaded
+  useEffect(() => {
+    if (currentSelectedModel && modelResults.length > 0) {
+      // Automatically fetch and analyze all reports for the current model
+      modelResults.forEach(result => {
+        fetchReportDetail(currentSelectedModel, result.dataset);
+      });
+    }
+  }, [currentSelectedModel, modelResults]);
+
   const fetchModels = async () => {
     try {
       const response = await fetch(getApiUrl("api/models"));
@@ -126,10 +138,92 @@ export default function ResultsTab({ selectedModel: propSelectedModel }: Props =
       if (response.ok) {
         const data = await response.json();
         setReportDetails(prev => ({ ...prev, [cacheKey]: data }));
+        
+        // Analyze for errors when report detail is loaded
+        analyzeErrors(data, model, dataset);
       }
     } catch (error) {
       console.error("Failed to fetch report detail:", error);
     }
+  };
+
+  const analyzeErrors = (reportDetail: ReportDetail, model: string, dataset: string) => {
+    const errors: ErrorAnalysis[] = [];
+    
+    if (!reportDetail.groundtruth) return;
+    
+    const gt = reportDetail.groundtruth;
+    
+    // Analyze each sheet
+    Object.entries(reportDetail.sheets).forEach(([sheetName, sheetData]) => {
+      const prediction = {
+        personal_data_sensitive: sheetData.metadata.personal_data_sensitive,
+        non_personal_data_sensitive: sheetData.metadata.non_personal_data_sensitive
+      };
+      
+      // Check for false positives (model predicted sensitive but ground truth says not)
+      if (prediction.personal_data_sensitive && !gt.personal_data_sensitive) {
+        errors.push({
+          dataset,
+          model,
+          errorType: 'false_positive',
+          groundTruth: {
+            personal_data_sensitive: gt.personal_data_sensitive,
+            non_personal_data_sensitive: gt.non_personal_data_sensitive
+          },
+          prediction,
+          sheetName
+        });
+      }
+      
+      if (prediction.non_personal_data_sensitive && !gt.non_personal_data_sensitive) {
+        errors.push({
+          dataset,
+          model,
+          errorType: 'false_positive',
+          groundTruth: {
+            personal_data_sensitive: gt.personal_data_sensitive,
+            non_personal_data_sensitive: gt.non_personal_data_sensitive
+          },
+          prediction,
+          sheetName
+        });
+      }
+      
+      // Check for false negatives (ground truth says sensitive but model predicted not)
+      if (!prediction.personal_data_sensitive && gt.personal_data_sensitive) {
+        errors.push({
+          dataset,
+          model,
+          errorType: 'false_negative',
+          groundTruth: {
+            personal_data_sensitive: gt.personal_data_sensitive,
+            non_personal_data_sensitive: gt.non_personal_data_sensitive
+          },
+          prediction,
+          sheetName
+        });
+      }
+      
+      if (!prediction.non_personal_data_sensitive && gt.non_personal_data_sensitive) {
+        errors.push({
+          dataset,
+          model,
+          errorType: 'false_negative',
+          groundTruth: {
+            personal_data_sensitive: gt.personal_data_sensitive,
+            non_personal_data_sensitive: gt.non_personal_data_sensitive
+          },
+          prediction,
+          sheetName
+        });
+      }
+    });
+    
+    setErrorAnalysis(prev => {
+      const filtered = prev.filter(e => !(e.model === model && e.dataset === dataset));
+      return [...filtered, ...errors];
+    });
   };
 
   const toggleReportExpansion = async (model: string, dataset: string) => {
@@ -216,6 +310,77 @@ export default function ResultsTab({ selectedModel: propSelectedModel }: Props =
                     </button>
                   </div>
                 </div>
+
+                {/* Error Analysis Table */}
+                {errorAnalysis.length > 0 && (
+                  <div className="bg-white rounded-xl border border-gray-200 p-6 mb-6">
+                    <h3 className="text-lg font-semibold text-gray-900 mb-4">False Positives and False Negatives</h3>
+                    <div className="border border-gray-200 rounded-lg overflow-hidden">
+                      <table className="w-full">
+                        <thead className="bg-gray-50">
+                          <tr>
+                            <th className="px-4 py-2 text-left text-xs font-medium text-gray-900">Dataset</th>
+                            <th className="px-4 py-2 text-left text-xs font-medium text-gray-900">Sheet</th>
+                            <th className="px-4 py-2 text-center text-xs font-medium text-gray-900">Error Type</th>
+                            <th className="px-4 py-2 text-center text-xs font-medium text-gray-900">Ground Truth</th>
+                            <th className="px-4 py-2 text-center text-xs font-medium text-gray-900">Prediction</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-gray-200">
+                          {errorAnalysis
+                            .filter(error => error.model === currentSelectedModel)
+                            .map((error, index) => (
+                              <tr key={`${error.dataset}-${error.sheetName}-${index}`} className="hover:bg-gray-50">
+                                <td className="px-4 py-2 text-xs font-medium text-gray-900">{error.dataset}</td>
+                                <td className="px-4 py-2 text-xs text-gray-600">{error.sheetName || 'N/A'}</td>
+                                <td className="px-4 py-2 text-center">
+                                  <span className={`inline-block px-2 py-1 text-xs font-medium rounded ${
+                                    error.errorType === 'false_positive' 
+                                      ? 'bg-red-100 text-red-800' 
+                                      : 'bg-orange-100 text-orange-800'
+                                  }`}>
+                                    {error.errorType === 'false_positive' ? 'False Positive' : 'False Negative'}
+                                  </span>
+                                </td>
+                                <td className="px-4 py-2 text-xs text-gray-600">
+                                  <div className="space-y-1">
+                                    <div className="flex items-center gap-1">
+                                      <span className="font-medium">Personal:</span>
+                                      <span className={error.groundTruth.personal_data_sensitive ? 'text-red-600' : 'text-green-600'}>
+                                        {error.groundTruth.personal_data_sensitive ? 'Sensitive' : 'Not Sensitive'}
+                                      </span>
+                                    </div>
+                                    <div className="flex items-center gap-1">
+                                      <span className="font-medium">Non-Personal:</span>
+                                      <span className={error.groundTruth.non_personal_data_sensitive ? 'text-red-600' : 'text-green-600'}>
+                                        {error.groundTruth.non_personal_data_sensitive ? 'Sensitive' : 'Not Sensitive'}
+                                      </span>
+                                    </div>
+                                  </div>
+                                </td>
+                                <td className="px-4 py-2 text-xs text-gray-600">
+                                  <div className="space-y-1">
+                                    <div className="flex items-center gap-1">
+                                      <span className="font-medium">Personal:</span>
+                                      <span className={error.prediction.personal_data_sensitive ? 'text-red-600' : 'text-green-600'}>
+                                        {error.prediction.personal_data_sensitive ? 'Sensitive' : 'Not Sensitive'}
+                                      </span>
+                                    </div>
+                                    <div className="flex items-center gap-1">
+                                      <span className="font-medium">Non-Personal:</span>
+                                      <span className={error.prediction.non_personal_data_sensitive ? 'text-red-600' : 'text-green-600'}>
+                                        {error.prediction.non_personal_data_sensitive ? 'Sensitive' : 'Not Sensitive'}
+                                      </span>
+                                    </div>
+                                  </div>
+                                </td>
+                              </tr>
+                            ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                )}
 
                 {/* Results List */}
                 {loading ? (
@@ -361,9 +526,40 @@ export default function ResultsTab({ selectedModel: propSelectedModel }: Props =
                                     <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-4">
                                       <div className="flex items-center gap-2 mb-1">
                                         <Info className="w-4 h-4 text-blue-600" />
-                                        <span className="font-semibold text-blue-900 text-sm">Explanation</span>
+                                        <span className="font-semibold text-blue-900 text-sm">General Explanation</span>
                                       </div>
                                       <p className="text-sm text-blue-800">{sheetData.metadata.explanation}</p>
+                                    </div>
+                                  )}
+
+                                  {/* Non-Personal Sensitive Data Explanations */}
+                                  {sheetData.metadata.non_personal_data_sensitive && (
+                                    <div className="bg-orange-50 border border-orange-200 rounded-lg p-3 mb-4">
+                                      <div className="flex items-center gap-2 mb-1">
+                                        <Info className="w-4 h-4 text-orange-600" />
+                                        <span className="font-semibold text-orange-900 text-sm">Non-Personal Sensitive Data Explanation</span>
+                                      </div>
+                                      <div className="space-y-2">
+                                        <div className="text-sm">
+                                          <span className="font-medium text-orange-800">Status: </span>
+                                          <span className="text-orange-700">Non-personal sensitive data detected</span>
+                                        </div>
+                                        <div className="text-sm">
+                                          <span className="font-medium text-orange-800">Sensitivity Level: </span>
+                                          <span className="text-orange-700">{sheetData.metadata.non_personal_sensitivity || 'Unknown'}</span>
+                                        </div>
+                                        {sheetData.metadata.non_personal_explanation ? (
+                                          <div className="text-sm">
+                                            <span className="font-medium text-orange-800">Explanation: </span>
+                                            <span className="text-orange-700">{sheetData.metadata.non_personal_explanation}</span>
+                                          </div>
+                                        ) : (
+                                          <div className="text-sm text-orange-600">
+                                            <span className="font-medium">Explanation: </span>
+                                            <span>No explanation available in API response</span>
+                                          </div>
+                                        )}
+                                      </div>
                                     </div>
                                   )}
 
