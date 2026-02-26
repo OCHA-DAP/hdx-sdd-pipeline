@@ -118,7 +118,7 @@ class ProcessDatasetUseCase:
                     logger.debug(f"Sheet '{sheet_name}' identified as README/metadata")
                     report = self._create_readme_report(sheet_name, source, resource_id, df)
                 else:
-                    report = self._create_data_report(sheet_name, source, resource_id, df, isp_rules)
+                    report = self.create_data_report(sheet_name, source, resource_id, df, isp_rules)
 
                 reports.append(report)
                 logger.debug(f"Completed processing sheet '{sheet_name}'")
@@ -159,7 +159,7 @@ class ProcessDatasetUseCase:
         logger.info(f"Sheet '{sheet_name}' identified as README")
         return report
 
-    def _create_data_report(
+    def create_data_report(
         self, sheet_name: str, source: str, resource_id: Optional[str], df: Any, isp_rules: Optional[Dict[str, Any]]
     ) -> SheetReport:
         """Create and process report for data sheet."""

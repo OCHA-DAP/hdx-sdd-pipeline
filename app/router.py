@@ -4,7 +4,7 @@ import shutil
 import json
 import logging
 import asyncio
-from typing import Dict, Any, List
+from typing import Dict, Any, List, Optional
 from datetime import datetime
 
 # Import from clean architecture
@@ -58,7 +58,7 @@ def create_groundtruth_template(dataset_path: Path, dataset_name: str) -> Path:
     """Create a groundtruth template for the uploaded dataset."""
     try:
         data_loader = SmartDataLoader(max_rows=1000)
-        sheets_data = data_loader.load_dataset(str(dataset_path))
+        sheets_data = data_loader.load_from_file(str(dataset_path))
 
         template_data = {}
         for sheet_name, df in sheets_data.items():
@@ -545,7 +545,11 @@ async def list_datasets():
                         }
                     )
             except Exception as e:
-                logger.warning(f"Could not read dataset info for {file.name}: {e}")
+                # Include files that can't be parsed as well
+                logger.warning(f'Could not read dataset info for {file.name}: {e}')
+                datasets.append(
+                    {"name": file.stem, "status": "error", "created_at": None, "path": str(file), "error": str(e)}
+                )
 
     return {"datasets": datasets}
 
@@ -756,6 +760,153 @@ async def get_report_detail(model_name: str, dataset_name: str):
     except Exception as e:
         logger.error(f"Error reading report {report_path}: {e}")
         raise HTTPException(status_code=500, detail="Failed to read report")
+
+
+@router.post("/generate-template-report")
+async def generate_template_report(file_path: str, resource_id: Optional[str] = None):
+    """
+    Generate a template data report for a dataset file.
+
+    This endpoint creates a structured report similar to create_data_report from ProcessDatasetUseCase,
+    but stops before the classification pipeline steps. It's useful for creating templates
+    that can be manually reviewed and completed.
+
+    Args:
+        file_path: Path to the dataset file (CSV or Excel)
+        resource_id: Optional resource identifier
+
+    Returns:
+        Template report with column information and sample data
+    """
+    try:
+        # Validate file path
+        dataset_path = Path(file_path)
+        if not dataset_path.exists():
+            raise HTTPException(status_code=404, detail=f'File not found: {file_path}')
+
+        file_ext = dataset_path.suffix.lower()
+        if file_ext not in ALLOWED_EXTENSIONS:
+            raise HTTPException(status_code=400, detail=f'File type {file_ext} not allowed')
+
+        # Load data using SmartDataLoader
+        data_loader = SmartDataLoader(max_rows=1000)
+        sheets_data = data_loader.load_from_file(str(dataset_path))
+
+        template_reports = []
+
+        for sheet_name, df in sheets_data.items():
+            # Check if it's a README sheet (same logic as ProcessDatasetUseCase)
+            normalized = sheet_name.lower().replace(' ', '')
+            if any(keyword in normalized for keyword in ['readme', 'instructions', 'metadata', 'info']):
+                logger.info(f"Sheet '{sheet_name}' identified as README/metadata")
+                report = {
+                    'resource_id': resource_id,
+                    'file_name': str(dataset_path),
+                    'file_url': None,
+                    'sheet_name': sheet_name,
+                    'processing_timestamp': datetime.now().isoformat(),
+                    'n_records': len(df) if hasattr(df, '__len__') else 0,
+                    'is_readme': True,
+                    'status': 'template_readme',
+                }
+            else:
+                # Create template report (mimicking create_data_report but stopping before classification)
+                logger.debug(f"Creating template data report for sheet '{sheet_name}' with {len(df)} rows")
+
+                # Sample data (same as create_data_report)
+                sample_size = 5
+                sample_dict = data_loader.sample_dataframe(df, sample_size)
+                logger.debug(f'Sampled {len(sample_dict)} columns')
+
+                # Create report structure (similar to SheetReport but as dict)
+                report = {
+                    'resource_id': resource_id,
+                    'file_name': str(dataset_path),
+                    'file_url': None,
+                    'sheet_name': sheet_name,
+                    'processing_timestamp': datetime.now().isoformat(),
+                    'n_records': len(df),
+                    'n_columns': len(sample_dict),
+                    'status': 'template_data',
+                    'columns': [],
+                    # Classification fields left empty for manual completion
+                    'personal_data_sensitive': None,
+                    'non_personal_data_sensitive': None,
+                    'explanation': '',
+                    'isp_used': None,
+                    'pii_classifier_model': None,
+                    'pii_reflection_model': None,
+                    'non_pii_classifier_model': None,
+                    'prompt_tokens': 0,
+                    'completion_tokens': 0,
+                }
+
+                # Create columns (similar to Column entities but as dicts)
+                for col_name, sample_values in sample_dict.items():
+                    column_info = {
+                        'column_name': col_name,
+                        'sample_values': sample_values,
+                        # Classification fields left empty for manual completion
+                        'pii_classification': {
+                            'entity_type': None,
+                            'confidence': None,
+                            'explanation': '',
+                        },
+                        'pii_reflection': {
+                            'sensitivity_level': None,
+                            'confidence': None,
+                            'explanation': '',
+                        },
+                        'non_pii_classification': {
+                            'category': None,
+                            'sensitivity': None,
+                            'confidence': None,
+                            'explanation': '',
+                        },
+                    }
+                    report['columns'].append(column_info)
+
+                logger.debug(f'Template data report created for {len(report["columns"])} columns')
+
+            template_reports.append(report)
+
+        # Save template report
+        template_dir = REPORTS_DIR / 'templates'
+        template_dir.mkdir(parents=True, exist_ok=True)
+
+        template_filename = f'{dataset_path.stem}_template.json'
+        template_path = template_dir / template_filename
+
+        with open(template_path, 'w', encoding='utf-8') as f:
+            json.dump(
+                {
+                    'dataset_name': dataset_path.stem,
+                    'file_path': str(dataset_path),
+                    'created_at': datetime.now().isoformat(),
+                    'template_type': 'data_report',
+                    'sheets': template_reports,
+                },
+                f,
+                indent=2,
+                default=str,
+            )
+
+        logger.info(f'Generated template report: {template_path}')
+
+        return {
+            'message': 'Template report generated successfully',
+            'template_path': str(template_path),
+            'dataset_name': dataset_path.stem,
+            'sheets_processed': len(template_reports),
+            'total_columns': sum(len(r.get('columns', [])) for r in template_reports),
+            'template_data': template_reports,
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f'Error generating template report for {file_path}: {e}')
+        raise HTTPException(status_code=500, detail=f'Failed to generate template report: {str(e)}')
 
 
 @router.delete("/batch-stop")
