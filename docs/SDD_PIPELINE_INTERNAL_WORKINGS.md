@@ -26,8 +26,8 @@
 
 The HDX Sensitive Data Detection (SDD) Pipeline is a production-ready system that automatically analyzes humanitarian datasets to identify and classify sensitive information. The pipeline uses Azure OpenAI models to detect:
 
-- **Personal Data (PII)**: Names, emails, phone numbers, addresses, etc.
-- **Personal Data Sensitivity**: Whether detected Personal Data Entities are actually sensitive in context
+- **Personal Data Entities**: Names, emails, phone numbers, addresses, etc.
+- **Personal Data Sensitivity**: Whether detected Personal Data Entities are actually sensitive in context (table-level)
 - **Non-Personal Data Sensitivity**: Overall data sensitivity based on Information Sensitivity Protocols (ISP)
 
 ### Key Characteristics

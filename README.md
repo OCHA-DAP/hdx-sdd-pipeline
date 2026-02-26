@@ -8,17 +8,19 @@ A production-ready, clean architecture pipeline for detecting and classifying se
 
 ## 🎯 Overview
 
-This pipeline automatically analyzes datasets to identify:
-- **PII (Personally Identifiable Information)**: Names, emails, phone numbers, etc.
-- **Sensitivity**: Whether detected PII or the dataset context represents a risk based on Information Sensitivity Protocols (ISP).
-
 ## 🚀 Quick Start
 
 ### Installation
 
+This project uses **uv** for dependency management:
+
 ```bash
+# Clone and install dependencies
 git clone https://github.com/OCHA-DAP/hdx-sdd-pipeline.git
 cd hdx-sdd-pipeline
+uv sync
+
+# Or with pip (legacy)
 pip install -r requirements.txt
 ```
 
@@ -31,11 +33,28 @@ cp .env.example .env
 ```
 
 Required variables:
+
 - `AZURE_OPENAI_API_KEY`
 - `AZURE_OPENAI_ENDPOINT`
 - `PII_DETECT_MODEL`, `PII_REFLECT_MODEL`, `NON_PII_DETECT_MODEL`
 
-### Basic Usage
+### Running the Pipeline
+
+#### Option 1: Redis Event Processing (Production)
+
+```bash
+# Run the main event processor
+uv run python main.py
+```
+
+#### Option 2: FastAPI Web Service
+
+```bash
+# Start the FastAPI server
+uv run uvicorn app.main_fastapi:app --host 127.0.0.1 --port 8000 --reload
+```
+
+#### Option 3: Direct Processing
 
 ```python
 from src.application.use_cases.process_dataset import ProcessDatasetUseCase
@@ -57,6 +76,16 @@ for report in reports:
     print(f"Sensitive: {report.is_sensitive()}")
 ```
 
+### Dashboard
+
+Access the web dashboard at `http://localhost:3000` (when running):
+
+```bash
+cd dashboard/frontend
+npm install
+npm run dev
+```
+
 See [`scripts/tutorial.py`](scripts/tutorial.py) for detailed examples.
 
 ## 🏗️ Architecture
@@ -67,18 +96,54 @@ The project follows **Clean Architecture**:
 - **`src/application`**: Use cases (`ProcessDatasetUseCase`) and interfaces.
 - **`src/infrastructure`**: Implementations (Azure OpenAI, Local Storage).
 - **`src/shared`**: Utilities and prompts.
+- **`app/`**: FastAPI web service layer.
+- **`dashboard/`**: Next.js frontend dashboard.
 
-## 🧪 Testing
+## 🧪 Development
+
+### Code Quality
 
 ```bash
-# Run all tests
-pytest
+# Lint and format
+uv run ruff check .
+uv run ruff format .
+
+# Run tests
+uv run pytest
 
 # Run with coverage
-pytest --cov=src --cov-report=html
+uv run pytest --cov=src --cov-report=html
+```
+
+### Environment Setup
+
+```bash
+# Development dependencies
+uv sync --group dev
+
+# Environment variables
+cp .env.example .env
+# Edit .env with your configuration
 ```
 
 ## 🔧 Scripts
 
 - **Batch Processing**: [`scripts/BATCH_PROCESSING_GUIDE.md`](scripts/BATCH_PROCESSING_GUIDE.md) - Guide for running models on multiple datasets.
 - **Event Processor**: [`src/event_processor.py`](src/event_processor.py) - Main entry point for Redis stream processing.
+- **Tutorial**: [`scripts/tutorial.py`](scripts/tutorial.py) - Step-by-step usage examples.
+
+## 🐳 Docker
+
+```bash
+# Build and run with Docker Compose
+docker-compose up --build
+```
+
+## 📊 Monitoring
+
+The pipeline includes:
+
+- Structured JSON logging
+- Slack integration for alerts
+- Redis stream event processing
+- Web dashboard for monitoring results
