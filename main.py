@@ -6,6 +6,7 @@ It processes HDX resource events from Redis streams.
 """
 
 import logging
+import src.shared.utils.logging_conf # noqa # this needs to be at the top to configure logging
 from time import sleep
 
 from hdx_redis_lib import connect_to_hdx_event_bus, RedisConfig
