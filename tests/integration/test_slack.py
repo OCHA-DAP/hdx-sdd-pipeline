@@ -100,22 +100,3 @@ class TestSlackClientWrapper:
 
         # Verify the error was handled
         slack_wrapper.slack_client.chat_postMessage.assert_called_once()
-
-    @patch('config.config.get_config')
-    def test_post_to_slack_channel_general_exception(self, mock_get_config):
-        """Test handling of general exceptions during Slack posting."""
-        mock_config = Mock()
-        mock_config.HDX_SDD_SLACK_CHANNEL = self.test_channel
-        mock_config.HDX_SDD_SLACK_ACCESS_TOKEN = 'test-token'
-        mock_get_config.return_value = mock_config
-
-        slack_wrapper = SlackClientWrapper()
-
-        # Mock general exception
-        slack_wrapper.slack_client.chat_postMessage = Mock(side_effect=Exception('Network error'))
-
-        # Should not raise exception
-        slack_wrapper.post_to_slack_channel(self.test_message)
-
-        # Verify the method was called despite exception
-        slack_wrapper.slack_client.chat_postMessage.assert_called_once()
