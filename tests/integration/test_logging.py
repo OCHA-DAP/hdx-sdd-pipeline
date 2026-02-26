@@ -7,7 +7,6 @@ import os
 def test_logging_configuration_import():
     """Test that logging configuration can be imported without errors."""
     with patch('logging.config.fileConfig'):
-
         # Should not raise any exceptions
         assert True
 
