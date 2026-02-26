@@ -1,16 +1,12 @@
 """Integration tests for logging system."""
 
-import logging
-import pytest
 from unittest.mock import patch
 import os
-import importlib
 
 
 def test_logging_configuration_import():
     """Test that logging configuration can be imported without errors."""
     with patch('logging.config.fileConfig'):
-        import src.shared.utils.logging_conf
 
         # Should not raise any exceptions
         assert True

@@ -51,19 +51,18 @@ class TestSlackClientWrapper:
         mock_config.HDX_SDD_SLACK_ACCESS_TOKEN = 'test-token'
         mock_get_config.return_value = mock_config
 
-        with patch('slack_sdk.WebClient') as mock_web_client:
-            slack_wrapper = SlackClientWrapper()
+        slack_wrapper = SlackClientWrapper()
 
-            # Mock successful post
-            slack_wrapper.slack_client.chat_postMessage = Mock()
+        # Mock successful post
+        slack_wrapper.slack_client.chat_postMessage = Mock()
 
-            # Test posting message
-            slack_wrapper.post_to_slack_channel(self.test_message)
+        # Test posting message
+        slack_wrapper.post_to_slack_channel(self.test_message)
 
-            # Verify the message was posted with correct format
-            slack_wrapper.slack_client.chat_postMessage.assert_called_once_with(
-                channel=self.test_channel, text=f'[SDD Pipeline] {self.test_message}'
-            )
+        # Verify the message was posted with correct format
+        slack_wrapper.slack_client.chat_postMessage.assert_called_once_with(
+            channel=self.test_channel, text=f'[SDD Pipeline] {self.test_message}'
+        )
 
     @patch('config.config.get_config')
     def test_post_to_slack_channel_without_client(self, mock_get_config):
@@ -89,19 +88,18 @@ class TestSlackClientWrapper:
         mock_config.HDX_SDD_SLACK_ACCESS_TOKEN = 'test-token'
         mock_get_config.return_value = mock_config
 
-        with patch('slack_sdk.WebClient') as mock_web_client:
-            slack_wrapper = SlackClientWrapper()
+        slack_wrapper = SlackClientWrapper()
 
-            # Mock Slack API error
-            error_response = {'error': 'Invalid channel'}
-            api_error = slack_errors.SlackApiError(message='Invalid channel', response=error_response)
-            slack_wrapper.slack_client.chat_postMessage = Mock(side_effect=api_error)
+        # Mock Slack API error
+        error_response = {'error': 'Invalid channel'}
+        api_error = slack_errors.SlackApiError(message='Invalid channel', response=error_response)
+        slack_wrapper.slack_client.chat_postMessage = Mock(side_effect=api_error)
 
-            # Should not raise exception
-            slack_wrapper.post_to_slack_channel(self.test_message)
+        # Should not raise exception
+        slack_wrapper.post_to_slack_channel(self.test_message)
 
-            # Verify the error was handled
-            slack_wrapper.slack_client.chat_postMessage.assert_called_once()
+        # Verify the error was handled
+        slack_wrapper.slack_client.chat_postMessage.assert_called_once()
 
     @patch('config.config.get_config')
     def test_post_to_slack_channel_general_exception(self, mock_get_config):
@@ -111,14 +109,13 @@ class TestSlackClientWrapper:
         mock_config.HDX_SDD_SLACK_ACCESS_TOKEN = 'test-token'
         mock_get_config.return_value = mock_config
 
-        with patch('slack_sdk.WebClient') as mock_web_client:
-            slack_wrapper = SlackClientWrapper()
+        slack_wrapper = SlackClientWrapper()
 
-            # Mock general exception
-            slack_wrapper.slack_client.chat_postMessage = Mock(side_effect=Exception('Network error'))
+        # Mock general exception
+        slack_wrapper.slack_client.chat_postMessage = Mock(side_effect=Exception('Network error'))
 
-            # Should not raise exception
-            slack_wrapper.post_to_slack_channel(self.test_message)
+        # Should not raise exception
+        slack_wrapper.post_to_slack_channel(self.test_message)
 
-            # Verify the method was called despite exception
-            slack_wrapper.slack_client.chat_postMessage.assert_called_once()
+        # Verify the method was called despite exception
+        slack_wrapper.slack_client.chat_postMessage.assert_called_once()
