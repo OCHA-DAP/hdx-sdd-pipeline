@@ -255,6 +255,7 @@ async def get_performance_metrics():
         "non_personal_sensitive": [],
         "sheet_personal_sensitive": [],
         "sheet_non_personal_sensitive": [],
+        "sheet_overall_sensitive": [],
         "cost_analysis": [],
     }
 
@@ -282,9 +283,11 @@ async def get_performance_metrics():
         non_personal_metrics = model_metrics.copy()
         sheet_personal_metrics = model_metrics.copy()
         sheet_non_personal_metrics = model_metrics.copy()
+        sheet_overall_metrics = model_metrics.copy()
 
         sheet_personal_metrics["sheets_tested"] = 0
         sheet_non_personal_metrics["sheets_tested"] = 0
+        sheet_overall_metrics["sheets_tested"] = 0
 
         # Process each dataset
         for result_file in model_dir.glob("*.json"):
@@ -392,6 +395,7 @@ async def get_performance_metrics():
                         sheet_gt = gt_sheets.get(sheet_name, gt_sheets.get('unknown', {}))
                         sheet_gt_personal = sheet_gt.get('personal_data_sensitive', False)
                         sheet_gt_non_personal = sheet_gt.get('non_personal_data_sensitive', False)
+                        sheet_gt_overall = sheet_gt_personal or sheet_gt_non_personal
 
                         # Update sheet-level confusion matrices
                         if sheet_personal and sheet_gt_personal:
@@ -412,8 +416,20 @@ async def get_performance_metrics():
                         else:
                             sheet_non_personal_metrics["true_negatives"] += 1
 
+                        # Overall sheet-level binary classification (sensitive if either personal OR non-personal is true)
+                        sheet_model_overall = sheet_personal or sheet_non_personal
+                        if sheet_model_overall and sheet_gt_overall:
+                            sheet_overall_metrics["true_positives"] += 1
+                        elif sheet_model_overall and not sheet_gt_overall:
+                            sheet_overall_metrics["false_positives"] += 1
+                        elif not sheet_model_overall and sheet_gt_overall:
+                            sheet_overall_metrics["false_negatives"] += 1
+                        else:
+                            sheet_overall_metrics["true_negatives"] += 1
+
                         sheet_personal_metrics["sheets_tested"] += 1
                         sheet_non_personal_metrics["sheets_tested"] += 1
+                        sheet_overall_metrics["sheets_tested"] += 1
 
             except Exception as e:
                 logger.warning(f"Could not process {dataset_name} for {model_name}: {e}")
@@ -454,6 +470,7 @@ async def get_performance_metrics():
         metrics["non_personal_sensitive"].append(calculate_metrics(non_personal_metrics, False))
         metrics["sheet_personal_sensitive"].append(calculate_metrics(sheet_personal_metrics, True))
         metrics["sheet_non_personal_sensitive"].append(calculate_metrics(sheet_non_personal_metrics, True))
+        metrics["sheet_overall_sensitive"].append(calculate_metrics(sheet_overall_metrics, True))
 
     return metrics
 

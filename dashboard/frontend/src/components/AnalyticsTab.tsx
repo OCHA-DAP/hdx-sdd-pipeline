@@ -51,6 +51,7 @@ export default function AnalyticsTab() {
   const [nonPersonalSensitive, setNonPersonalSensitive] = useState<ModelPerformance[]>([]);
   const [sheetPersonalSensitive, setSheetPersonalSensitive] = useState<SheetModelPerformance[]>([]);
   const [sheetNonPersonalSensitive, setSheetNonPersonalSensitive] = useState<SheetModelPerformance[]>([]);
+  const [sheetOverallSensitive, setSheetOverallSensitive] = useState<SheetModelPerformance[]>([]);
   const [costAnalysis, setCostAnalysis] = useState<CostAnalysis[]>([]);
   const [loading, setLoading] = useState(false);
 
@@ -95,6 +96,7 @@ export default function AnalyticsTab() {
         setNonPersonalSensitive(performanceData.non_personal_sensitive || []);
         setSheetPersonalSensitive(performanceData.sheet_personal_sensitive || []);
         setSheetNonPersonalSensitive(performanceData.sheet_non_personal_sensitive || []);
+        setSheetOverallSensitive(performanceData.sheet_overall_sensitive || []);
         setCostAnalysis(costData.cost_analysis || []);
       }
     } catch (error) {
@@ -121,9 +123,28 @@ export default function AnalyticsTab() {
       current.f1_score > best.f1_score ? current : best
     ).model : null;
 
+    // Generate caption based on table type
+    const getCaption = (title: string) => {
+      if (title.includes("Overall File-Level")) {
+        return "Binary classification performance at file level (sensitive if either personal OR non-personal data is detected)";
+      } else if (title.includes("File-Level Personal")) {
+        return "Performance for personal sensitive data detection at file level";
+      } else if (title.includes("File-Level Non Personal")) {
+        return "Performance for non-personal sensitive data detection at file level";
+      } else if (title.includes("Overall Sheet-Level")) {
+        return "Binary classification performance at sheet level (sensitive if either personal OR non-personal data is detected)";
+      } else if (title.includes("Sheet-Level Personal")) {
+        return "Performance for personal sensitive data detection at sheet level";
+      } else if (title.includes("Sheet-Level Non Personal")) {
+        return "Performance for non-personal sensitive data detection at sheet level";
+      }
+      return "";
+    };
+
     return (
       <div className="bg-white rounded-xl border border-gray-200 p-6 mb-6">
-        <h3 className="text-lg font-semibold text-gray-900 mb-4">{title}</h3>
+        <h3 className="text-lg font-semibold text-gray-900 mb-2">{title}</h3>
+        <p className="text-sm text-gray-600 mb-4 italic">{getCaption(title)}</p>
         <div className="border border-gray-200 rounded-lg overflow-hidden">
           <table className="w-full">
             <thead className="bg-gray-50">
@@ -259,13 +280,45 @@ export default function AnalyticsTab() {
       
       // Helper function to render table
       const renderTable = (title: string, data: any[], testedType: string) => {
-        checkPageBreak(40);
+        checkPageBreak(60); // Increased space for title + caption
         
         // Table title
-        pdf.setFontSize(14);
+        pdf.setFontSize(16);
         pdf.setFont('helvetica', 'bold');
         pdf.text(title, 20, yPosition);
         yPosition += 8;
+        
+        // Generate and add caption
+        const getCaption = (title: string) => {
+          if (title.includes("Overall File-Level")) {
+            return "Binary classification performance at file level (sensitive if either personal OR non-personal data is detected)";
+          } else if (title.includes("File-Level Personal")) {
+            return "Performance for personal sensitive data detection at file level";
+          } else if (title.includes("File-Level Non Personal")) {
+            return "Performance for non-personal sensitive data detection at file level";
+          } else if (title.includes("Overall Sheet-Level")) {
+            return "Binary classification performance at sheet level (sensitive if either personal OR non-personal data is detected)";
+          } else if (title.includes("Sheet-Level Personal")) {
+            return "Performance for personal sensitive data detection at sheet level";
+          } else if (title.includes("Sheet-Level Non Personal")) {
+            return "Performance for non-personal sensitive data detection at sheet level";
+          }
+          return "";
+        };
+        
+        // Add caption
+        pdf.setFontSize(10);
+        pdf.setFont('helvetica', 'italic');
+        const caption = getCaption(title);
+        if (caption) {
+          // Split long captions into multiple lines
+          const lines = pdf.splitTextToSize(caption, 170);
+          lines.forEach((line: string) => {
+            pdf.text(line, 20, yPosition);
+            yPosition += 5;
+          });
+        }
+        yPosition += 5; // Extra space after caption
         
         if (data.length === 0) {
           pdf.setFontSize(10);
@@ -331,23 +384,30 @@ export default function AnalyticsTab() {
           yPosition += 6;
         });
         
-        yPosition += 10;
+        yPosition += 15; // Increased space after table
       };
       
       // Render all performance tables
       renderTable('Overall File-Level Performance', overallPerformance, 'Files');
       renderTable('File-Level Personal Sensitive Data Detection', personalSensitive, 'Files');
       renderTable('File-Level Non Personal Sensitive Data Detection', nonPersonalSensitive, 'Files');
+      renderTable('Overall Sheet-Level Performance', sheetOverallSensitive, 'Sheets');
       renderTable('Sheet-Level Personal Sensitive Data Detection', sheetPersonalSensitive, 'Sheets');
       renderTable('Sheet-Level Non Personal Sensitive Data Detection', sheetNonPersonalSensitive, 'Sheets');
       
       // Cost Analysis
       if (costAnalysis.length > 0) {
-        checkPageBreak(40);
+        checkPageBreak(60); // Increased space for title + caption
         
-        pdf.setFontSize(14);
+        pdf.setFontSize(16);
         pdf.setFont('helvetica', 'bold');
         pdf.text('Cost Analysis', 20, yPosition);
+        yPosition += 8;
+        
+        // Add caption for cost analysis
+        pdf.setFontSize(10);
+        pdf.setFont('helvetica', 'italic');
+        pdf.text('Token usage and cost analysis across all models and datasets', 20, yPosition);
         yPosition += 8;
         
         const costHeaders = ['Model', 'Reports', 'Total Tokens', 'Total Cost', 'Cost/Report'];
@@ -380,6 +440,25 @@ export default function AnalyticsTab() {
             xPosition += costColumnWidths[index];
           });
           yPosition += 6;
+        });
+        
+        yPosition += 10;
+        
+        // Add pricing reference
+        pdf.setFontSize(10);
+        pdf.setFont('helvetica', 'bold');
+        pdf.text('Pricing Reference', 20, yPosition);
+        yPosition += 6;
+        
+        pdf.setFont('helvetica', 'normal');
+        const pricingData = costAnalysis.map((cost) => ({
+          model: cost.model,
+          price: cost.price_per_1m
+        }));
+        
+        pricingData.forEach((item) => {
+          pdf.text(`${item.model}: $${item.price}/1M tokens`, 20, yPosition);
+          yPosition += 5;
         });
       }
       
@@ -445,6 +524,7 @@ export default function AnalyticsTab() {
             {renderPerformanceTable("📁 Overall File-Level Performance", overallPerformance, "Files Tested")}
             {renderPerformanceTable("👤 File-Level Personal Sensitive Data Detection", personalSensitive, "Files Tested")}
             {renderPerformanceTable("🔒 File-Level Non Personal Sensitive Data Detection", nonPersonalSensitive, "Files Tested")}
+            {renderPerformanceTable("📋 Overall Sheet-Level Performance", sheetOverallSensitive, "Sheets Tested")}
             {renderPerformanceTable("👤 Sheet-Level Personal Sensitive Data Detection", sheetPersonalSensitive, "Sheets Tested")}
             {renderPerformanceTable("🔒 Sheet-Level Non Personal Sensitive Data Detection", sheetNonPersonalSensitive, "Sheets Tested")}
             {renderCostTable()}
