@@ -1,257 +1,149 @@
-# HDX SSD Pipeline
+# HDX Sensitive Data Detection (SDD) Pipeline
 
-A complete event-driven pipeline that processes tabular data through three classification stages and returns results to Redis.
+A production-ready, clean architecture pipeline for detecting and classifying sensitive data in humanitarian datasets using Azure OpenAI.
 
-## Overview
+[![Tests](https://img.shields.io/badge/tests-passing-success)](tests/)
+[![Coverage](https://img.shields.io/badge/coverage-97%25-brightgreen)](htmlcov/)
+[![License](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
 
-The HDX SSD (Sensitive Data Detection) Pipeline processes HDX resources through a three-stage classification system:
+## 🎯 Overview
 
-1. **PII Detection**: Identifies personally identifiable information in table columns
-2. **PII Reflection**: Determines sensitivity levels for detected PII entities
-3. **Non-PII Classification**: Assesses overall table sensitivity for non-PII aspects
-
-## Architecture
-
-```
-Redis Event → Download CSV → Preprocess → PII Detection → PII Reflection → Non-PII Classification → Redis Response
-```
-
-## Setup Instructions
-
-### Prerequisites
-
-- Python 3.8+
-- Redis server
-- Azure OpenAI API access
+## 🚀 Quick Start
 
 ### Installation
 
-1. Clone the repository:
+This project uses **uv** for dependency management:
 
 ```bash
-git clone <repository-url>
-cd hdx-ssd-pipeline
-```
+# Clone and install dependencies
+git clone https://github.com/OCHA-DAP/hdx-sdd-pipeline.git
+cd hdx-sdd-pipeline
+uv sync
 
-2. Install dependencies:
-
-```bash
+# Or with pip (legacy)
 pip install -r requirements.txt
 ```
 
-3. Set up environment variables:
+### Configuration
+
+Copy `.env.example` to `.env` and configure your Azure OpenAI credentials:
 
 ```bash
+cp .env.example .env
+```
+
+Required variables:
+
+- `AZURE_OPENAI_API_KEY`
+- `AZURE_OPENAI_ENDPOINT`
+- `PII_DETECT_MODEL`, `PII_REFLECT_MODEL`, `NON_PII_DETECT_MODEL`
+
+### Running the Pipeline
+
+#### Option 1: Redis Event Processing (Production)
+
+```bash
+# Run the main event processor
+uv run python main.py
+```
+
+#### Option 2: FastAPI Web Service
+
+```bash
+# Start the FastAPI server
+uv run uvicorn app.main_fastapi:app --host 127.0.0.1 --port 8000 --reload
+```
+
+#### Option 3: Direct Processing
+
+```python
+from src.application.use_cases.process_dataset import ProcessDatasetUseCase
+from src.infrastructure.factories import PipelineFactory
+from config import get_config
+
+# 1. Initialize
+config = get_config()
+pipeline = PipelineFactory(config).create_pipeline()
+
+# 2. Process
+reports = pipeline.execute(
+    source="path/to/data.xlsx",
+    resource_id="dataset-123"
+)
+
+# 3. Results
+for report in reports:
+    print(f"Sensitive: {report.is_sensitive()}")
+```
+
+### Dashboard
+
+Access the web dashboard at `http://localhost:3000` (when running):
+
+```bash
+cd dashboard/frontend
+npm install
+npm run dev
+```
+
+See [`scripts/tutorial.py`](scripts/tutorial.py) for detailed examples.
+
+## 🏗️ Architecture
+
+The project follows **Clean Architecture**:
+
+- **`src/domain`**: Entities (`SheetReport`, `Column`) and business logic.
+- **`src/application`**: Use cases (`ProcessDatasetUseCase`) and interfaces.
+- **`src/infrastructure`**: Implementations (Azure OpenAI, Local Storage).
+- **`src/shared`**: Utilities and prompts.
+- **`app/`**: FastAPI web service layer.
+- **`dashboard/`**: Next.js frontend dashboard.
+
+## 🧪 Development
+
+### Code Quality
+
+```bash
+# Lint and format
+uv run ruff check .
+uv run ruff format .
+
+# Run tests
+uv run pytest
+
+# Run with coverage
+uv run pytest --cov=src --cov-report=html
+```
+
+### Environment Setup
+
+```bash
+# Development dependencies
+uv sync --group dev
+
+# Environment variables
 cp .env.example .env
 # Edit .env with your configuration
 ```
 
-### Environment Variables
+## 🔧 Scripts
 
-Create a `.env` file with the following variables:
+- **Batch Processing**: [`scripts/BATCH_PROCESSING_GUIDE.md`](scripts/BATCH_PROCESSING_GUIDE.md) - Guide for running models on multiple datasets.
+- **Event Processor**: [`src/event_processor.py`](src/event_processor.py) - Main entry point for Redis stream processing.
+- **Tutorial**: [`scripts/tutorial.py`](scripts/tutorial.py) - Step-by-step usage examples.
 
-```bash
-# Azure OpenAI Configuration
-AZURE_OPENAI_ENDPOINT=https://your-resource.openai.azure.com/
-AZURE_OPENAI_API_KEY=your-api-key-here
-AZURE_OPENAI_API_VERSION=2024-02-15-preview
-
-# Redis Configuration
-REDIS_STREAM_PORT=6379
-REDIS_STREAM_DB=0
-```
-
-### Docker Setup for Redis
-
-Use the provided docker-compose.yml to set up Redis:
+## 🐳 Docker
 
 ```bash
-docker-compose up -d
+# Build and run with Docker Compose
+docker-compose up --build
 ```
 
-## Usage
+## 📊 Monitoring
 
-### Running the Pipeline
+The pipeline includes:
 
-Start the pipeline to listen for HDX events:
-
-```bash
-python main.py
-```
-
-The pipeline will:
-
-1. Listen for events on the `sdd:tables` Redis stream
-2. Download resources from HDX when events are received
-3. Process files through the three classification stages
-4. Return formatted results
-
-### Testing with Event Generator
-
-Use the provided event generator to test the pipeline:
-
-```bash
-python redis_streams_event_generator.py
-```
-
-## Pipeline Workflow
-
-### 1. Event Processing
-
-- Receives HDX events containing `resource_id`
-- Downloads CSV/Excel files from HDX API
-- Preprocesses files to extract table structure
-
-```python
-{
-    'resource_id': '1234567890',
-    'file_name': 'example.csv',
-    'file_url': 'https://example.com/example.csv'
-    'processing_timestamp': '2025-01-01 12:00:00'
-    'processing_success': True,
-    'n_records': 100,
-    'n_columns': 10,
-    'personal_data_sensitive': True,
-    'non_personal_data_sensitive': True,
-    'columns': [
-        {
-            'column_name': 'email_address',
-            'sample_values': ['john@example.com', 'jane@company.com'],
-            'personal_data': {
-                'entity_type': 'EMAIL_ADDRESS',
-                'sensitive': True
-            }
-        }
-    ]
-    'non_personal_data': {
-        'sensitivity': 'LOW'
-        'explanation': 'The table contains email addresses, which are considered sensitive data.'
-    }
-}
-```
-
-### 2. PII Detection Phase
-
-- Analyzes each column for PII entities
-- Uses sample values and column names
-- Returns entity types (e.g., PERSON_NAME, EMAIL_ADDRESS, etc.)
-
-```python
-{
-    'column_name': 'email_address',
-    'sample_values': ['john@example.com', 'jane@company.com'],
-    'personal_data': {
-        'entity_type': 'EMAIL_ADDRESS',
-    }
-}
-```
-
-### 3. PII Reflection Phase
-
-- For columns with detected PII, determines sensitivity level
-- Considers table context and entity type
-- Returns sensitivity levels: NON_SENSITIVE, MODERATE_SENSITIVE, HIGH_SENSITIVE, SEVERE_SENSITIVE
-
-```python
-{
-    'column_name': 'email_address',
-    'sample_values': ['john@example.com', 'jane@company.com'],
-    'personal_data': {
-        'entity_type': 'EMAIL_ADDRESS',
-        'sensitive': True
-    }
-}
-```
-
-### 4. Non-PII Classification Phase
-
-- Analyzes overall table for non-PII sensitivity
-- Uses ISP (Information Sensitivity Protocol) rules
-- Considers humanitarian data sharing guidelines
-
-### 5. Result Formatting
-
-- Combines all classification results
-- Formats for Redis response
-- Includes processing metadata and summaries
-
-## Configuration
-
-### Model Configuration
-
-Models can be configured in `utils/main_config.py`:
-
-```python
-NON_PII_DETECT_MODEL = 'gpt-4o-mini'
-PII_DETECT_MODEL = 'gpt-4o-mini'
-PII_REFLECT_MODEL = 'gpt-4o-mini'
-```
-
-### ISP Rules
-
-Information Sensitivity Protocol rules are defined in `utils/main_config.py` under `ISP_DEFAULT`. These rules define sensitivity levels for humanitarian data sharing.
-
-## File Structure
-
-```
-hdx-ssd-pipeline/
-├── classifiers/          # Classification modules
-├── llm_model/           # LLM integration
-├── pipeline/            # Orchestration logic
-├── preprocessing/       # Data preprocessing
-├── prompts/            # Prompt templates
-├── utils/          # Configuration and utils
-├── main.py            # Main pipeline entry point
-└── requirements.txt   # Dependencies
-```
-
-## Error Handling
-
-The pipeline includes comprehensive error handling:
-
-- Network errors during HDX downloads
-- File processing errors
-- Classification failures
-- All errors are logged and returned in results
-
-## Logging
-
-Logs are written to:
-
-- `logs/ssd.log` - General pipeline logs
-- `logs/ssd-json.log` - JSON formatted logs
-
-## Development
-
-### Adding New Classifiers
-
-1. Create new classifier in `classifiers/`
-2. Extend `BaseClassifier`
-3. Add to orchestrator in `pipeline/orchestrator.py`
-
-### Testing
-
-Run tests with:
-
-```bash
-python -m pytest test/
-```
-
-## Contributing
-
-1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Add tests if applicable
-5. Submit a pull request
-
-## License
-
-[Add license information]
-
-## Requirements
-
-jinja2
-openai
-python-dotenv
-requests
+- Structured JSON logging
+- Slack integration for alerts
+- Redis stream event processing
+- Web dashboard for monitoring results

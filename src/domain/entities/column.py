@@ -1,0 +1,63 @@
+"""Column entity representing a single column in a dataset."""
+
+from dataclasses import dataclass, field
+from typing import List, Any
+
+from .pii_classification import PIIClassification
+from ...shared.utils.json_serializer import make_json_serializable
+
+
+@dataclass
+class Column:
+    """
+    Represents a single column in a dataset with its metadata and classifications.
+
+    This is a domain entity that encapsulates all information about a column
+    including its name, sample values, and classification results.
+    """
+
+    name: str
+    sample_values: List[Any] = field(default_factory=list)
+    pii_classification: PIIClassification = field(default_factory=PIIClassification)
+
+    def __post_init__(self):
+        """Validate column data after initialization."""
+        if not self.name:
+            raise ValueError('Column name cannot be empty')
+
+        # Ensure sample_values is a list
+        if not isinstance(self.sample_values, list):
+            self.sample_values = list(self.sample_values)
+
+    def has_pii(self) -> bool:
+        """Check if this column contains PII."""
+        return self.pii_classification.entity_type.is_pii()
+
+    def has_valid_samples(self) -> bool:
+        """Check if column has valid sample values."""
+        if not self.sample_values:
+            return False
+        return any(v not in (None, '', 'nan', 'NaN') for v in self.sample_values)
+
+    def is_sensitive(self) -> bool:
+        """Check if this column contains sensitive PII."""
+        return self.has_pii() and self.pii_classification.sensitive
+
+    def to_dict(self) -> dict:
+        """Convert column to dictionary representation."""
+        return {
+            'column_name': self.name,
+            'sample_values': make_json_serializable(self.sample_values),
+            'personal_data': self.pii_classification.to_dict(),
+        }
+
+    @classmethod
+    def from_dict(cls, data: dict) -> 'Column':
+        """Create Column from dictionary representation."""
+        # Support both old 'pii' and new 'personal_data' keys
+        pii_data = data.get('personal_data', data.get('pii', {}))
+        return cls(
+            name=data.get('column_name', ''),
+            sample_values=data.get('sample_values', []),
+            pii_classification=PIIClassification.from_dict(pii_data),
+        )

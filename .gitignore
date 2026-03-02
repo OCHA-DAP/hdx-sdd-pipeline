@@ -241,3 +241,9 @@ test/test_main.py
 
 research/data/
 research/results/
+
+uv.lock
+
+*.json
+!isps.json
+output/

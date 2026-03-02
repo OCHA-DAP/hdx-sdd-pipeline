@@ -471,7 +471,6 @@
             "SEVERE_SENSITIVE": {
                 "description": "Highly sensitive data that, if disclosed, could lead to serious harm or legal consequences. Sharing is highly restricted.",
                 "data and information type": [
-                    "Personal data of beneficiaries (e.g., names, biometric data, patient records)",
                     "Individual survey responses and household-level datasets",
                     "SEA/GBV/PSEA case data or complaint records",
                     "Security incident logs with identifiable data",
