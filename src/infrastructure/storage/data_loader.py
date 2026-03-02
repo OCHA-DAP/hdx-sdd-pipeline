@@ -7,7 +7,7 @@ from contextlib import contextmanager
 import tempfile
 import requests
 import pandas as pd
-
+import csv
 from ...application.interfaces.data_loader import IDataLoader
 from ...domain.exceptions import DataProcessingError
 
@@ -149,13 +149,33 @@ class SmartDataLoader(IDataLoader):
             logger.error(f'Failed to load file {file_path}: {e}', exc_info=True)
             raise DataProcessingError(f'Failed to load file: {e}')
 
+    def _detect_csv_delimiter(self, source: str) -> str:
+        """Detect CSV delimiter, falling back to comma."""
+        try:
+            with open(source, 'r', encoding='utf-8', newline='') as f:
+                sample = f.read(1024)
+            dialect = csv.Sniffer().sniff(sample, delimiters=',;')
+            logger.debug('Detected CSV delimiter: %r', dialect.delimiter)
+            return dialect.delimiter
+        except Exception as e:
+            logger.debug('Could not detect delimiter, trying fallback: %s', e)
+
+        try:
+            with open(source, 'r', encoding='utf-8', newline='') as f:
+                lines = [f.readline() for _ in range(5)]
+            delimiter = ';' if sum(l.count(';') for l in lines) > sum(l.count(',') for l in lines) else ','
+            logger.debug('Fallback delimiter detection: %r', delimiter)
+            return delimiter
+        except Exception as e:
+            logger.debug('Fallback detection failed, defaulting to comma: %s', e)
+            return ','
+
     def _load_csv(self, source: str) -> Dict[str, pd.DataFrame]:
         """Load CSV file."""
-        logger.debug(f'Reading CSV file: {source} (max_rows={self.max_rows})')
-        df = pd.read_csv(source, header=None, nrows=self.max_rows)
-        logger.debug(f'Raw CSV shape: {df.shape}')
+        logger.debug('Reading CSV file: %s (max_rows=%s)', source, self.max_rows)
+        delimiter = self._detect_csv_delimiter(source)
+        df = pd.read_csv(source, header=None, nrows=self.max_rows, delimiter=delimiter)
         df = self._preprocess_dataframe(df)
-        logger.debug(f'Preprocessed CSV shape: {df.shape}')
         return {'sheet1': df}
 
     def _load_excel(self, source: str) -> Dict[str, pd.DataFrame]:
@@ -170,7 +190,6 @@ class SmartDataLoader(IDataLoader):
             processed_df = self._preprocess_dataframe(df)
             logger.debug(f"Sheet '{sheet_name}' preprocessed: final shape={processed_df.shape}")
             result[sheet_name] = processed_df
-
         return result
 
     def _preprocess_dataframe(self, df: pd.DataFrame) -> pd.DataFrame:
