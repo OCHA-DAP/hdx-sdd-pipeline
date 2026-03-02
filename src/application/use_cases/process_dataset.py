@@ -272,6 +272,32 @@ class ProcessDatasetUseCase:
             report.pii_reflection_model = 'skipped - only NONE or ORGANIZATION_NAME PII entities detected'
             return report
 
+        # If email, phone number, person names, or age are in detected entities, set to sensitive by default and skip
+        sensitive_pii_entities = {
+            PIIEntityType.EMAIL_ADDRESS,
+            PIIEntityType.PHONE_NUMBER,
+            PIIEntityType.PERSON_NAME,
+        }
+
+        if any(entity_type in sensitive_pii_entities for entity_type in pii_entity_types):
+            logger.info(
+                'Sensitive PII entities (email, phone number, or person names) detected'
+                ' - setting as sensitive and skipping reflection'
+            )
+            # Set individual column sensitivity flags
+            for column in report.columns:
+                if column.pii_classification.entity_type != PIIEntityType.NONE:
+                    column.pii_classification.sensitive = True
+
+            report.personal_data_sensitive = True
+            report.pii_reflection_model = (
+                'skipped - sensitive PII entities detected (email, phone number, or person names)'
+            )
+            # Set tokens to 0 since we skipped the LLM call
+            report.completion_tokens = 0
+            report.prompt_tokens = 0
+            return report
+
         try:
             # Generate table markdown context for all columns
             table_markdown = self._generate_table_markdown(report)

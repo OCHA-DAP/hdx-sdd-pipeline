@@ -133,19 +133,22 @@ class TestProcessDatasetUseCase:
         assert result.columns[0].pii_classification.entity_type == PIIEntityType.UNDETERMINED
 
     def test_classify_pii_sensitivity(self, use_case, mock_llm_provider):
-        """Test PII sensitivity classification."""
+        """Test PII sensitivity classification with sensitive PII entities (should skip LLM)."""
         report = SheetReport(file_name='test.csv', sheet_name='Sheet1')
         column = Column(name='email', sample_values=['test@example.com'])
         column.pii_classification.entity_type = PIIEntityType.EMAIL_ADDRESS
         report.add_column(column)
 
-        mock_llm_provider.generate.return_value = ('sensitive', 10, 20)
-
+        # LLM should not be called due to sensitive PII detection
         result = use_case._classify_pii_sensitivity(report)
 
         assert result.columns[0].pii_classification.sensitive is True
-        assert result.completion_tokens == 10
-        assert result.prompt_tokens == 20
+        assert result.completion_tokens == 0  # No LLM call made
+        assert result.prompt_tokens == 0  # No LLM call made
+        assert (
+            result.pii_reflection_model
+            == 'skipped - sensitive PII entities detected (email, phone number, or person names)'
+        )
 
     def test_classify_pii_sensitivity_non_sensitive(self, use_case, mock_llm_provider):
         """Test PII sensitivity classification for non-sensitive."""
@@ -158,13 +161,13 @@ class TestProcessDatasetUseCase:
 
         result = use_case._classify_pii_sensitivity(report)
 
-        assert result.columns[0].pii_classification.sensitive is False
+        assert result.columns[0].pii_classification.sensitive is True
 
     def test_classify_pii_sensitivity_error_handling(self, use_case, mock_llm_provider):
         """Test PII sensitivity handles errors."""
         report = SheetReport(file_name='test.csv', sheet_name='Sheet1')
-        column = Column(name='email', sample_values=['test@example.com'])
-        column.pii_classification.entity_type = PIIEntityType.EMAIL_ADDRESS
+        column = Column(name='id', sample_values=['12345'])
+        column.pii_classification.entity_type = PIIEntityType.ID_NUMBER  # Use non-sensitive PII type
         report.add_column(column)
 
         mock_llm_provider.generate.side_effect = Exception('API error')

@@ -251,8 +251,6 @@ class EventProcessor:
             return
 
         # Update CKAN resource
-        print(f'Sensitivity: {sensitivity}')
-        print(f'Reports: {json.dumps(reports_dict, indent=2)}')
         self.ckan.update_resource_fields(
             resource_id, {'sdd_report': json.dumps(reports_dict, indent=2), 'sensitive': sensitivity}
         )
