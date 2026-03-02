@@ -163,7 +163,7 @@ class SmartDataLoader(IDataLoader):
         try:
             with open(source, 'r', encoding='utf-8', newline='') as f:
                 lines = [f.readline() for _ in range(5)]
-            delimiter = ';' if sum(l.count(';') for l in lines) > sum(l.count(',') for l in lines) else ','
+            delimiter = ';' if sum(line.count(';') for line in lines) > sum(line.count(',') for line in lines) else ','
             logger.debug('Fallback delimiter detection: %r', delimiter)
             return delimiter
         except Exception as e:
