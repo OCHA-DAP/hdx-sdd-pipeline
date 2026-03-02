@@ -55,19 +55,43 @@ def setup_pipeline(model_name: str) -> ProcessDatasetUseCase:
 
 
 def create_groundtruth_template(dataset_path: Path, dataset_name: str) -> Path:
-    """Create a groundtruth template for the uploaded dataset."""
+    """Create a groundtruth template for the uploaded dataset using ProcessDatasetUseCase structure."""
     try:
-        data_loader = SmartDataLoader(max_rows=1000)
-        sheets_data = data_loader.load_from_file(str(dataset_path))
+        # Setup pipeline to use the existing data loading and report creation logic
+        pipeline = setup_pipeline()
 
-        template_data = {}
+        # Load data using the pipeline's data loader (same as process_dataset.py)
+        sheets_data = pipeline.data_loader.load_from_file(str(dataset_path))
+
+        # Create template reports using the same structure as ProcessDatasetUseCase
+        template_reports = []
+
         for sheet_name, df in sheets_data.items():
-            template_data[sheet_name] = {
-                "columns": df.columns.tolist(),
-                "sample_data": df.head(3).to_dict('records'),
-                "row_count": len(df),
-                "column_types": df.dtypes.astype(str).to_dict(),
-            }
+            # Check if it's a README sheet
+            if pipeline._is_readme_sheet(sheet_name):
+                logger.debug(f"Sheet '{sheet_name}' identified as README/metadata")
+                report = pipeline._create_readme_report(sheet_name, str(dataset_path), dataset_name, df)
+            else:
+                # Create a data report structure but without LLM processing
+                report = pipeline.create_data_report(sheet_name, str(dataset_path), dataset_name, df, isp_rules=None)
+
+            # Convert to template format with TODO placeholders
+            template_report = report.to_dict()
+
+            # Set all sensitivity flags to TODO placeholders
+            template_report['personal_data_sensitive'] = 'TODO'
+            template_report['non_pii_classification']['sensitivity'] = 'TODO'
+
+            # Set all column classifications to TODO
+            for column in template_report.get('columns', []):
+                column['pii_classification']['entity_type'] = 'TODO'
+                column['pii_classification']['sensitive'] = 'TODO'
+                column['non_pii_classification']['sensitivity'] = 'TODO'
+
+            # Add processing status
+            template_report['template_status'] = 'TODO_MANUAL_ANNOTATION_REQUIRED'
+
+            template_reports.append(template_report)
 
         template_path = GROUNDTRUTH_DIR / f"{dataset_name}.json"
         template_path.parent.mkdir(parents=True, exist_ok=True)
@@ -77,8 +101,21 @@ def create_groundtruth_template(dataset_path: Path, dataset_name: str) -> Path:
                 {
                     "dataset_name": dataset_name,
                     "created_at": datetime.now().isoformat(),
-                    "sheets": template_data,
-                    "status": "template",
+                    "template_type": "groundtruth_annotation",
+                    "instructions": {
+                        "personal_data_sensitive": "Set to true/false based on whether the sheet contains any personal sensitive data",
+                        "non_pii_classification": "Set sensitivity level: NON_SENSITIVE, MODERATE_SENSITIVE, HIGH_SENSITIVE, or SEVERE_SENSITIVE",
+                        "columns": {
+                            "pii_classification": {
+                                "entity_type": "Set to appropriate PII type: NONE, PERSON_NAME, EMAIL_ADDRESS, etc.",
+                                "sensitive": "Set to true/false based on whether this PII is sensitive in context",
+                            },
+                            "non_pii_classification": {
+                                "sensitivity": "Set sensitivity level for non-PII data in this column"
+                            },
+                        },
+                    },
+                    "sheets": template_reports,
                 },
                 f,
                 indent=2,

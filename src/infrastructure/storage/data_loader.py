@@ -150,49 +150,23 @@ class SmartDataLoader(IDataLoader):
             raise DataProcessingError(f'Failed to load file: {e}')
 
     def _load_csv(self, source: str) -> Dict[str, pd.DataFrame]:
-        """Load CSV file with robust handling for semicolon delimiters and quoted fields."""
-        logger.debug(f'Reading CSV file: {source} (max_rows={self.max_rows})')
+        """Load CSV file."""
+        logger.debug('Reading CSV file: %s (max_rows=%s)', source, self.max_rows)
 
-        # Try different CSV parsing strategies to handle problematic files
+        # Try to detect delimiter by reading first few lines
+        import csv
+
         try:
-            # First attempt: semicolon delimiter with proper quote handling
-            df = pd.read_csv(
-                source,
-                header=None,
-                nrows=self.max_rows,
-                sep=';',
-                quotechar='"',
-                escapechar='\\',
-                skipinitialspace=True,
-                on_bad_lines='skip',
-            )
+            with open(source, 'r', encoding='utf-8', newline='') as f:
+                sample = f.read(1024)  # Read first 1KB to detect delimiter
+                sniffer = csv.Sniffer()
+                delimiter = sniffer.sniff(sample).delimiter
+                logger.debug(f'Detected CSV delimiter: {repr(delimiter)}')
         except Exception as e:
-            logger.warning(f'First CSV parsing attempt failed: {e}')
-            try:
-                # Second attempt: auto-detect delimiter with more robust settings
-                df = pd.read_csv(
-                    source,
-                    header=None,
-                    nrows=self.max_rows,
-                    sep=None,  # Auto-detect delimiter
-                    engine='python',  # More flexible engine
-                    quotechar='"',
-                    skipinitialspace=True,
-                    on_bad_lines='skip',
-                )
-            except Exception as e2:
-                logger.warning(f'Second CSV parsing attempt failed: {e2}')
-                # Final attempt: basic comma delimiter with error handling
-                df = pd.read_csv(
-                    source,
-                    header=None,
-                    nrows=self.max_rows,
-                    sep=',',
-                    quotechar='"',
-                    skipinitialspace=True,
-                    on_bad_lines='skip',
-                )
+            logger.debug(f'Could not detect delimiter, defaulting to comma: {e}')
+            delimiter = ','
 
+        df = pd.read_csv(source, header=None, nrows=self.max_rows, delimiter=delimiter)
         logger.debug(f'Raw CSV shape: {df.shape}')
         df = self._preprocess_dataframe(df)
         logger.debug(f'Preprocessed CSV shape: {df.shape}')
