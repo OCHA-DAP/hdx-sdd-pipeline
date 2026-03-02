@@ -160,16 +160,40 @@ class SmartDataLoader(IDataLoader):
             with open(source, 'r', encoding='utf-8', newline='') as f:
                 sample = f.read(1024)  # Read first 1KB to detect delimiter
                 sniffer = csv.Sniffer()
-                delimiter = sniffer.sniff(sample).delimiter
-                logger.debug(f'Detected CSV delimiter: {repr(delimiter)}')
+                dialect = sniffer.sniff(sample, delimiters=',;')
+                delimiter = dialect.delimiter
+                logger.debug('Detected CSV delimiter: %r', delimiter)
         except Exception as e:
-            logger.debug(f'Could not detect delimiter, defaulting to comma: {e}')
-            delimiter = ','
+            logger.debug('Could not detect delimiter, trying fallback detection: %s', e)
+            # Fallback: manually count comma vs semicolon usage in first few lines
+            try:
+                with open(source, 'r', encoding='utf-8', newline='') as f:
+                    first_lines = [f.readline() for _ in range(5)]  # Read first 5 lines
+
+                comma_count = sum(line.count(',') for line in first_lines)
+
+                semicolon_count = sum(line.count(';') for line in first_lines)
+
+                if semicolon_count > comma_count:
+                    delimiter = ';'
+                    logger.debug(
+                        'Fallback detection: using semicolon (;) - semicolons: %s, commas: %s',
+                        semicolon_count,
+                        comma_count,
+                    )
+                else:
+                    delimiter = ','
+                    logger.debug(
+                        'Fallback detection: using comma (,) - commas: %s, semicolons: %s', comma_count, semicolon_count
+                    )
+            except Exception as fallback_e:
+                logger.debug('Fallback detection also failed, defaulting to comma: %s', fallback_e)
+                delimiter = ','
 
         df = pd.read_csv(source, header=None, nrows=self.max_rows, delimiter=delimiter)
-        logger.debug(f'Raw CSV shape: {df.shape}')
+        logger.debug('Raw CSV shape: %s', df.shape)
         df = self._preprocess_dataframe(df)
-        logger.debug(f'Preprocessed CSV shape: {df.shape}')
+        logger.debug('Preprocessed CSV shape: %s', df.shape)
         return {'sheet1': df}
 
     def _load_excel(self, source: str) -> Dict[str, pd.DataFrame]:
