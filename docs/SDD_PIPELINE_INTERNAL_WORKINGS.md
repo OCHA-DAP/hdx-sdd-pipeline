@@ -96,23 +96,21 @@ The pipeline processes datasets through a well-defined sequence of steps:
 └─────────────────────────────────────────────────────────────┘
                             ↓
 ┌─────────────────────────────────────────────────────────────┐
-│              3. PII DETECTION (Column-Level)                │
-│  • Classify each column for PII entity type                 │
-│  • Use PII detection model                                  │
-│  • Track token usage                                        │
+│              3. Personal Data DETECTION (Column-Level)      │
+│  • Classify each column for Personal Data entity type       │
+│  • Use Personal Data detection model                        │
 └─────────────────────────────────────────────────────────────┘
                             ↓
 ┌─────────────────────────────────────────────────────────────┐
-│         4. PII SENSITIVITY REFLECTION (Table-Level)         │
+│         4. Personal Data SENSITIVITY REFLECTION Table-Level │
 │  • Consider context and use case                            │
-│  • Use PII reflection model                                 │
-└─────────────────────────────────────────────────────────────┘
+│  • Use Personal Data reflection model                       |└─────────────────────────────────────────────────────────────┘
                             ↓
 ┌─────────────────────────────────────────────────────────────┐
-│        5. NON-PII CLASSIFICATION (Table-Level)              │
+│        5. NON-Personal Data CLASSIFICATION (Table-Level)    │
 │  • Analyze overall table sensitivity                        │
 │  • Apply ISP rules for country/context                      │
-│  • Use non-PII classification model                         │
+│  • Use non-Personal Data classification model               │
 └─────────────────────────────────────────────────────────────┘
                             ↓
 ┌─────────────────────────────────────────────────────────────┐
@@ -206,36 +204,44 @@ Column name: {{ column_name }}
 - `SENSITIVE` - Personal Data Entity could identify a person
 - `NON_SENSITIVE` - Personal Data Entity cannot identify a person (e.g., aggregate data)
 
-**Prompt Template** (`src/prompts/pii_reflection/v0.jinja`):
+**Prompt Template** (`src/prompts/pii_reflection/v2.jinja`):
 
-```jinja
+````jinja
 ### Instruction:
 You are a personal data sensitivity classification system.
 
-Given a table, a list of detected personal data entities in the table header, and sample rows, determine whether the dataset as a whole could be used to identify one or more individual persons.
+Given a table, a list of detected personal data entities in the table header, and sample rows, determine whether the dataset as a whole could reasonably be used to identify one or more individual persons.
 
-Individual personal data entities may be non-sensitive on their own, but combinations of entities can increase identification risk. Evaluate the dataset at the sheet level, not at the individual column level.
+The table may contain personal data entities such as age, gender, or other demographic attributes.
+The presence of personal data alone does NOT make a dataset sensitive. Sensitivity depends on whether the data, in combination, enables identification of specific individuals.
+
+Evaluate the dataset at the sheet level, not at the individual column level.
 
 A dataset is considered:
-- NON_SENSITIVE if it cannot reasonably be used to identify individuals, even when considering combinations of columns (e.g., aggregate data, operational dates, non-personal events).
-- SENSITIVE if it could reasonably be used to identify individuals due to the presence of microdata combined with key or quasi-identifying variables.
+- NON_SENSITIVE if it cannot reasonably be used to identify individuals, even if it contains personal data entities (e.g., age ranges, gender, non-unique demographics, aggregate or anonymized microdata).
+- MODERATE_SENSITIVE if it contains row-level microdata with quasi-identifiers that somewhat increase re-identification risk, but without strong direct identifiers or highly unique combinations that make individuals readily identifiable.
+- HIGH_SENSITIVE if it could reasonably be used to identify individuals due to row-level microdata combined with direct identifiers (e.g., names, full addresses, IDs) or powerful quasi-identifiers that meaningfully increase re-identification risk.
 
 Important rules:
-- Do NOT assume a column detected as "date" is a date of birth unless supported by context.
-- Treat a date as sensitive ONLY IF:
-  - The dataset represents microdata (row-level data about individuals), AND
-  - Other identifying or quasi-identifying variables are present.
+- Do NOT assume a column detected as a personal data entity is identifying by default.
+- Do NOT assume a column detected as "date" is a date of birth unless clearly supported by context.
+- Treat personal attributes (e.g., age, gender) as sensitive ONLY IF they are combined with other identifying or quasi-identifying variables such that identification is reasonably possible.
 - Use only the information provided in the table header and sample rows.
 
 ### Input:
 Table:
 {{ table_markdown }}
 
-### Response:
-Return ONLY one of the following labels:
-NON_SENSITIVE
-SENSITIVE
-```
+### **JSON Response Format:**
+
+Provide the output as a single, valid JSON object following this exact schema:
+
+```json
+{
+  "sensitivity": "<ONE OF: NON_SENSITIVE / MODERATE_SENSITIVE / HIGH_SENSITIVE>",
+  "explanation": "<Provide a brief, clear explanation of WHY the final SensitivityClassification was chosen.>"
+}
+````
 
 **Token Usage**: ~300 prompt tokens, ~10 completion tokens per PII column
 

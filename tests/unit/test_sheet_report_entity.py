@@ -290,3 +290,96 @@ class TestSheetReport:
         assert len(restored.columns) == len(original.columns)
         assert restored.columns[0].name == original.columns[0].name
         assert restored.non_pii_classification.sensitivity == original.non_pii_classification.sensitivity
+
+    def test_to_dict_includes_personal_data_classification(self):
+        """Test that to_dict includes personal_data key with classification details."""
+        report = SheetReport(file_name='test.csv', sheet_name='Sheet1')
+
+        # Set personal data classification
+        report.personal_data_classification.sensitivity = SensitivityLevel.HIGH_SENSITIVE
+        report.personal_data_classification.explanation = 'Direct identifiers detected'
+
+        result = report.to_dict()
+
+        # Verify personal_data key exists and has correct structure
+        assert 'personal_data' in result
+        personal_data = result['personal_data']
+        assert personal_data['sensitivity'] == 'HIGH_SENSITIVE'
+        assert personal_data['explanation'] == 'Direct identifiers detected'
+
+    def test_to_dict_personal_data_with_all_fields(self):
+        """Test personal_data includes all fields when present."""
+        report = SheetReport(file_name='test.csv', sheet_name='Sheet1')
+
+        # Set all fields
+        report.personal_data_classification.sensitivity = SensitivityLevel.MODERATE_SENSITIVE
+        report.personal_data_classification.explanation = 'Some identifying information'
+        report.personal_data_classification.confidence = 0.85
+
+        result = report.to_dict()
+
+        personal_data = result['personal_data']
+        assert personal_data['sensitivity'] == 'MODERATE_SENSITIVE'
+        assert personal_data['explanation'] == 'Some identifying information'
+        assert personal_data['confidence'] == 0.85
+
+    def test_to_dict_personal_data_minimal(self):
+        """Test personal_data with minimal/default values."""
+        report = SheetReport(file_name='test.csv', sheet_name='Sheet1')
+
+        result = report.to_dict()
+
+        # Should still include personal_data key with default values
+        assert 'personal_data' in result
+        personal_data = result['personal_data']
+        assert personal_data['sensitivity'] == 'UNDETERMINED'
+        assert 'explanation' not in personal_data  # None values should be omitted
+        assert 'confidence' not in personal_data  # None values should be omitted
+
+    def test_to_dict_personal_data_non_sensitive(self):
+        """Test personal_data with NON_SENSITIVE classification."""
+        report = SheetReport(file_name='test.csv', sheet_name='Sheet1')
+
+        report.personal_data_classification.sensitivity = SensitivityLevel.NON_SENSITIVE
+        report.personal_data_classification.explanation = 'No personal data detected'
+
+        result = report.to_dict()
+
+        personal_data = result['personal_data']
+        assert personal_data['sensitivity'] == 'NON_SENSITIVE'
+        assert personal_data['explanation'] == 'No personal data detected'
+
+    def test_round_trip_serialization_includes_personal_data(self):
+        """Test that personal_data classification survives round trip serialization."""
+        original = SheetReport(file_name='test.csv', sheet_name='Sheet1')
+
+        # Set personal data classification
+        original.personal_data_classification.sensitivity = SensitivityLevel.HIGH_SENSITIVE
+        original.personal_data_classification.explanation = 'Email addresses and phone numbers found'
+        original.personal_data_classification.confidence = 0.95
+
+        # Convert to dict and back
+        data = original.to_dict()
+        restored = SheetReport.from_dict(data)
+
+        # Verify personal data classification is preserved
+        assert restored.personal_data_classification.sensitivity == SensitivityLevel.HIGH_SENSITIVE
+        assert restored.personal_data_classification.explanation == 'Email addresses and phone numbers found'
+        assert restored.personal_data_classification.confidence == 0.95
+
+    def test_from_dict_handles_missing_personal_data(self):
+        """Test from_dict handles missing personal_data key gracefully."""
+        data = {
+            'file_name': 'test.csv',
+            'sheet_name': 'Sheet1',
+            'processing_timestamp': '2024-01-15 10:30:00',
+            'columns': [],
+            'non_personal_data': {'sensitivity': 'NON_SENSITIVE'},
+            # Note: no 'personal_data' key
+        }
+
+        report = SheetReport.from_dict(data)
+
+        # Should have default personal_data_classification
+        assert report.personal_data_classification.sensitivity == SensitivityLevel.UNDETERMINED
+        assert report.personal_data_classification.explanation is None
