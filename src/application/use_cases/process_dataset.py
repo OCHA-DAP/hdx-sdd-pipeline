@@ -5,7 +5,7 @@ from typing import List, Optional, Dict, Any
 from datetime import datetime
 import json
 
-from ...domain.entities import SheetReport, Column, NonPIIClassification, PIISensitivityClassification
+from ...domain.entities import SheetReport, Column, NonPIIClassification, PersonalDataClassification
 from ...domain.value_objects import PIIEntityType, SensitivityLevel
 from ...domain.exceptions import DataProcessingError
 from ..interfaces import ILLMProvider, IDataLoader
@@ -201,7 +201,7 @@ class ProcessDatasetUseCase:
         # Step 6: Update sensitivity flags
         report.update_non_pii_sensitivity()
 
-        logger.info(
+        logger.debug(
             f"Data report complete for '{sheet_name}': "
             f'personal_data_sensitive={report.personal_data_sensitive}, '
             f'pii_sensitivity={report.personal_data_classification.sensitivity}, '
@@ -311,9 +311,7 @@ class ProcessDatasetUseCase:
             report.pii_reflection_model = (
                 'skipped - sensitive PII entities detected (email, phone number, or person names)'
             )
-            # Set tokens to 0 since we skipped the LLM call
-            report.completion_tokens = 0
-            report.prompt_tokens = 0
+            # Note: No reflection tokens added since we skipped the LLM call
             return report
 
         try:
@@ -333,7 +331,7 @@ class ProcessDatasetUseCase:
             logger.debug(f'PII sensitivity classification result: {result}')
 
             # Parse JSON result using the new entity
-            report.personal_data_classification = PIISensitivityClassification.from_dict(result)
+            report.personal_data_classification = PersonalDataClassification.from_dict(result)
 
             # Update the legacy boolean flag for backward compatibility
             # True for both MODERATE_SENSITIVE and HIGH_SENSITIVE
@@ -356,7 +354,10 @@ class ProcessDatasetUseCase:
             logger.error(f'PII sensitivity classification failed: {e}')
             # Default to sensitive on error (fail safe)
             report.personal_data_classification.sensitivity = SensitivityLevel.HIGH_SENSITIVE
-            report.personal_data_classification.explanation = f'Classification failed: {e}'
+            report.personal_data_classification.explanation = (
+                'Classification failed due to an internal error. '
+                'Sensitivity set to HIGH_SENSITIVE as a safe default.'
+            )
             report.personal_data_sensitive = True
             # Set sensitive=True for columns with entity_type != 'None'
             for column in report.columns:

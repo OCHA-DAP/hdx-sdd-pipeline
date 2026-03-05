@@ -1,4 +1,4 @@
-"""PII Sensitivity Classification entity."""
+"""Personal Data Classification entity."""
 
 from dataclasses import dataclass
 from typing import Optional
@@ -7,8 +7,8 @@ from ..value_objects.sensitivity import SensitivityLevel
 
 
 @dataclass
-class PIISensitivityClassification:
-    """PII sensitivity classification result for a sheet/table."""
+class PersonalDataClassification:
+    """Personal data classification result for a sheet/table."""
 
     sensitivity: SensitivityLevel = SensitivityLevel.UNDETERMINED
     explanation: Optional[str] = None
@@ -30,7 +30,7 @@ class PIISensitivityClassification:
         return result
 
     @classmethod
-    def from_dict(cls, data: dict) -> 'PIISensitivityClassification':
+    def from_dict(cls, data: dict) -> 'PersonalDataClassification':
         """Create from dictionary representation."""
         return cls(
             sensitivity=SensitivityLevel.from_string(data.get('sensitivity', 'UNDETERMINED')),
