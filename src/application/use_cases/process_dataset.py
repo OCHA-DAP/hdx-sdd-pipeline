@@ -283,7 +283,7 @@ class ProcessDatasetUseCase:
             report.pii_reflection_model = 'skipped - only NONE or ORGANIZATION_NAME PII entities detected'
             return report
 
-        # If email, phone number, person names, or age are in detected entities, set to sensitive by default and skip
+        # If email, phone number, person names are in detected entities, set to sensitive by default and skip
         sensitive_pii_entities = {
             PIIEntityType.EMAIL_ADDRESS,
             PIIEntityType.PHONE_NUMBER,
