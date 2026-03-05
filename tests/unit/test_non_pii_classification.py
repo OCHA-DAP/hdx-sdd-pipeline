@@ -12,6 +12,8 @@ class TestNonPIIClassification:
         classification = NonPIIClassification()
 
         assert classification.sensitivity == SensitivityLevel.UNDETERMINED
+        assert classification.sensitive_columns is None
+        assert classification.cited_isp_rules is None
         assert classification.explanation is None
         assert classification.confidence is None
 
@@ -19,11 +21,15 @@ class TestNonPIIClassification:
         """Test initialization with values."""
         classification = NonPIIClassification(
             sensitivity=SensitivityLevel.HIGH_SENSITIVE,
+            sensitive_columns=['email', 'phone'],
+            cited_isp_rules=['Personal data identifiers are HIGH_SENSITIVE'],
             explanation='Contains sensitive operational data',
             confidence=0.92,
         )
 
         assert classification.sensitivity == SensitivityLevel.HIGH_SENSITIVE
+        assert classification.sensitive_columns == ['email', 'phone']
+        assert classification.cited_isp_rules == ['Personal data identifiers are HIGH_SENSITIVE']
         assert classification.explanation == 'Contains sensitive operational data'
         assert classification.confidence == 0.92
 
@@ -46,6 +52,8 @@ class TestNonPIIClassification:
         result = classification.to_dict()
 
         assert result['sensitivity'] == 'MODERATE_SENSITIVE'
+        assert 'sensitive_columns' not in result
+        assert 'cited_isp_rules' not in result
         assert 'explanation' not in result
         assert 'confidence' not in result
 
@@ -70,12 +78,21 @@ class TestNonPIIClassification:
     def test_to_dict_complete(self):
         """Test to_dict with all fields."""
         classification = NonPIIClassification(
-            sensitivity=SensitivityLevel.HIGH_SENSITIVE, explanation='Security-related information', confidence=0.95
+            sensitivity=SensitivityLevel.HIGH_SENSITIVE,
+            sensitive_columns=['email', 'phone_number'],
+            cited_isp_rules=['Personal identifiers are HIGH_SENSITIVE', 'Contact information is MODERATE_SENSITIVE'],
+            explanation='Security-related information',
+            confidence=0.95,
         )
 
         result = classification.to_dict()
 
         assert result['sensitivity'] == 'HIGH_SENSITIVE'
+        assert result['sensitive_columns'] == ['email', 'phone_number']
+        assert result['cited_isp_rules'] == [
+            'Personal identifiers are HIGH_SENSITIVE',
+            'Contact information is MODERATE_SENSITIVE',
+        ]
         assert result['explanation'] == 'Security-related information'
         assert result['confidence'] == 0.95
 
@@ -86,6 +103,8 @@ class TestNonPIIClassification:
         classification = NonPIIClassification.from_dict(data)
 
         assert classification.sensitivity == SensitivityLevel.MODERATE_SENSITIVE
+        assert classification.sensitive_columns is None
+        assert classification.cited_isp_rules is None
         assert classification.explanation is None
         assert classification.confidence is None
 
@@ -107,11 +126,19 @@ class TestNonPIIClassification:
 
     def test_from_dict_complete(self):
         """Test from_dict with all fields."""
-        data = {'sensitivity': 'HIGH_SENSITIVE', 'explanation': 'Military operations data', 'confidence': 0.97}
+        data = {
+            'sensitivity': 'HIGH_SENSITIVE',
+            'sensitive_columns': ['email', 'phone'],
+            'cited_isp_rules': ['Personal identifiers are HIGH_SENSITIVE'],
+            'explanation': 'Military operations data',
+            'confidence': 0.97,
+        }
 
         classification = NonPIIClassification.from_dict(data)
 
         assert classification.sensitivity == SensitivityLevel.HIGH_SENSITIVE
+        assert classification.sensitive_columns == ['email', 'phone']
+        assert classification.cited_isp_rules == ['Personal identifiers are HIGH_SENSITIVE']
         assert classification.explanation == 'Military operations data'
         assert classification.confidence == 0.97
 
@@ -120,6 +147,8 @@ class TestNonPIIClassification:
         classification = NonPIIClassification.from_dict({})
 
         assert classification.sensitivity == SensitivityLevel.UNDETERMINED
+        assert classification.sensitive_columns is None
+        assert classification.cited_isp_rules is None
         assert classification.explanation is None
         assert classification.confidence is None
 
@@ -127,6 +156,8 @@ class TestNonPIIClassification:
         """Test that to_dict and from_dict are inverses."""
         original = NonPIIClassification(
             sensitivity=SensitivityLevel.SEVERE_SENSITIVE,
+            sensitive_columns=['email', 'address'],
+            cited_isp_rules=['Personal identifiers are SEVERE_SENSITIVE'],
             explanation='Highly sensitive operational data',
             confidence=0.96,
         )
@@ -135,5 +166,7 @@ class TestNonPIIClassification:
         restored = NonPIIClassification.from_dict(data)
 
         assert restored.sensitivity == original.sensitivity
+        assert restored.sensitive_columns == original.sensitive_columns
+        assert restored.cited_isp_rules == original.cited_isp_rules
         assert restored.explanation == original.explanation
         assert restored.confidence == original.confidence
