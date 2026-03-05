@@ -11,6 +11,8 @@ from ...domain.exceptions import LLMProviderError
 
 logger = logging.getLogger(__name__)
 
+DETERMINISTIC_SEED = 42
+
 
 class AzureOpenAIProvider(ILLMProvider):
     """
@@ -58,7 +60,9 @@ class AzureOpenAIProvider(ILLMProvider):
         """Get the model name being used."""
         return self._model_name
 
-    def generate(self, prompt: str, max_tokens: int = 256, temperature: float = 0.0, **kwargs) -> Tuple[str, int, int]:
+    def generate(
+        self, prompt: str, max_tokens: int = 256, temperature: float = 0.0, seed: int = DETERMINISTIC_SEED, **kwargs
+    ) -> Tuple[str, int, int]:
         """
         Generate text completion from prompt.
 
@@ -89,7 +93,7 @@ class AzureOpenAIProvider(ILLMProvider):
                     max_completion_tokens=max_tokens + 512,
                     reasoning_effort='minimal',
                     model=self.model_name,
-                    seed=42,
+                    seed=seed,
                 )
             else:
                 response = self.client.chat.completions.create(
@@ -97,7 +101,7 @@ class AzureOpenAIProvider(ILLMProvider):
                     messages=[{'role': 'user', 'content': prompt}],
                     max_tokens=max_tokens,
                     temperature=temperature,
-                    seed=42,
+                    seed=seed,
                     **kwargs,
                 )
 
@@ -128,7 +132,7 @@ class AzureOpenAIProvider(ILLMProvider):
             raise LLMProviderError(f'LLM generation failed: {e}') from e
 
     def generate_json(
-        self, prompt: str, max_tokens: int = 512, temperature: float = 0.0, **kwargs
+        self, prompt: str, max_tokens: int = 512, temperature: float = 0.0, seed: int = DETERMINISTIC_SEED, **kwargs
     ) -> Tuple[Dict[str, Any], int, int]:
         """
         Generate JSON response from prompt.
@@ -161,7 +165,7 @@ class AzureOpenAIProvider(ILLMProvider):
                     reasoning_effort='minimal',
                     model=self.model_name,
                     response_format={'type': 'json_object'},
-                    seed=42,
+                    seed=seed,
                 )
             else:
                 response = self.client.chat.completions.create(
@@ -170,7 +174,7 @@ class AzureOpenAIProvider(ILLMProvider):
                     max_tokens=max_tokens,
                     temperature=temperature,
                     response_format={'type': 'json_object'},
-                    seed=42,
+                    seed=seed,
                     **kwargs,
                 )
 
