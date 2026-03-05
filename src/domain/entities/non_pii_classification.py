@@ -26,15 +26,15 @@ class NonPIIClassification:
         result = {
             'sensitivity': str(self.sensitivity),
         }
-        if self.sensitive_columns:
+        if self.sensitive_columns is not None:
             result['sensitive_columns'] = self.sensitive_columns
-        if self.cited_isp_rules:
+        if self.cited_isp_rules is not None:
             result['cited_isp_rules'] = self.cited_isp_rules
-        if self.explanation:
+        if self.explanation is not None:
             result['explanation'] = self.explanation
         if self.confidence is not None:
             result['confidence'] = self.confidence
-        if self.isp_name:
+        if self.isp_name is not None:
             result['isp_name'] = self.isp_name
         return result
 

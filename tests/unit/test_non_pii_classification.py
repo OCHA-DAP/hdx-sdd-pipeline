@@ -152,6 +152,39 @@ class TestNonPIIClassification:
         assert classification.explanation is None
         assert classification.confidence is None
 
+    def test_to_dict_with_empty_lists(self):
+        """Test to_dict with empty lists."""
+        classification = NonPIIClassification(
+            sensitivity=SensitivityLevel.NON_SENSITIVE,
+            sensitive_columns=[],
+            cited_isp_rules=[],
+        )
+
+        result = classification.to_dict()
+
+        assert result['sensitivity'] == 'NON_SENSITIVE'
+        assert result['sensitive_columns'] == []
+        assert result['cited_isp_rules'] == []
+
+    def test_round_trip_empty_lists(self):
+        """Test round-trip serialization with empty lists."""
+        original = NonPIIClassification(
+            sensitivity=SensitivityLevel.NON_SENSITIVE,
+            sensitive_columns=[],
+            cited_isp_rules=[],
+            explanation='',
+            isp_name='',
+        )
+
+        data = original.to_dict()
+        restored = NonPIIClassification.from_dict(data)
+
+        assert restored.sensitivity == original.sensitivity
+        assert restored.sensitive_columns == original.sensitive_columns
+        assert restored.cited_isp_rules == original.cited_isp_rules
+        assert restored.explanation == original.explanation
+        assert restored.isp_name == original.isp_name
+
     def test_round_trip_serialization(self):
         """Test that to_dict and from_dict are inverses."""
         original = NonPIIClassification(
