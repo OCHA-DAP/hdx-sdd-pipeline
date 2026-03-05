@@ -156,6 +156,10 @@ class SheetReport:
         non_pii_data = data.get('non_personal_data', data.get('non_pii', {}))
         non_pii_classification = NonPIIClassification.from_dict(non_pii_data)
 
+        # Parse personal data classification
+        personal_data_data = data.get('personal_data', {})
+        personal_data_classification = PIISensitivityClassification.from_dict(personal_data_data)
+
         return cls(
             resource_id=data.get('resource_id'),
             file_name=data.get('file_name', ''),
@@ -173,6 +177,7 @@ class SheetReport:
             readme_model=data.get('readme_model'),
             columns=columns,
             non_pii_classification=non_pii_classification,
+            personal_data_classification=personal_data_classification,
             personal_data_sensitive=data.get('personal_data_sensitive', False),
             non_personal_data_sensitive=data.get('non_personal_data_sensitive', False),
             error_source=data.get('error_source'),
