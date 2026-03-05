@@ -7,7 +7,7 @@ from contextlib import contextmanager
 import tempfile
 import requests
 import pandas as pd
-
+import csv
 from ...application.interfaces.data_loader import IDataLoader
 from ...domain.exceptions import DataProcessingError
 
@@ -149,51 +149,33 @@ class SmartDataLoader(IDataLoader):
             logger.error(f'Failed to load file {file_path}: {e}', exc_info=True)
             raise DataProcessingError(f'Failed to load file: {e}')
 
-    def _load_csv(self, source: str) -> Dict[str, pd.DataFrame]:
-        """Load CSV file."""
-        logger.debug('Reading CSV file: %s (max_rows=%s)', source, self.max_rows)
-
-        # Try to detect delimiter by reading first few lines
-        import csv
+    def _detect_csv_delimiter(self, source: str) -> str:
+        """Detect CSV delimiter, falling back to comma."""
+        try:
+            with open(source, 'r', encoding='utf-8', newline='') as f:
+                sample = f.read(1024)
+            dialect = csv.Sniffer().sniff(sample, delimiters=',;')
+            logger.debug('Detected CSV delimiter: %r', dialect.delimiter)
+            return dialect.delimiter
+        except Exception as e:
+            logger.debug('Could not detect delimiter, trying fallback: %s', e)
 
         try:
             with open(source, 'r', encoding='utf-8', newline='') as f:
-                sample = f.read(1024)  # Read first 1KB to detect delimiter
-                sniffer = csv.Sniffer()
-                dialect = sniffer.sniff(sample, delimiters=',;')
-                delimiter = dialect.delimiter
-                logger.debug('Detected CSV delimiter: %r', delimiter)
+                lines = [f.readline() for _ in range(5)]
+            delimiter = ';' if sum(line.count(';') for line in lines) > sum(line.count(',') for line in lines) else ','
+            logger.debug('Fallback delimiter detection: %r', delimiter)
+            return delimiter
         except Exception as e:
-            logger.debug('Could not detect delimiter, trying fallback detection: %s', e)
-            # Fallback: manually count comma vs semicolon usage in first few lines
-            try:
-                with open(source, 'r', encoding='utf-8', newline='') as f:
-                    first_lines = [f.readline() for _ in range(5)]  # Read first 5 lines
+            logger.debug('Fallback detection failed, defaulting to comma: %s', e)
+            return ','
 
-                comma_count = sum(line.count(',') for line in first_lines)
-
-                semicolon_count = sum(line.count(';') for line in first_lines)
-
-                if semicolon_count > comma_count:
-                    delimiter = ';'
-                    logger.debug(
-                        'Fallback detection: using semicolon (;) - semicolons: %s, commas: %s',
-                        semicolon_count,
-                        comma_count,
-                    )
-                else:
-                    delimiter = ','
-                    logger.debug(
-                        'Fallback detection: using comma (,) - commas: %s, semicolons: %s', comma_count, semicolon_count
-                    )
-            except Exception as fallback_e:
-                logger.debug('Fallback detection also failed, defaulting to comma: %s', fallback_e)
-                delimiter = ','
-
+    def _load_csv(self, source: str) -> Dict[str, pd.DataFrame]:
+        """Load CSV file."""
+        logger.debug('Reading CSV file: %s (max_rows=%s)', source, self.max_rows)
+        delimiter = self._detect_csv_delimiter(source)
         df = pd.read_csv(source, header=None, nrows=self.max_rows, delimiter=delimiter)
-        logger.debug('Raw CSV shape: %s', df.shape)
         df = self._preprocess_dataframe(df)
-        logger.debug('Preprocessed CSV shape: %s', df.shape)
         return {'sheet1': df}
 
     def _load_excel(self, source: str) -> Dict[str, pd.DataFrame]:
@@ -208,7 +190,6 @@ class SmartDataLoader(IDataLoader):
             processed_df = self._preprocess_dataframe(df)
             logger.debug(f"Sheet '{sheet_name}' preprocessed: final shape={processed_df.shape}")
             result[sheet_name] = processed_df
-
         return result
 
     def _preprocess_dataframe(self, df: pd.DataFrame) -> pd.DataFrame:

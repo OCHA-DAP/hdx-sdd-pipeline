@@ -7,6 +7,8 @@ Tests various edge cases and complex scenarios to ensure robustness.
 import pytest
 import pandas as pd
 import numpy as np
+import tempfile
+import os
 from src.infrastructure.storage.data_loader import SmartDataLoader
 
 
@@ -182,6 +184,132 @@ class TestSmartDataLoader:
         # The algorithm should preserve some structure
         assert len(result.columns) > 0
         assert not result.empty
+
+    def test_comma_separated_csv_processing(self):
+        """Test that comma-separated CSVs are processed correctly."""
+        # Create a temporary CSV file with comma delimiter
+        csv_content = """Name,Age,City
+Alice,25,NYC
+Bob,30,LA
+Charlie,35,Chicago"""
+
+        with tempfile.NamedTemporaryFile(mode='w', suffix='.csv', delete=False, newline='') as f:
+            f.write(csv_content)
+            temp_file = f.name
+
+        try:
+            # Test delimiter detection
+            detected_delimiter = self.loader._detect_csv_delimiter(temp_file)
+            assert detected_delimiter == ','
+
+            # Test CSV loading
+            result = self.loader.load_from_file(temp_file)
+
+            # Verify the results
+            assert 'sheet1' in result
+            df = result['sheet1']
+            assert len(df) == 3  # 3 data rows
+            assert len(df.columns) == 3  # 3 columns
+            assert 'Name' in df.columns
+            assert 'Age' in df.columns
+            assert 'City' in df.columns
+
+            # Verify data content
+            assert df.iloc[0]['Name'] == 'Alice'
+            assert df.iloc[0]['Age'] == '25'  # CSV values are read as strings
+            assert df.iloc[0]['City'] == 'NYC'
+            assert df.iloc[1]['Name'] == 'Bob'
+            assert df.iloc[2]['Name'] == 'Charlie'
+
+        finally:
+            os.unlink(temp_file)
+
+    def test_semicolon_separated_csv_processing(self):
+        """Test that semicolon-separated CSVs are processed correctly."""
+        # Create a temporary CSV file with semicolon delimiter
+        csv_content = """Name;Age;City
+Alice;25;NYC
+Bob;30;LA
+Charlie;35;Chicago"""
+
+        with tempfile.NamedTemporaryFile(mode='w', suffix='.csv', delete=False, newline='') as f:
+            f.write(csv_content)
+            temp_file = f.name
+
+        try:
+            # Test delimiter detection
+            detected_delimiter = self.loader._detect_csv_delimiter(temp_file)
+            assert detected_delimiter == ';'
+
+            # Test CSV loading
+            result = self.loader.load_from_file(temp_file)
+
+            # Verify the results
+            assert 'sheet1' in result
+            df = result['sheet1']
+            assert len(df) == 3  # 3 data rows
+            assert len(df.columns) == 3  # 3 columns
+            assert 'Name' in df.columns
+            assert 'Age' in df.columns
+            assert 'City' in df.columns
+
+            # Verify data content
+            assert df.iloc[0]['Name'] == 'Alice'
+            assert df.iloc[0]['Age'] == '25'  # CSV values are read as strings
+            assert df.iloc[0]['City'] == 'NYC'
+            assert df.iloc[1]['Name'] == 'Bob'
+            assert df.iloc[2]['Name'] == 'Charlie'
+
+        finally:
+            os.unlink(temp_file)
+
+    def test_mixed_delimiter_csv_prefer_most_common(self):
+        """Test that CSV with mixed delimiters prefers the most common one."""
+        # Create a CSV with more semicolons than commas
+        csv_content = """Name;Age;City;Country
+Alice;25;NYC;USA
+Bob;30,LA;USA
+Charlie;35;Chicago;USA"""
+
+        with tempfile.NamedTemporaryFile(mode='w', suffix='.csv', delete=False, newline='') as f:
+            f.write(csv_content)
+            temp_file = f.name
+
+        try:
+            # Test delimiter detection - should detect semicolon as it's more common
+            detected_delimiter = self.loader._detect_csv_delimiter(temp_file)
+            assert detected_delimiter == ';'
+
+            # Test CSV loading
+            result = self.loader.load_from_file(temp_file)
+
+            # Verify the results
+            assert 'sheet1' in result
+            df = result['sheet1']
+            assert len(df) == 3  # 3 data rows
+            assert len(df.columns) >= 3  # At least 3 columns
+
+        finally:
+            os.unlink(temp_file)
+
+    def test_csv_delimiter_fallback_to_comma(self):
+        """Test that CSV delimiter detection falls back to comma when detection fails."""
+        # Create a CSV with ambiguous content
+        csv_content = """Name Age City
+Alice 25 NYC
+Bob 30 LA"""
+
+        with tempfile.NamedTemporaryFile(mode='w', suffix='.csv', delete=False, newline='') as f:
+            f.write(csv_content)
+            temp_file = f.name
+
+        try:
+            # Test delimiter detection - should fall back to comma
+            detected_delimiter = self.loader._detect_csv_delimiter(temp_file)
+            assert detected_delimiter == ','
+
+        finally:
+            os.unlink(temp_file)
 
 
 def test_sample_dataframe():

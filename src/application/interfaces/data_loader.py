@@ -14,12 +14,13 @@ class IDataLoader(ABC):
     """
 
     @abstractmethod
-    def load_from_url(self, url: str) -> Dict[str, pd.DataFrame]:
+    def load_from_url(self, url: str, http_headers: Dict[str, str] = None) -> Dict[str, pd.DataFrame]:
         """
         Load data from URL into dictionary of DataFrames.
 
         Args:
             url: URL to load data from
+            http_headers: Optional HTTP headers for authentication
 
         Returns:
             Dictionary mapping sheet names to DataFrames

@@ -71,6 +71,7 @@ class ProcessDatasetUseCase:
         resource_id: Optional[str] = None,
         is_url: bool = True,
         isp_rules: Optional[Dict[str, Any]] = None,
+        http_headers: Optional[Dict[str, str]] = None,
     ) -> List[SheetReport]:
         """
         Process a dataset from URL or file.
@@ -80,6 +81,7 @@ class ProcessDatasetUseCase:
             resource_id: Optional resource identifier
             is_url: True if source is URL, False if file path
             isp_rules: Information Sensitivity Protocol rules
+            http_headers: Optional HTTP headers for URL downloads (e.g. auth tokens)
 
         Returns:
             List of processed SheetReports
@@ -99,7 +101,7 @@ class ProcessDatasetUseCase:
             # Step 1: Load data
             logger.debug('Step 1: Loading data...')
             if is_url:
-                sheets = self.data_loader.load_from_url(source)
+                sheets = self.data_loader.load_from_url(source, http_headers=http_headers)
             else:
                 logger.info(f'Loading from file: {source}')
                 sheets = self.data_loader.load_from_file(source)
