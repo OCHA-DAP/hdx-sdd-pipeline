@@ -35,20 +35,23 @@ class AzureOpenAIProvider(ILLMProvider):
         self.api_version = api_version
 
         logger.info(
-            f'Initializing Azure OpenAI provider: model={model_name}, '
-            f'endpoint={azure_endpoint}, api_version={api_version}'
+            'Initializing Azure OpenAI provider: model=%s, endpoint=%s, api_version=%s',
+            model_name,
+            azure_endpoint,
+            api_version,
         )
 
         try:
             self.client = AzureOpenAI(api_key=api_key, api_version=api_version, azure_endpoint=azure_endpoint)
-            logger.info(f"Successfully initialized Azure OpenAI client for model '{model_name}'")
+            logger.info("Successfully initialized Azure OpenAI client for model '%s'", model_name)
         except Exception as e:
             logger.error(
-                f'Failed to initialize Azure OpenAI client: {e}',
+                'Failed to initialize Azure OpenAI client: %s',
+                e,
                 exc_info=True,
                 extra={'model': model_name, 'endpoint': azure_endpoint},
             )
-            raise LLMProviderError(f'Azure OpenAI initialization failed: {e}')
+            raise LLMProviderError(f'Azure OpenAI initialization failed: {e}') from e
 
     @property
     def model_name(self) -> str:
@@ -72,8 +75,11 @@ class AzureOpenAIProvider(ILLMProvider):
             LLMProviderError: If API call fails
         """
         logger.debug(
-            f'Generating text: model={self._model_name}, max_tokens={max_tokens}, '
-            f'temperature={temperature}, prompt_length={len(prompt)}'
+            'Generating text: model=%s, max_tokens=%s, temperature=%s, prompt_length=%s',
+            self._model_name,
+            max_tokens,
+            temperature,
+            len(prompt),
         )
 
         try:
@@ -83,6 +89,7 @@ class AzureOpenAIProvider(ILLMProvider):
                     max_completion_tokens=max_tokens + 512,
                     reasoning_effort='minimal',
                     model=self.model_name,
+                    seed=42,
                 )
             else:
                 response = self.client.chat.completions.create(
@@ -90,6 +97,7 @@ class AzureOpenAIProvider(ILLMProvider):
                     messages=[{'role': 'user', 'content': prompt}],
                     max_tokens=max_tokens,
                     temperature=temperature,
+                    seed=42,
                     **kwargs,
                 )
 
@@ -99,22 +107,25 @@ class AzureOpenAIProvider(ILLMProvider):
             total_tokens = completion_tokens + prompt_tokens
 
             logger.debug(
-                f'Generation successful: completion_tokens={completion_tokens}, '
-                f'prompt_tokens={prompt_tokens}, total_tokens={total_tokens}'
+                'Generation successful: completion_tokens=%s, prompt_tokens=%s, total_tokens=%s',
+                completion_tokens,
+                prompt_tokens,
+                total_tokens,
             )
 
             if total_tokens > 1000:
-                logger.warning(f'High token usage: {total_tokens} tokens (model={self._model_name})')
+                logger.warning('High token usage: %s tokens (model=%s)', total_tokens, self._model_name)
 
             return generated_text, completion_tokens, prompt_tokens
 
         except Exception as e:
             logger.error(
-                f'Azure OpenAI generation failed: {e}',
+                'Azure OpenAI generation failed: %s',
+                e,
                 exc_info=True,
                 extra={'model': self._model_name, 'prompt_length': len(prompt)},
             )
-            raise LLMProviderError(f'LLM generation failed: {e}')
+            raise LLMProviderError(f'LLM generation failed: {e}') from e
 
     def generate_json(
         self, prompt: str, max_tokens: int = 512, temperature: float = 0.0, **kwargs
@@ -135,8 +146,11 @@ class AzureOpenAIProvider(ILLMProvider):
             LLMProviderError: If API call fails or response is not valid JSON dictionary
         """
         logger.debug(
-            f'Generating JSON: model={self._model_name}, max_tokens={max_tokens}, '
-            f'temperature={temperature}, prompt_length={len(prompt)}'
+            'Generating JSON: model=%s, max_tokens=%s, temperature=%s, prompt_length=%s',
+            self._model_name,
+            max_tokens,
+            temperature,
+            len(prompt),
         )
 
         try:
@@ -147,6 +161,7 @@ class AzureOpenAIProvider(ILLMProvider):
                     reasoning_effort='minimal',
                     model=self.model_name,
                     response_format={'type': 'json_object'},
+                    seed=42,
                 )
             else:
                 response = self.client.chat.completions.create(
@@ -155,6 +170,7 @@ class AzureOpenAIProvider(ILLMProvider):
                     max_tokens=max_tokens,
                     temperature=temperature,
                     response_format={'type': 'json_object'},
+                    seed=42,
                     **kwargs,
                 )
 
@@ -170,18 +186,21 @@ class AzureOpenAIProvider(ILLMProvider):
                 # Ensure response is a dictionary
                 if not isinstance(json_response, dict):
                     logger.error(
-                        f'JSON response is not a dictionary: got {type(json_response).__name__}',
+                        'JSON response is not a dictionary: got %s',
+                        type(json_response).__name__,
                         extra={'response_text': generated_text[:200]},
                     )
                     raise LLMProviderError(f'Expected JSON object/dictionary, got {type(json_response).__name__}')
 
                 logger.debug(
-                    f'JSON generation successful: completion_tokens={completion_tokens}, '
-                    f'prompt_tokens={prompt_tokens}, keys={list(json_response.keys())}'
+                    'JSON generation successful: completion_tokens=%s, prompt_tokens=%s, keys=%s',
+                    completion_tokens,
+                    prompt_tokens,
+                    list(json_response.keys()),
                 )
             except json.JSONDecodeError as e:
-                logger.error(f'Failed to parse JSON response: {e}', extra={'response_text': generated_text[:200]})
-                raise LLMProviderError(f'Invalid JSON response: {e}')
+                logger.error('Failed to parse JSON response: %s', e, extra={'response_text': generated_text[:200]})
+                raise LLMProviderError(f'Invalid JSON response: {e}') from e
 
             return json_response, completion_tokens, prompt_tokens
 
@@ -189,8 +208,9 @@ class AzureOpenAIProvider(ILLMProvider):
             raise
         except Exception as e:
             logger.error(
-                f'Azure OpenAI JSON generation failed: {e}',
+                'Azure OpenAI JSON generation failed: %s',
+                e,
                 exc_info=True,
                 extra={'model': self._model_name, 'prompt_length': len(prompt)},
             )
-            raise LLMProviderError(f'LLM JSON generation failed: {e}')
+            raise LLMProviderError(f'LLM JSON generation failed: {e}') from e

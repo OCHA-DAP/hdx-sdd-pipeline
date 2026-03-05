@@ -102,7 +102,10 @@ class EventProcessor:
             logger.info(f'Processing dataset from: {download_url}')
             http_headers = self.ckan.headers if self.ckan else {}
             reports = self.pipeline.execute(
-                source=download_url, resource_id=resource_id, is_url=True, isp_rules=isp_rules,
+                source=download_url,
+                resource_id=resource_id,
+                is_url=True,
+                isp_rules=isp_rules,
                 http_headers=http_headers,
             )
 
