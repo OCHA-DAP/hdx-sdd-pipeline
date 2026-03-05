@@ -6,6 +6,7 @@ from typing import List, Optional, Dict, Any
 
 from .column import Column
 from .non_pii_classification import NonPIIClassification
+from .personal_data_classification import PIISensitivityClassification
 
 
 @dataclass
@@ -42,6 +43,7 @@ class SheetReport:
     # Classifications
     columns: List[Column] = field(default_factory=list)
     non_pii_classification: NonPIIClassification = field(default_factory=NonPIIClassification)
+    personal_data_classification: PIISensitivityClassification = field(default_factory=PIISensitivityClassification)
 
     # Sensitivity flags
     personal_data_sensitive: bool = False
@@ -112,6 +114,7 @@ class SheetReport:
             'prompt_tokens': self.prompt_tokens,
             'personal_data_sensitive': self.personal_data_sensitive,
             'non_personal_data_sensitive': self.non_personal_data_sensitive,
+            'personal_data': self.personal_data_classification.to_dict(),
             'columns': [col.to_dict() for col in self.columns],
             'non_personal_data': self.non_pii_classification.to_dict(),
         }

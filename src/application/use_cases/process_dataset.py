@@ -5,7 +5,7 @@ from typing import List, Optional, Dict, Any
 from datetime import datetime
 import json
 
-from ...domain.entities import SheetReport, Column, NonPIIClassification
+from ...domain.entities import SheetReport, Column, NonPIIClassification, PIISensitivityClassification
 from ...domain.value_objects import PIIEntityType, SensitivityLevel
 from ...domain.exceptions import DataProcessingError
 from ..interfaces import ILLMProvider, IDataLoader
@@ -204,6 +204,8 @@ class ProcessDatasetUseCase:
         logger.info(
             f"Data report complete for '{sheet_name}': "
             f'personal_data_sensitive={report.personal_data_sensitive}, '
+            f'pii_sensitivity={report.personal_data_classification.sensitivity}, '
+            f'pii_explanation="{report.personal_data_classification.explanation}", '
             f'non_pii_sensitivity={report.non_pii_classification.sensitivity}, '
             f'tokens={report.total_tokens()}'
         )
@@ -259,6 +261,8 @@ class ProcessDatasetUseCase:
         # Check if any PII columns were found
         if not report.has_pii_columns():
             logger.info('No PII columns found - skipping sensitivity classification')
+            report.personal_data_classification.sensitivity = SensitivityLevel.NON_SENSITIVE
+            report.personal_data_classification.explanation = 'No PII columns detected in the dataset.'
             report.personal_data_sensitive = False
             report.pii_reflection_model = 'skipped - no PII columns'
             return report
@@ -270,6 +274,11 @@ class ProcessDatasetUseCase:
             entity_type in [PIIEntityType.NONE, PIIEntityType.ORGANIZATION_NAME] for entity_type in pii_entity_types
         ):
             logger.info('Only NONE or ORGANIZATION_NAME PII entities detected - skipping sensitivity classification')
+            report.personal_data_classification.sensitivity = SensitivityLevel.NON_SENSITIVE
+            report.personal_data_classification.explanation = (
+                'Only NONE or ORGANIZATION_NAME PII entities detected. '
+                'Organization names are not considered personal data.'
+            )
             report.personal_data_sensitive = False
             report.pii_reflection_model = 'skipped - only NONE or ORGANIZATION_NAME PII entities detected'
             return report
@@ -290,6 +299,13 @@ class ProcessDatasetUseCase:
             for column in report.columns:
                 if column.pii_classification.entity_type != PIIEntityType.NONE:
                     column.pii_classification.sensitive = True
+
+            # Set PII sensitivity classification to HIGH_SENSITIVE since we detected sensitive entities
+            report.personal_data_classification.sensitivity = SensitivityLevel.HIGH_SENSITIVE
+            report.personal_data_classification.explanation = (
+                'Highly sensitive PII entities detected (email, phone number, or person names). '
+                'These are direct identifiers that can be used to identify individuals.'
+            )
 
             report.personal_data_sensitive = True
             report.pii_reflection_model = (
@@ -313,24 +329,19 @@ class ProcessDatasetUseCase:
                 },
             )
             # Call LLM
-            result, comp_tokens, prompt_tokens = self.pii_reflection_llm.generate(prompt, max_tokens=16)
+            result, comp_tokens, prompt_tokens = self.pii_reflection_llm.generate_json(prompt, max_tokens=1024)
+            logger.debug(f'PII sensitivity classification result: {result}')
 
-            # Parse result (expecting "sensitive" or "non_sensitive")
-            result_lower = result.lower()
-            if 'non_sensitive' in result_lower or 'non-sensitive' in result_lower:
-                is_sensitive = False
-            elif 'sensitive' in result_lower:
-                is_sensitive = True
-            else:
-                is_sensitive = True  # Default to sensitive if unclear
+            # Parse JSON result using the new entity
+            report.personal_data_classification = PIISensitivityClassification.from_dict(result)
 
-            report.personal_data_sensitive = is_sensitive
+            # Update the legacy boolean flag for backward compatibility
+            # True for both MODERATE_SENSITIVE and HIGH_SENSITIVE
+            report.personal_data_sensitive = report.personal_data_classification.sensitivity.is_sensitive()
 
-            # Set sensitive flag on each column based on the logic:
-            # - If personal_data_sensitive is True: set sensitive=True for columns with entity_type != 'None'
-            # - If personal_data_sensitive is False: set sensitive=False for all columns
+            # Update column sensitivity flags based on the classification result
             for column in report.columns:
-                if is_sensitive:
+                if report.personal_data_sensitive:
                     # Set sensitive=True only for columns with entity_type != 'None'
                     column.pii_classification.sensitive = column.pii_classification.entity_type != PIIEntityType.NONE
                 else:
@@ -344,6 +355,8 @@ class ProcessDatasetUseCase:
         except Exception as e:
             logger.error(f'PII sensitivity classification failed: {e}')
             # Default to sensitive on error (fail safe)
+            report.personal_data_classification.sensitivity = SensitivityLevel.HIGH_SENSITIVE
+            report.personal_data_classification.explanation = f'Classification failed: {e}'
             report.personal_data_sensitive = True
             # Set sensitive=True for columns with entity_type != 'None'
             for column in report.columns:
