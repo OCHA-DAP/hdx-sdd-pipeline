@@ -32,7 +32,9 @@ class ISPRetriever:
         self._isps_cache = None
         self._country_mapping_cache = None
 
-    def get_isp_rules(self, package_id: str, resource_name: Optional[str] = None, ckan_client=None) -> Dict[str, Any]:
+    def get_isp_rules(
+        self, package_id: Optional[str], resource_name: Optional[str] = None, ckan_client=None
+    ) -> Dict[str, Any]:
         """
         Get ISP rules based on dataset location or resource name.
 
@@ -71,7 +73,7 @@ class ISPRetriever:
         return default_isp
 
     def match_country(
-        self, text: str, isps: Dict[str, Any], country_mapping: Dict[str, str]
+        self, text: Optional[str], isps: Dict[str, Any], country_mapping: Dict[str, str]
     ) -> Optional[Dict[str, Any]]:
         """
         Match country in text using ISP country filters and partial mapping.
@@ -139,7 +141,7 @@ class ISPRetriever:
         return country_mapping
 
     def _match_from_package_location(
-        self, package_id: str, isps: Dict[str, Any], country_mapping: Dict[str, str], ckan_client
+        self, package_id: Optional[str], isps: Dict[str, Any], country_mapping: Dict[str, str], ckan_client
     ) -> Optional[Dict[str, Any]]:
         """Try to match ISP from package location data."""
         if not package_id or not ckan_client:

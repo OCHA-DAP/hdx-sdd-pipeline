@@ -27,12 +27,13 @@ logger = logging.getLogger(__name__)
 load_dotenv()
 
 
-def setup_event_processor(model_name: str) -> EventProcessor:
+def setup_event_processor(model_name: str, output_dir: Path) -> EventProcessor:
     """
-    Setup the EventProcessor with the specified model.
+    Setup the EventProcessor with the specified model and output directory.
 
     Args:
         model_name: Name of the model to use for all LLM tasks
+        output_dir: Directory to save results
 
     Returns:
         Configured EventProcessor
@@ -55,8 +56,8 @@ def setup_event_processor(model_name: str) -> EventProcessor:
     # Disable CKAN updates for batch processing
     config.CKAN_UPDATE = False
 
-    # Create EventProcessor
-    event_processor = EventProcessor()
+    # Create EventProcessor with custom output directory
+    event_processor = EventProcessor(custom_output_path=str(output_dir))
 
     print('EventProcessor setup complete!')
     return event_processor
@@ -146,32 +147,21 @@ def process_dataset(
             'event_type': 'batch-processing',
         }
 
-        # Process using EventProcessor
+        # Process using EventProcessor - it will write directly to {output_dir}/{dataset_name}.json
         success, message = event_processor.process_event(event)
 
         if success:
-            # Move the generated report to the expected output location
-            # EventProcessor saves to dev_reports/dev.json when CKAN_UPDATE is disabled
-            dev_report_file = Path('dev_reports/dev.json')
-            if dev_report_file.exists():
-                # Read the report and save to our output location
-                with dev_report_file.open('r', encoding='utf-8') as f:
+            # Read the generated report from the output file
+            if output_file.exists():
+                with output_file.open('r', encoding='utf-8') as f:
                     report_data = json.load(f)
 
-                # Save to our output location
-                output_file.parent.mkdir(parents=True, exist_ok=True)
-                with output_file.open('w', encoding='utf-8') as f:
-                    json.dump(report_data['sdd_report'], f, indent=2, ensure_ascii=False)
-
                 # Log summary
-                reports = report_data['sdd_report']
+                reports = report_data
                 sensitive_sheets = sum(
                     1 for r in reports if r.get('personal_data_sensitive') or r.get('non_personal_data_sensitive')
                 )
                 print(f'✅ Completed {dataset_name}: {len(reports)} sheets, {sensitive_sheets} sensitive')
-
-                # Clean up dev file
-                dev_report_file.unlink()
             else:
                 logger.error(f'❌ No report generated for {dataset_name}')
                 return False
@@ -200,9 +190,6 @@ def main():
     print('=' * 70)
     print()
 
-    # Setup EventProcessor
-    event_processor = setup_event_processor(args.model)
-
     # Get list of datasets
     datasets = get_groundtruth_datasets()
 
@@ -218,6 +205,9 @@ def main():
     # Setup output directory
     output_dir = Path(f'research/results/test_results/{args.model}')
     output_dir.mkdir(parents=True, exist_ok=True)
+
+    # Setup EventProcessor with custom output directory
+    event_processor = setup_event_processor(args.model, output_dir)
 
     # Process each dataset
     total = len(datasets)
