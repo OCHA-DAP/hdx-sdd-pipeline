@@ -76,7 +76,7 @@ class TestReadmeScan:
             }
         )
 
-        content, was_truncated = use_case_with_readme._extract_readme_content(df)
+        content = use_case_with_readme._extract_readme_content(df)
 
         expected_content = (
             'This dataset contains user information\n'
@@ -87,7 +87,6 @@ class TestReadmeScan:
             'Data cleaned'
         )
         assert content == expected_content
-        assert was_truncated is False
 
     def test_extract_readme_content_with_nulls(self, use_case_with_readme):
         """Test README content extraction with null values."""
@@ -99,27 +98,24 @@ class TestReadmeScan:
             }
         )
 
-        content, was_truncated = use_case_with_readme._extract_readme_content(df)
+        content = use_case_with_readme._extract_readme_content(df)
 
         expected_content = 'This is a dataset\nAdditional info\nSurvey\nImportant'
         assert content == expected_content
-        assert was_truncated is False
 
     def test_extract_readme_content_empty_dataframe(self, use_case_with_readme):
         """Test README content extraction with empty dataframe."""
         df = pd.DataFrame({'col1': [], 'col2': []})
 
-        content, was_truncated = use_case_with_readme._extract_readme_content(df)
+        content = use_case_with_readme._extract_readme_content(df)
 
         assert content is None
-        assert was_truncated is False
 
     def test_extract_readme_content_non_dataframe(self, use_case_with_readme):
         """Test README content extraction with non-DataFrame input."""
-        content, was_truncated = use_case_with_readme._extract_readme_content('not a dataframe')
+        content = use_case_with_readme._extract_readme_content('not a dataframe')
 
         assert content is None
-        assert was_truncated is False
 
     def test_process_readme_for_pii_success(self, use_case_with_readme, mock_llm_provider, mock_prompt_manager):
         """Test successful README PII processing."""
@@ -352,7 +348,7 @@ class TestReadmeScan:
         """Test README content extraction ignores very short strings."""
         df = pd.DataFrame({'col1': ['a', 'ab', 'abc', 'valid content'], 'col2': ['x', 'yz', '', 'more content']})
 
-        content, was_truncated = use_case_with_readme._extract_readme_content(df)
+        content = use_case_with_readme._extract_readme_content(df)
 
         # Should only include strings with length > 1
         # Note: 'a' is not included because it's length 1
@@ -361,58 +357,3 @@ class TestReadmeScan:
         assert 'yz' in content
         assert 'valid content' in content
         assert 'more content' in content
-        assert was_truncated is False
-
-    def test_extract_readme_content_truncation_by_chars(self, use_case_with_readme):
-        """Test README content truncation by character limit."""
-        # Create content that exceeds the character limit
-        long_content = ['x' * 100] * 60  # 6000 characters total
-        df = pd.DataFrame({'content': long_content})
-
-        content, was_truncated = use_case_with_readme._extract_readme_content(df, max_chars=1000, max_cells=200)
-
-        # Content should be truncated
-        assert was_truncated is True
-        assert content is not None
-        assert len(content) <= 1000  # Should be under the character limit
-
-    def test_extract_readme_content_truncation_by_cells(self, use_case_with_readme):
-        """Test README content truncation by cell limit."""
-        # Create many small cells
-        many_cells = ['cell' + str(i) for i in range(150)]  # 150 cells
-        df = pd.DataFrame({'data': many_cells})
-
-        content, was_truncated = use_case_with_readme._extract_readme_content(df, max_chars=10000, max_cells=50)
-
-        # Content should be truncated due to cell limit
-        assert was_truncated is True
-        assert content is not None
-        # Should contain at most 50 cells worth of content
-        lines = content.split('\n')
-        assert len(lines) <= 50
-
-    def test_extract_readme_content_no_truncation(self, use_case_with_readme):
-        """Test README content without truncation."""
-        df = pd.DataFrame({'data': ['short', 'content']})
-
-        content, was_truncated = use_case_with_readme._extract_readme_content(df, max_chars=1000, max_cells=10)
-
-        # Should not be truncated
-        assert was_truncated is False
-        assert content == 'short\ncontent'
-
-    def test_process_readme_for_pii_with_truncation(self, use_case_with_readme, mock_llm_provider, mock_prompt_manager):
-        """Test README PII processing with truncated content."""
-        readme_content = 'Short content'
-
-        mock_llm_provider.generate_json.return_value = (
-            {'contains_pii': False, 'pii_types': [], 'evidence': []},
-            10,
-            20,
-        )
-
-        result = use_case_with_readme._process_readme_for_pii(readme_content, was_truncated=True)
-
-        assert result['contains_pii'] is False
-        assert result['was_truncated'] is True
-        assert 'was_truncated' in result
