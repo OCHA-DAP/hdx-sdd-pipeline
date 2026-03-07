@@ -165,7 +165,7 @@ class ProcessDatasetUseCase:
 
         # Process README content for PII if README scanning is enabled
         if self.readme_llm is not None:
-            logger.info(f"Processing README content for PII detection")
+            logger.info(f'Processing README content for PII detection')
             try:
                 # Extract README content from dataframe
                 readme_content = self._extract_readme_content(df)
@@ -181,21 +181,21 @@ class ProcessDatasetUseCase:
                     # Update sensitivity flags based on README PII detection
                     if result.get('contains_pii', False):
                         report.personal_data_sensitive = True
-                        logger.info(f"PII detected in README: {result.get('pii_types', [])}")
+                        logger.info(f'PII detected in README: {result.get("pii_types", [])}')
                     else:
-                        logger.info("No PII detected in README")
+                        logger.info('No PII detected in README')
 
                     # Set model name
                     report.readme_model = self.readme_llm.model_name
 
                 else:
-                    logger.warning("No readable content found in README sheet")
+                    logger.warning('No readable content found in README sheet')
 
             except Exception as e:
-                logger.error(f"Failed to process README for PII: {e}")
-                report.readme_model = f"error: {str(e)}"
+                logger.error(f'Failed to process README for PII: {e}')
+                report.readme_model = f'error: {str(e)}'
         else:
-            logger.info("README scanning disabled - skipping PII analysis")
+            logger.info('README scanning disabled - skipping PII analysis')
 
         return report
 
@@ -559,7 +559,7 @@ class ProcessDatasetUseCase:
             import pandas as pd
 
             if not isinstance(df, pd.DataFrame):
-                logger.warning("README sheet is not a pandas DataFrame")
+                logger.warning('README sheet is not a pandas DataFrame')
                 return None
 
             # Combine all non-null values into a single string
@@ -577,7 +577,7 @@ class ProcessDatasetUseCase:
                 return None
 
         except Exception as e:
-            logger.error(f"Failed to extract README content: {e}")
+            logger.error(f'Failed to extract README content: {e}')
             return None
 
     def _process_readme_for_pii(self, readme_content: str) -> Dict[str, Any]:
@@ -603,7 +603,7 @@ class ProcessDatasetUseCase:
 
             # Validate result structure
             if not isinstance(result, dict):
-                logger.error(f"README PII detection returned non-dict result: {result}")
+                logger.error(f'README PII detection returned non-dict result: {result}')
                 return {'contains_pii': False, 'pii_types': [], 'evidence': [], 'error': 'Invalid result format'}
 
             # Ensure required fields exist
@@ -613,10 +613,10 @@ class ProcessDatasetUseCase:
                 'evidence': result.get('evidence', []),
             }
 
-            logger.info(f"README PII analysis completed: contains_pii={validated_result['contains_pii']}")
+            logger.info(f'README PII analysis completed: contains_pii={validated_result["contains_pii"]}')
 
             return validated_result
 
         except Exception as e:
-            logger.error(f"Failed to process README for PII: {e}")
+            logger.error(f'Failed to process README for PII: {e}')
             return {'contains_pii': False, 'pii_types': [], 'evidence': [], 'error': str(e)}

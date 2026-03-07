@@ -71,7 +71,7 @@ class TestPipelineFactory:
         mock_data_loader.assert_called_once_with(max_rows=1000)
 
         # Verify all three LLM providers were created
-        assert mock_azure.call_count == 3
+        assert mock_azure.call_count == 4
 
         # Verify prompt manager was created
         mock_prompt_manager.assert_called_once_with(prompts_dir='src/prompts')
@@ -95,7 +95,7 @@ class TestPipelineFactory:
         _ = factory.create_pipeline()
 
         # Verify only 2 LLM providers were created (not PII detection)
-        assert mock_azure.call_count == 2
+        assert mock_azure.call_count == 3
 
     @patch('src.infrastructure.factories.pipeline_factory.SmartDataLoader')
     @patch('src.infrastructure.factories.pipeline_factory.AzureOpenAIProvider')
@@ -116,7 +116,7 @@ class TestPipelineFactory:
         _ = factory.create_pipeline()
 
         # Verify only 2 LLM providers were created (not PII reflection)
-        assert mock_azure.call_count == 2
+        assert mock_azure.call_count == 3
 
     @patch('src.infrastructure.factories.pipeline_factory.SmartDataLoader')
     @patch('src.infrastructure.factories.pipeline_factory.AzureOpenAIProvider')
@@ -135,7 +135,7 @@ class TestPipelineFactory:
         _ = factory.create_pipeline()
 
         # Verify only 2 LLM providers were created (not non-PII)
-        assert mock_azure.call_count == 2
+        assert mock_azure.call_count == 3
 
     @patch('src.infrastructure.factories.pipeline_factory.SmartDataLoader')
     @patch('src.infrastructure.factories.pipeline_factory.AzureOpenAIProvider')
@@ -145,6 +145,7 @@ class TestPipelineFactory:
         mock_config.PERSONAL_DATA_DETECTION = False
         mock_config.PERSONAL_DATA_REFLECTION = False
         mock_config.NON_PERSONAL_DATA_DETECTION = False
+        mock_config.README_SCAN = False
         factory = PipelineFactory(mock_config)
 
         # Setup mocks
@@ -236,7 +237,7 @@ class TestPipelineFactory:
         _ = factory.create_pipeline()
 
         # Verify all three LLM providers were created with different models
-        assert mock_azure.call_count == 3
+        assert mock_azure.call_count == 4
         calls = mock_azure.call_args_list
         assert calls[0][1]['model_name'] == 'gpt-4.1'
         assert calls[1][1]['model_name'] == 'gpt-4.1-mini'
