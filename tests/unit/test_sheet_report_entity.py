@@ -211,7 +211,7 @@ class TestSheetReport:
         result = report.to_dict()
 
         assert result['is_readme'] is True
-        assert result['readme'] == 'This is a README'
+        assert 'readme' not in result
 
     def test_from_dict_basic(self):
         """Test creating report from dictionary."""

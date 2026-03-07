@@ -165,7 +165,7 @@ class ProcessDatasetUseCase:
 
         # Process README content for PII if README scanning is enabled
         if self.readme_llm is not None:
-            logger.info(f'Processing README content for PII detection')
+            logger.info('Processing README content for PII detection')
             try:
                 # Extract README content from dataframe
                 readme_content = self._extract_readme_content(df)
@@ -174,14 +174,18 @@ class ProcessDatasetUseCase:
                     # Process with README PII detection
                     result = self._process_readme_for_pii(readme_content)
 
+                    # Update token counts
+                    report.completion_tokens += result.pop('completion_tokens', 0)
+                    report.prompt_tokens += result.pop('prompt_tokens', 0)
+
                     # Store results in report
                     report.readme_content = readme_content
                     report.readme_pii_result = result
 
                     # Update sensitivity flags based on README PII detection
-                    if result.get('contains_pii', False):
+                    if result.get('personal_data_sensitive', False):
                         report.personal_data_sensitive = True
-                        logger.info(f'PII detected in README: {result.get("pii_types", [])}')
+                        logger.info(f'PII detected in README: {result.get("personal_data_entities", [])}')
                     else:
                         logger.info('No PII detected in README')
 
@@ -618,19 +622,28 @@ class ProcessDatasetUseCase:
             # Validate result structure
             if not isinstance(result, dict):
                 logger.error(f'README PII detection returned non-dict result: {result}')
-                return {'contains_pii': False, 'pii_types': [], 'evidence': [], 'error': 'Invalid result format'}
+                return {
+                    'personal_data_sensitive': False,
+                    'personal_data_entities': [],
+                    'evidence': [],
+                    'error': 'Invalid result format',
+                }
 
             # Ensure required fields exist
             validated_result = {
-                'contains_pii': result.get('contains_pii', False),
-                'pii_types': result.get('pii_types', []),
+                'personal_data_sensitive': result.get('personal_data_sensitive', False),
+                'personal_data_entities': result.get('personal_data_entities', []),
                 'evidence': result.get('evidence', []),
+                'completion_tokens': comp_tokens,
+                'prompt_tokens': prompt_tokens,
             }
 
-            logger.info(f'README PII analysis completed: contains_pii={validated_result["contains_pii"]}')
+            logger.info(
+                f'README PII analysis completed: personal_data_sensitive={validated_result["personal_data_sensitive"]}'
+            )
 
             return validated_result
 
         except Exception as e:
             logger.error(f'Failed to process README for PII: {e}')
-            return {'contains_pii': False, 'pii_types': [], 'evidence': [], 'error': str(e)}
+            return {'personal_data_sensitive': False, 'personal_data_entities': [], 'evidence': [], 'error': str(e)}

@@ -123,8 +123,8 @@ class TestReadmeScan:
 
         mock_llm_provider.generate_json.return_value = (
             {
-                'contains_pii': True,
-                'pii_types': ['EMAIL_ADDRESS', 'PHONE_NUMBER'],
+                'personal_data_sensitive': True,
+                'personal_data_entities': ['EMAIL_ADDRESS', 'PHONE_NUMBER'],
                 'evidence': ['user@example.com', '555-1234'],
             },
             15,
@@ -133,9 +133,9 @@ class TestReadmeScan:
 
         result = use_case_with_readme._process_readme_for_pii(readme_content)
 
-        assert result['contains_pii'] is True
-        assert 'EMAIL_ADDRESS' in result['pii_types']
-        assert 'PHONE_NUMBER' in result['pii_types']
+        assert result['personal_data_sensitive'] is True
+        assert 'EMAIL_ADDRESS' in result['personal_data_entities']
+        assert 'PHONE_NUMBER' in result['personal_data_entities']
         assert 'user@example.com' in result['evidence']
         assert '555-1234' in result['evidence']
 
@@ -149,15 +149,15 @@ class TestReadmeScan:
         readme_content = 'This dataset contains only aggregated statistics'
 
         mock_llm_provider.generate_json.return_value = (
-            {'contains_pii': False, 'pii_types': [], 'evidence': []},
+            {'personal_data_sensitive': False, 'pii_types': [], 'evidence': []},
             10,
             20,
         )
 
         result = use_case_with_readme._process_readme_for_pii(readme_content)
 
-        assert result['contains_pii'] is False
-        assert result['pii_types'] == []
+        assert result['personal_data_sensitive'] is False
+        assert result['personal_data_entities'] == []
         assert result['evidence'] == []
 
     def test_process_readme_for_pii_invalid_result(self, use_case_with_readme, mock_llm_provider):
@@ -169,8 +169,8 @@ class TestReadmeScan:
 
         result = use_case_with_readme._process_readme_for_pii(readme_content)
 
-        assert result['contains_pii'] is False
-        assert result['pii_types'] == []
+        assert result['personal_data_sensitive'] is False
+        assert result['personal_data_entities'] == []
         assert result['evidence'] == []
         assert 'error' in result
 
@@ -182,8 +182,8 @@ class TestReadmeScan:
 
         result = use_case_with_readme._process_readme_for_pii(readme_content)
 
-        assert result['contains_pii'] is False
-        assert result['pii_types'] == []
+        assert result['personal_data_sensitive'] is False
+        assert result['personal_data_entities'] == []
         assert result['evidence'] == []
         assert 'error' in result
         assert 'API Error' in result['error']
@@ -195,8 +195,8 @@ class TestReadmeScan:
         # Mock the LLM response
         mock_llm_provider.generate_json.return_value = (
             {
-                'contains_pii': True,
-                'pii_types': ['EMAIL_ADDRESS', 'PHONE_NUMBER'],
+                'personal_data_sensitive': True,
+                'personal_data_entities': ['EMAIL_ADDRESS', 'PHONE_NUMBER'],
                 'evidence': ['john@example.com', '555-1234'],
             },
             15,
@@ -212,7 +212,7 @@ class TestReadmeScan:
         assert report.readme_content is not None
         assert 'john@example.com' in report.readme_content
         assert '555-1234' in report.readme_content
-        assert report.readme_pii_result['contains_pii'] is True
+        assert report.readme_pii_result['personal_data_sensitive'] is True
         assert report.readme_model == 'test-readme-model'
 
     def test_create_readme_report_no_pii(self, use_case_with_readme, mock_llm_provider):
@@ -225,7 +225,7 @@ class TestReadmeScan:
         )
 
         mock_llm_provider.generate_json.return_value = (
-            {'contains_pii': False, 'pii_types': [], 'evidence': []},
+            {'personal_data_sensitive': False, 'pii_types': [], 'evidence': []},
             10,
             20,
         )
@@ -236,7 +236,7 @@ class TestReadmeScan:
 
         assert report.is_readme is True
         assert report.personal_data_sensitive is False
-        assert report.readme_pii_result['contains_pii'] is False
+        assert report.readme_pii_result['personal_data_sensitive'] is False
 
     def test_create_readme_report_no_llm(self, use_case_with_readme):
         """Test creating README report when README scanning is disabled."""
@@ -290,7 +290,7 @@ class TestReadmeScan:
         mock_data_loader.load_from_file.return_value = {'README': readme_df, 'Data': data_df}
         mock_data_loader.sample_dataframe.return_value = {'Name': ['John', '', '', '', '']}
         mock_llm_provider.generate_json.return_value = (
-            {'contains_pii': True, 'pii_types': ['EMAIL_ADDRESS'], 'evidence': ['admin@example.com']},
+            {'personal_data_sensitive': True, 'pii_types': ['EMAIL_ADDRESS'], 'evidence': ['admin@example.com']},
             15,
             25,
         )
@@ -313,7 +313,7 @@ class TestReadmeScan:
 
         mock_data_loader.load_from_file.return_value = {'README': readme1_df, 'Instructions': readme2_df}
         mock_llm_provider.generate_json.return_value = (
-            {'contains_pii': False, 'pii_types': [], 'evidence': []},
+            {'personal_data_sensitive': False, 'pii_types': [], 'evidence': []},
             10,
             20,
         )

@@ -14,9 +14,9 @@ Personal Data includes (but is not limited to):
 Return your analysis strictly in this JSON format:
 
 {
-  "contains_personal_data": true/false,
-  "personal_data_types": [ list of detected personal data types, e.g., "email", "phone number" ],
-  "evidence": [ exact substrings that contain personal data ]
+  "personal_data_sensitive": true/false,
+  "personal_data_entities": [ list of detected PII types, e.g., "email", "phone number" ],
+  "evidence": [ exact substrings that contain PII ]
 }
 
 Text to analyze:
