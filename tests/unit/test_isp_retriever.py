@@ -247,7 +247,7 @@ def test_match_country_afghanistan_only_in_title():
     country_mapping = {}
 
     # Simulate text that contains 'Afghanistan' only in the source title
-    text_with_afghanistan = "This is a data source about Afghanistan"
+    text_with_afghanistan = 'This is a data source about Afghanistan'
 
     result = retriever.match_country(text_with_afghanistan, isps, country_mapping)
     assert result == {'country': 'Afghanistan', 'rule': 'custom'}
