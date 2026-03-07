@@ -13,7 +13,7 @@ import json
 import logging
 import argparse
 from pathlib import Path
-from typing import List
+from typing import List, Optional
 from dotenv import load_dotenv
 
 # Import from clean architecture
@@ -27,17 +27,20 @@ logger = logging.getLogger(__name__)
 load_dotenv()
 
 
-def setup_event_processor(model_name: str) -> EventProcessor:
+def setup_event_processor(model_name: str, custom_output_path: Optional[str] = None) -> EventProcessor:
     """
-    Setup the EventProcessor with the specified model.
+    Setup the EventProcessor with the specified model and custom output path.
 
     Args:
         model_name: Name of the model to use for all LLM tasks
+        custom_output_path: Custom path for output files (optional)
 
     Returns:
         Configured EventProcessor
     """
     print(f'Setting up EventProcessor with model: {model_name}')
+    if custom_output_path:
+        print(f'Custom output path: {custom_output_path}')
 
     # Initialize config
     config = get_config()
@@ -55,8 +58,8 @@ def setup_event_processor(model_name: str) -> EventProcessor:
     # Disable CKAN updates for batch processing
     config.CKAN_UPDATE = False
 
-    # Create EventProcessor
-    event_processor = EventProcessor()
+    # Create EventProcessor with custom output path
+    event_processor = EventProcessor(custom_output_path=custom_output_path)
 
     print('EventProcessor setup complete!')
     return event_processor
@@ -138,7 +141,7 @@ def process_dataset(
     print(f'📊 Processing: {dataset_name}')
 
     try:
-        # Create event for EventProcessor
+        # Create event for EventProcessor with custom output path
         event = {
             'resource_id': dataset_name,
             'download_url': str(source_file),
@@ -146,32 +149,25 @@ def process_dataset(
             'event_type': 'batch-processing',
         }
 
+        # Set custom output path for this specific dataset
+        event_processor.custom_output_path = output_file
+
         # Process using EventProcessor
         success, message = event_processor.process_event(event)
 
         if success:
-            # Move the generated report to the expected output location
-            # EventProcessor saves to dev_reports/dev.json when CKAN_UPDATE is disabled
-            dev_report_file = Path('dev_reports/dev.json')
-            if dev_report_file.exists():
-                # Read the report and save to our output location
-                with dev_report_file.open('r', encoding='utf-8') as f:
+            # Verify the output file was created
+            if output_file.exists():
+                # Read the report to log summary
+                with output_file.open('r', encoding='utf-8') as f:
                     report_data = json.load(f)
 
-                # Save to our output location
-                output_file.parent.mkdir(parents=True, exist_ok=True)
-                with output_file.open('w', encoding='utf-8') as f:
-                    json.dump(report_data['sdd_report'], f, indent=2, ensure_ascii=False)
-
-                # Log summary
-                reports = report_data['sdd_report']
+                # Extract sdd_report for summary
+                reports = report_data.get('sdd_report', [])
                 sensitive_sheets = sum(
                     1 for r in reports if r.get('personal_data_sensitive') or r.get('non_personal_data_sensitive')
                 )
                 print(f'✅ Completed {dataset_name}: {len(reports)} sheets, {sensitive_sheets} sensitive')
-
-                # Clean up dev file
-                dev_report_file.unlink()
             else:
                 logger.error(f'❌ No report generated for {dataset_name}')
                 return False
@@ -192,16 +188,31 @@ def main():
     parser.add_argument('--model', type=str, required=True, help='Model name to use (e.g., gpt-4.1, gpt-5-nano)')
     parser.add_argument('--skip-existing', action='store_true', help='Skip datasets that already have results')
     parser.add_argument('--limit', type=int, default=None, help='Limit number of datasets to process (for testing)')
+    parser.add_argument('--output-path', type=str, default=None, help='Custom output path for results')
 
     args = parser.parse_args()
 
     print('=' * 70)
     print(f'Batch Processing with Model: {args.model}')
+    if args.output_path:
+        print(f'Output Path: {args.output_path}')
     print('=' * 70)
     print()
 
-    # Setup EventProcessor
-    event_processor = setup_event_processor(args.model)
+    # Setup output directory
+    if args.output_path:
+        output_dir = Path(args.output_path)
+        if output_dir.suffix:
+            # If it's a file path, use its parent as directory
+            output_dir = output_dir.parent
+    else:
+        # Default output directory
+        output_dir = Path(f'research/results/test_results/{args.model}')
+
+    output_dir.mkdir(parents=True, exist_ok=True)
+
+    # Setup EventProcessor with custom output path
+    event_processor = setup_event_processor(args.model, str(output_dir))
 
     # Get list of datasets
     datasets = get_groundtruth_datasets()
@@ -214,10 +225,6 @@ def main():
     if args.limit:
         datasets = datasets[: args.limit]
         print(f'Limited to first {args.limit} datasets')
-
-    # Setup output directory
-    output_dir = Path(f'research/results/test_results/{args.model}')
-    output_dir.mkdir(parents=True, exist_ok=True)
 
     # Process each dataset
     total = len(datasets)

@@ -53,7 +53,7 @@ class EventProcessor:
         self.isp_retriever = ISPRetriever()
 
         # Setup CKAN client if CKAN_UPDATE is enabled
-        if self.config.CKAN_UPDATE:
+        if self.config.CKAN_UPDATE and self.custom_output_path is None:
             self.ckan = CKANClient(base_url=self.config.HDX_URL, api_token=self.config.HDX_KEY)
             logger.info('CKAN client initialized')
         else:
@@ -111,7 +111,7 @@ class EventProcessor:
             reports = self.pipeline.execute(
                 source=download_url,
                 resource_id=resource_id,
-                is_url=True,
+                is_url=True if self.custom_output_path is None else False,
                 isp_rules=isp_rules,
                 http_headers=http_headers,
             )
