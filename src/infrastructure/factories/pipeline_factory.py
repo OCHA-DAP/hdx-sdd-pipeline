@@ -60,6 +60,7 @@ class PipelineFactory:
         pii_llm = self._create_pii_llm() if self.config.PERSONAL_DATA_DETECTION else None
         pii_reflection_llm = self._create_pii_reflection_llm() if self.config.PERSONAL_DATA_REFLECTION else None
         non_pii_llm = self._create_non_pii_llm() if self.config.NON_PERSONAL_DATA_DETECTION else None
+        readme_llm = self._create_readme_llm() if self.config.README_SCAN else None
 
         # Create prompt manager
         prompt_manager = PromptManager(prompts_dir='src/prompts')
@@ -70,6 +71,7 @@ class PipelineFactory:
             pii_llm_provider=pii_llm,
             pii_reflection_llm_provider=pii_reflection_llm,
             non_pii_llm_provider=non_pii_llm,
+            readme_llm_provider=readme_llm,
             prompt_manager=prompt_manager,
             sample_size=sample_size,
         )
@@ -100,6 +102,15 @@ class PipelineFactory:
         logger.debug(f'Creating non-PII detection LLM: {self.config.NON_PII_DETECT_MODEL}')
         return AzureOpenAIProvider(
             model_name=self.config.NON_PII_DETECT_MODEL,
+            azure_endpoint=self.config.AZURE_OPENAI_ENDPOINT,
+            api_key=self.config.AZURE_OPENAI_API_KEY,
+        )
+
+    def _create_readme_llm(self) -> Optional[AzureOpenAIProvider]:
+        """Create README scan LLM provider."""
+        logger.debug(f'Creating README scan LLM: {self.config.README_SCAN_MODEL}')
+        return AzureOpenAIProvider(
+            model_name=self.config.README_SCAN_MODEL,
             azure_endpoint=self.config.AZURE_OPENAI_ENDPOINT,
             api_key=self.config.AZURE_OPENAI_API_KEY,
         )
