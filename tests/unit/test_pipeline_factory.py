@@ -70,7 +70,7 @@ class TestPipelineFactory:
         # Verify data loader was created
         mock_data_loader.assert_called_once_with(max_rows=1000)
 
-        # Verify all three LLM providers were created
+        # Verify all four LLM providers were created
         assert mock_azure.call_count == 4
 
         # Verify prompt manager was created
@@ -94,7 +94,7 @@ class TestPipelineFactory:
         # Create pipeline
         _ = factory.create_pipeline()
 
-        # Verify only 2 LLM providers were created (not PII detection)
+        # Verify only 3 LLM providers were created (not PII detection)
         assert mock_azure.call_count == 3
 
     @patch('src.infrastructure.factories.pipeline_factory.SmartDataLoader')
@@ -115,7 +115,7 @@ class TestPipelineFactory:
         # Create pipeline
         _ = factory.create_pipeline()
 
-        # Verify only 2 LLM providers were created (not PII reflection)
+        # Verify only 3 LLM providers were created (not PII reflection)
         assert mock_azure.call_count == 3
 
     @patch('src.infrastructure.factories.pipeline_factory.SmartDataLoader')
@@ -134,7 +134,7 @@ class TestPipelineFactory:
         # Create pipeline
         _ = factory.create_pipeline()
 
-        # Verify only 2 LLM providers were created (not non-PII)
+        # Verify only 3 LLM providers were created (not non-PII)
         assert mock_azure.call_count == 3
 
     @patch('src.infrastructure.factories.pipeline_factory.SmartDataLoader')
@@ -236,7 +236,7 @@ class TestPipelineFactory:
         # Create pipeline
         _ = factory.create_pipeline()
 
-        # Verify all three LLM providers were created with different models
+        # Verify all four LLM providers were created with different models
         assert mock_azure.call_count == 4
         calls = mock_azure.call_args_list
         assert calls[0][1]['model_name'] == 'gpt-4.1'

@@ -180,7 +180,7 @@ class ProcessDatasetUseCase:
 
                     # Store results in report
                     report.readme_content = readme_content
-                    report.readme_pii_result = result
+                    report.readme_report = result
 
                     # Update sensitivity flags based on README PII detection
                     if result.get('personal_data_sensitive', False):
