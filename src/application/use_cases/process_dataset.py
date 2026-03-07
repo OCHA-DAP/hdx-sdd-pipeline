@@ -165,59 +165,35 @@ class ProcessDatasetUseCase:
 
         # Process README content for PII if README scanning is enabled
         if self.readme_llm is not None:
-            logger.info('Processing README content for PII detection')
+            logger.info(f'Processing README content for PII detection')
             try:
                 # Extract README content from dataframe
-                readme_content, was_truncated = self._extract_readme_content(df)
+                readme_content = self._extract_readme_content(df)
 
                 if readme_content:
-                    # Check if content is too long for LLM analysis
-                    if len(readme_content) > 10000:
-                        logger.warning(
-                            f'README content too long for analysis ({len(readme_content)} chars > 5000 limit)'
-                        )
-                        # Store content but mark as too long for analysis
-                        report.readme_content = readme_content
-                        report.readme_pii_result = {
-                            'contains_pii': False,
-                            'pii_types': [],
-                            'evidence': [],
-                            'was_truncated': True,
-                            'error': 'Content too long for analysis (exceeds 10000 character limit)',
-                        }
-                        report.readme_model = 'skipped - content too long'
-                        logger.info('README analysis skipped due to length limit')
+                    # Process with README PII detection
+                    result = self._process_readme_for_pii(readme_content)
+
+                    # Store results in report
+                    report.readme_content = readme_content
+                    report.readme_pii_result = result
+
+                    # Update sensitivity flags based on README PII detection
+                    if result.get('contains_pii', False):
+                        report.personal_data_sensitive = True
+                        logger.info(f'PII detected in README: {result.get("pii_types", [])}')
                     else:
-                        # Process with README PII detection
-                        result = self._process_readme_for_pii(readme_content, was_truncated)
+                        logger.info('No PII detected in README')
 
-                        # Store results in report
-                        report.readme_content = readme_content
-                        report.readme_pii_result = result
-
-                        # Update sensitivity flags based on README PII detection
-                        if result.get('contains_pii', False):
-                            report.personal_data_sensitive = True
-                            logger.info(f'PII detected in README: {result.get("pii_types", [])}')
-                        else:
-                            logger.info('No PII detected in README')
-
-                        # Set model name
-                        report.readme_model = self.readme_llm.model_name
+                    # Set model name
+                    report.readme_model = self.readme_llm.model_name
 
                 else:
                     logger.warning('No readable content found in README sheet')
-                    report.readme_pii_result = {
-                        'contains_pii': False,
-                        'pii_types': [],
-                        'evidence': [],
-                        'error': 'No readable content found',
-                    }
 
             except Exception as e:
                 logger.error(f'Failed to process README for PII: {e}')
                 report.readme_model = f'error: {str(e)}'
-                report.readme_pii_result = {'contains_pii': False, 'pii_types': [], 'evidence': [], 'error': str(e)}
         else:
             logger.info('README scanning disabled - skipping PII analysis')
 
@@ -562,7 +538,7 @@ class ProcessDatasetUseCase:
             logger.warning('pandas not available - returning simple table context')
             return report.sheet_name
 
-            # Generate markdown table
+        # Build column samples dict with PII entity types in headers
         column_samples = {}
         for col in report.columns:
             # Add entity type to column name if PII detected
@@ -572,29 +548,36 @@ class ProcessDatasetUseCase:
                 key = col.name
             column_samples[key] = col.sample_values
 
-        return pd.DataFrame(column_samples).to_markdown(index=False) or ''
+        # Pad all columns to same length
+        if column_samples:
+            max_len = max(len(values) for values in column_samples.values())
+            for key, values in column_samples.items():
+                column_samples[key] = values + [''] * (max_len - len(values))
 
-    def _extract_readme_content(self, df: Any) -> tuple[Optional[str], bool]:
+            # Generate markdown table
+            return pd.DataFrame(column_samples).to_markdown(index=False) or ''
+
+        return ''
+
+    def _extract_readme_content(self, df: Any) -> Optional[str]:
         """
-        Extract all text content from README sheet.
+        Extract readable content from README dataframe.
 
         Args:
             df: README sheet dataframe
 
         Returns:
-            Tuple of (content, was_truncated) where content is combined text or None,
-            and was_truncated is always False (no truncation performed)
+            Combined text content from all cells, or None if no content found
         """
         try:
             import pandas as pd
 
             if not isinstance(df, pd.DataFrame):
                 logger.warning('README sheet is not a pandas DataFrame')
-                return None, False
+                return None
 
             # Combine all non-null values into a single string
             content_parts = []
-
             for column in df.columns:
                 for value in df[column].dropna():
                     # Convert to string and skip if empty or just whitespace
@@ -603,23 +586,20 @@ class ProcessDatasetUseCase:
                         content_parts.append(str_value)
 
             if content_parts:
-                content = '\n'.join(content_parts)
-                logger.debug('README content extracted: %d cells, %d chars', len(content_parts), len(content))
-                return content, False
+                return '\n'.join(content_parts)
             else:
-                return None, False
+                return None
 
         except Exception as e:
-            logger.error('Failed to extract README content: %s', e)
-            return None, False
+            logger.error(f'Failed to extract README content: {e}')
+            return None
 
-    def _process_readme_for_pii(self, readme_content: str, was_truncated: bool = False) -> Dict[str, Any]:
+    def _process_readme_for_pii(self, readme_content: str) -> Dict[str, Any]:
         """
         Process README content for PII detection using the readme_scan template.
 
         Args:
             readme_content: Text content from README sheet
-            was_truncated: Whether the content was truncated during extraction
 
         Returns:
             PII detection result dictionary
@@ -637,7 +617,7 @@ class ProcessDatasetUseCase:
 
             # Validate result structure
             if not isinstance(result, dict):
-                logger.error('README PII detection returned non-dict result: %s', result)
+                logger.error(f'README PII detection returned non-dict result: {result}')
                 return {'contains_pii': False, 'pii_types': [], 'evidence': [], 'error': 'Invalid result format'}
 
             # Ensure required fields exist
@@ -645,12 +625,12 @@ class ProcessDatasetUseCase:
                 'contains_pii': result.get('contains_pii', False),
                 'pii_types': result.get('pii_types', []),
                 'evidence': result.get('evidence', []),
-                'was_truncated': was_truncated,
             }
-            logger.info('README PII analysis completed: contains_pii=%s', validated_result['contains_pii'])
+
+            logger.info(f'README PII analysis completed: contains_pii={validated_result["contains_pii"]}')
 
             return validated_result
 
         except Exception as e:
-            logger.error('Failed to process README for PII: %s', e)
+            logger.error(f'Failed to process README for PII: {e}')
             return {'contains_pii': False, 'pii_types': [], 'evidence': [], 'error': str(e)}
