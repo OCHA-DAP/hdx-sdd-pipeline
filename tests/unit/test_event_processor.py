@@ -1,5 +1,4 @@
 import pytest
-import json
 from unittest.mock import MagicMock, patch, mock_open
 from src.event_processor import EventProcessor
 from src.domain.entities.sheet_report import SheetReport
@@ -72,7 +71,7 @@ def test_process_event_no_download_url(mock_config, mock_pipeline_factory, mock_
 def test_process_event_success(mock_config, mock_pipeline_factory, mock_ckan_client):
     processor = EventProcessor()
     processor.ckan.resource_show.return_value = {'download_url': 'http://example.com/data.csv'}
-    processor._get_isp_rules = MagicMock(return_value={})
+    processor.isp_retriever.get_isp_rules = MagicMock(return_value={})
     processor.pipeline.execute.return_value = []
     processor._save_to_ckan = MagicMock()
 
@@ -94,50 +93,6 @@ def test_process_event_exception(mock_config, mock_pipeline_factory):
     success, message = processor.process_event(event)
     assert not success
     assert 'Processing failed' in message
-
-
-def test_get_isp_rules_default(mock_config, mock_pipeline_factory):
-    processor = EventProcessor()
-    mock_isps = {'default': {'rule': 'default_rule'}}
-    with patch('builtins.open', mock_open(read_data=json.dumps(mock_isps))):
-        rules = processor._get_isp_rules(None)
-    assert rules == {'rule': 'default_rule'}
-
-
-def test_get_isp_rules_country_match(mock_config, mock_pipeline_factory, mock_ckan_client):
-    processor = EventProcessor()
-    mock_isps = {'default': {'rule': 'default'}, 'some_isp': {'country': 'testland', 'rule': 'custom'}}
-
-    processor.ckan.package_show.return_value = {'solr_additions': json.dumps({'countries': ['testland']})}
-
-    with patch('builtins.open', mock_open(read_data=json.dumps(mock_isps))):
-        rules = processor._get_isp_rules('pkg123')
-
-    assert rules == {'country': 'testland', 'rule': 'custom'}
-
-
-def test_get_isp_rules_country_match_string(mock_config, mock_pipeline_factory, mock_ckan_client):
-    processor = EventProcessor()
-    mock_isps = {'default': {'rule': 'default'}, 'some_isp': {'country': 'testland', 'rule': 'custom'}}
-
-    processor.ckan.package_show.return_value = {'solr_additions': json.dumps({'countries': 'testland'})}
-
-    with patch('builtins.open', mock_open(read_data=json.dumps(mock_isps))):
-        rules = processor._get_isp_rules('pkg123')
-
-    assert rules == {'country': 'testland', 'rule': 'custom'}
-
-
-def test_get_isp_rules_no_country_match(mock_config, mock_pipeline_factory, mock_ckan_client):
-    processor = EventProcessor()
-    mock_isps = {'default': {'rule': 'default'}, 'some_isp': {'country': 'testland', 'rule': 'custom'}}
-
-    processor.ckan.package_show.return_value = {'solr_additions': json.dumps({'countries': ['otherland']})}
-
-    with patch('builtins.open', mock_open(read_data=json.dumps(mock_isps))):
-        rules = processor._get_isp_rules('pkg123')
-
-    assert rules == {'rule': 'default'}
 
 
 def test_determine_sensitivity_sensitive(mock_config, mock_pipeline_factory):
@@ -186,78 +141,3 @@ def test_report_exists_exception(mock_config, mock_pipeline_factory, mock_ckan_c
     processor = EventProcessor()
     processor.ckan.resource_show.side_effect = Exception('DB Error')
     assert processor._report_exists('123') is False
-
-
-def test_get_isp_rules_ckan_disabled(mock_config, mock_pipeline_factory):
-    mock_config.CKAN_UPDATE = False
-    processor = EventProcessor()
-
-    mock_isps = {'default': {'rule': 'default_rule'}}
-
-    with patch('builtins.open', mock_open(read_data=json.dumps(mock_isps))):
-        rules = processor._get_isp_rules('pkg123')
-
-    assert rules == {'rule': 'default_rule'}
-
-
-def test_get_isp_rules_file_error(mock_config, mock_pipeline_factory):
-    processor = EventProcessor()
-    with patch('builtins.open', side_effect=Exception('File not found')):
-        rules = processor._get_isp_rules(None)
-    assert rules == {}
-
-
-def test_get_isp_rules_default_exception(mock_config, mock_pipeline_factory):
-    processor = EventProcessor()
-    # Mock open to raise exception
-    with patch('builtins.open', side_effect=Exception('File error')):
-        rules = processor._get_isp_rules(None)
-    assert rules == {}
-
-
-def test_get_isp_rules_ckan_disabled_exception(mock_config, mock_pipeline_factory):
-    mock_config.CKAN_UPDATE = False
-    processor = EventProcessor()
-    with patch('builtins.open', side_effect=Exception('File error')):
-        rules = processor._get_isp_rules(None)
-    assert rules == {}
-
-
-def test_get_isp_rules_general_exception(mock_config, mock_pipeline_factory, mock_ckan_client):
-    processor = EventProcessor()
-    # Should fallback to default/other checks but if file load fails or something else
-    # Here checking if CKAN error is handled.
-    # With new logic, if CKAN fails, it logs warning and continues to check resource_name (which is None here)
-    # Then returns default.
-
-    mock_isps = {'default': {'rule': 'default'}}
-    with patch('builtins.open', mock_open(read_data=json.dumps(mock_isps))):
-        rules = processor._get_isp_rules('pkg123')
-
-    assert rules == {'rule': 'default'}
-
-
-def test_get_isp_rules_resource_name_fallback(mock_config, mock_pipeline_factory, mock_ckan_client):
-    processor = EventProcessor()
-    mock_isps = {'default': {'rule': 'default'}, 'some_isp': {'country': 'testland', 'rule': 'custom'}}
-
-    # CKAN returns no country info
-    processor.ckan.package_show.return_value = {'solr_additions': json.dumps({'countries': []})}
-
-    with patch('builtins.open', mock_open(read_data=json.dumps(mock_isps))):
-        # Pass resource name that contains 'testland'
-        rules = processor._get_isp_rules('pkg123', 'dataset_testland_2023.csv')
-
-    assert rules == {'country': 'testland', 'rule': 'custom'}
-
-
-def test_get_isp_rules_ckan_disabled_fallback(mock_config, mock_pipeline_factory):
-    mock_config.CKAN_UPDATE = False
-    processor = EventProcessor()
-
-    mock_isps = {'default': {'rule': 'default'}, 'some_isp': {'country': 'testland', 'rule': 'custom'}}
-
-    with patch('builtins.open', mock_open(read_data=json.dumps(mock_isps))):
-        rules = processor._get_isp_rules(None, 'dataset_testland.csv')
-
-    assert rules == {'country': 'testland', 'rule': 'custom'}

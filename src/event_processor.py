@@ -14,6 +14,7 @@ from dotenv import load_dotenv
 
 from src.infrastructure.factories import PipelineFactory
 from src.domain.entities import SheetReport
+from src.shared.utils.isp_retrieval import ISPRetriever
 
 # Legacy imports for CKAN and Redis (to be refactored later)
 from src.shared.utils.ckan import CKANClient
@@ -44,6 +45,9 @@ class EventProcessor:
         # Create pipeline using factory
         factory = PipelineFactory(self.config)
         self.pipeline = factory.create_pipeline(sample_size=5)
+
+        # Initialize ISP retriever
+        self.isp_retriever = ISPRetriever()
 
         # Setup CKAN client if CKAN_UPDATE is enabled
         if self.config.CKAN_UPDATE:
@@ -96,13 +100,16 @@ class EventProcessor:
 
             # Get dataset location for ISP rules
             package_id = event.get('package_id')
-            isp_rules = self._get_isp_rules(package_id, resource_name)
+            isp_rules = self.isp_retriever.get_isp_rules(package_id, resource_name, self.ckan)
 
             # Process dataset using our use case
             logger.info(f'Processing dataset from: {download_url}')
             http_headers = self.ckan.headers if self.ckan else {}
             reports = self.pipeline.execute(
-                source=download_url, resource_id=resource_id, is_url=True, isp_rules=isp_rules,
+                source=download_url,
+                resource_id=resource_id,
+                is_url=True,
+                isp_rules=isp_rules,
                 http_headers=http_headers,
             )
 
@@ -129,96 +136,6 @@ class EventProcessor:
             return 'sdd_report' in resource and resource['sdd_report']
         except Exception:
             return False
-
-    def _get_isp_rules(self, package_id: str, resource_name: Optional[str] = None) -> Dict[str, Any]:
-        """
-        Get ISP rules based on dataset location or resource name.
-
-        1. Try to match country from package location (CKAN).
-        2. If that fails or yields default, try to match country from resource name.
-        3. Fallback to default.
-        """
-        try:
-            with open('data/isps.json', 'r', encoding='utf-8') as f:
-                isps = json.load(f)
-        except Exception as e:
-            logger.error(f'Failed to load ISP rules file: {e}')
-            return {}
-
-        default_isp = isps.get('default', {})
-
-        # Build country partial mapping for robust matching
-        country_mapping = {}
-        for isp_name, isp_data in isps.items():
-            country_filter = isp_data.get('country', '')
-            if country_filter and country_filter != 'default':
-                # Create partial mappings (first 3-4 chars)
-                if len(country_filter) >= 3:
-                    partial = country_filter[:3].lower()
-                    country_mapping[partial] = country_filter
-                if len(country_filter) >= 4:
-                    partial = country_filter[:4].lower()
-                    country_mapping[partial] = country_filter
-
-        def match_country(text: str) -> Optional[Dict[str, Any]]:
-            """Helper function to match country in text using partial mapping."""
-            if not text:
-                return None
-
-            text_lower = text.lower()
-
-            # First try direct ISP country filter matching
-            for isp_name, isp_data in isps.items():
-                country_filter = isp_data.get('country', '')
-                if country_filter and country_filter.lower() in text_lower:
-                    logger.info(f'Using ISP: {isp_name} (matched: {country_filter} in {text})')
-                    return isp_data
-
-            # Then try partial mapping
-            for partial, full_country in country_mapping.items():
-                if partial in text_lower:
-                    # Find the ISP that matches this full country
-                    for isp_name, isp_data in isps.items():
-                        if isp_data.get('country', '').lower() == full_country.lower():
-                            logger.info(
-                                f'Using ISP: {isp_name} (matched partial: {partial} -> {full_country} in {text})'
-                            )
-                            return isp_data
-
-            return None
-
-        # 1. Try Package ID (Dataset Location) if available
-        if package_id and self.ckan:
-            try:
-                # Get package info
-                package = self.ckan.package_show(package_id)
-                solr_additions = package.get('solr_additions', {})
-
-                if isinstance(solr_additions, str):
-                    solr_additions = json.loads(solr_additions)
-
-                countries = solr_additions.get('countries', [])
-
-                if countries:
-                    if isinstance(countries, str):
-                        countries = [countries]
-
-                    for country in countries:
-                        matched_isp = match_country(country)
-                        if matched_isp:
-                            return matched_isp
-            except Exception as e:
-                logger.warning('Failed to get location from CKAN: %s', e)
-
-        # 2. Try Resource Name (Filename) with partial matching
-        if resource_name:
-            matched_isp = match_country(resource_name)
-            if matched_isp:
-                return matched_isp
-
-        # 3. Default
-        logger.info('No specific ISP found - using ISP: default')
-        return default_isp
 
     def _determine_sensitivity(self, reports: list) -> str:
         """Determine overall sensitivity from reports."""
