@@ -165,7 +165,7 @@ class ProcessDatasetUseCase:
 
         # Process README content for PII if README scanning is enabled
         if self.readme_llm is not None:
-            logger.info(f'Processing README content for PII detection')
+            logger.info('Processing README content for PII detection')
             try:
                 # Extract README content from dataframe
                 readme_content = self._extract_readme_content(df)
