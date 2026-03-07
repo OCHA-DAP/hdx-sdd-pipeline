@@ -35,12 +35,15 @@ class EventProcessor:
     clean architecture use cases.
     """
 
-    def __init__(self):
+    def __init__(self, custom_output_path: Optional[str] = None):
         """Initialize event processor with all dependencies."""
         logger.info('Initializing Event Processor...')
 
         # Load configuration
         self.config = get_config()
+
+        # Set custom output path if provided
+        self.custom_output_path = Path(custom_output_path) if custom_output_path else None
 
         # Create pipeline using factory
         factory = PipelineFactory(self.config)
@@ -177,11 +180,23 @@ class EventProcessor:
         logger.info(f'Saved report to CKAN for resource {resource_id}')
 
     def _save_to_local_file(self, resource_id: str, reports_dict: list, sensitivity: str):
-        """Save report to local dev.json file for testing."""
+        """Save report to local file with configurable output path."""
 
-        # Create output directory if it doesn't exist
-        output_dir = Path('dev_reports')
-        output_dir.mkdir(exist_ok=True)
+        # Determine output directory and filename
+        if self.custom_output_path:
+            # Use custom output path
+            if self.custom_output_path.is_dir():
+                # If it's a directory, save as resource_id.json
+                output_file = self.custom_output_path / f'{resource_id}.json'
+            else:
+                # If it's a file path, use it directly
+                output_file = self.custom_output_path
+            output_file.parent.mkdir(parents=True, exist_ok=True)
+        else:
+            # Fallback to default dev_reports directory
+            output_dir = Path('dev_reports')
+            output_dir.mkdir(exist_ok=True)
+            output_file = output_dir / 'dev.json'
 
         # Create report structure
         report_data = {
@@ -191,10 +206,7 @@ class EventProcessor:
             'sdd_report': reports_dict,
         }
 
-        # Save to dev.json
-        output_file = output_dir / 'dev.json'
-
-        # Save updated data
+        # Save report
         with open(output_file, 'w', encoding='utf-8') as f:
             json.dump(report_data, f, indent=2, default=str)
 
