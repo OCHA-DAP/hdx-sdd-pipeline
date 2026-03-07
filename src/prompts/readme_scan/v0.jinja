@@ -14,8 +14,8 @@ PII includes (but is not limited to):
 Return your analysis strictly in this JSON format:
 
 {
-  "contains_pii": true/false,
-  "pii_types": [ list of detected PII types, e.g., "email", "phone number" ],
+  "personal_data_sensitive": true/false,
+  "personal_data_entities": [ list of detected PII types, e.g., "email", "phone number" ],
   "evidence": [ exact substrings that contain PII ]
 }
 

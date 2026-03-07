@@ -132,10 +132,8 @@ class SheetReport:
             result['error_message'] = self.error_message
         if self.is_readme:
             result['is_readme'] = self.is_readme
-        if self.readme_content:
-            result['readme'] = self.readme_content
         if self.readme_pii_result:
-            result['readme_pii_result'] = self.readme_pii_result
+            result['readme_report'] = self.readme_pii_result
 
         return result
 
