@@ -269,12 +269,7 @@ class TestReadmeScan:
 
         assert report.is_readme is True
         assert report.readme_content is None
-        assert report.readme_pii_result == {
-            'contains_pii': False,
-            'pii_types': [],
-            'evidence': [],
-            'error': 'No readable content found',
-        }
+        assert report.readme_pii_result is None
 
     def test_create_readme_report_llm_error(self, use_case_with_readme, mock_llm_provider):
         """Test creating README report when LLM processing fails."""
@@ -368,26 +363,43 @@ class TestReadmeScan:
         assert 'more content' in content
         assert was_truncated is False
 
-    def test_create_readme_report_content_too_long(self, use_case_with_readme):
-        """Test skipping README content > 10000 chars."""
-        # Create content > 10000 chars
-        df = pd.DataFrame({'content': ['x' * 10005]})
-        
-        report = use_case_with_readme._create_readme_report(
-            sheet_name='README', source='test.xlsx', resource_id='test-123', df=df
-        )
+    def test_extract_readme_content_truncation_by_chars(self, use_case_with_readme):
+        """Test README content truncation by character limit."""
+        # Create content that exceeds the character limit
+        long_content = ['x' * 100] * 60  # 6000 characters total
+        df = pd.DataFrame({'content': long_content})
 
-        assert report.is_readme is True
-        assert report.readme_content is not None
-        assert len(report.readme_content) == 10005
-        assert report.readme_pii_result == {
-            'contains_pii': False,
-            'pii_types': [],
-            'evidence': [],
-            'was_truncated': True,
-            'error': 'Content too long for analysis (exceeds 10000 character limit)'
-        }
-        assert report.readme_model == 'skipped - content too long'
+        content, was_truncated = use_case_with_readme._extract_readme_content(df, max_chars=1000, max_cells=200)
+
+        # Content should be truncated
+        assert was_truncated is True
+        assert content is not None
+        assert len(content) <= 1000  # Should be under the character limit
+
+    def test_extract_readme_content_truncation_by_cells(self, use_case_with_readme):
+        """Test README content truncation by cell limit."""
+        # Create many small cells
+        many_cells = ['cell' + str(i) for i in range(150)]  # 150 cells
+        df = pd.DataFrame({'data': many_cells})
+
+        content, was_truncated = use_case_with_readme._extract_readme_content(df, max_chars=10000, max_cells=50)
+
+        # Content should be truncated due to cell limit
+        assert was_truncated is True
+        assert content is not None
+        # Should contain at most 50 cells worth of content
+        lines = content.split('\n')
+        assert len(lines) <= 50
+
+    def test_extract_readme_content_no_truncation(self, use_case_with_readme):
+        """Test README content without truncation."""
+        df = pd.DataFrame({'data': ['short', 'content']})
+
+        content, was_truncated = use_case_with_readme._extract_readme_content(df, max_chars=1000, max_cells=10)
+
+        # Should not be truncated
+        assert was_truncated is False
+        assert content == 'short\ncontent'
 
     def test_process_readme_for_pii_with_truncation(self, use_case_with_readme, mock_llm_provider, mock_prompt_manager):
         """Test README PII processing with truncated content."""

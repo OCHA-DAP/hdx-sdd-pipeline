@@ -167,57 +167,37 @@ class ProcessDatasetUseCase:
         if self.readme_llm is not None:
             logger.info('Processing README content for PII detection')
             try:
-                # Extract README content from dataframe
+                # Extract README content from dataframe with truncation tracking
                 readme_content, was_truncated = self._extract_readme_content(df)
 
                 if readme_content:
-                    # Check if content is too long for LLM analysis
-                    if len(readme_content) > 10000:
-                        logger.warning(
-                            f'README content too long for analysis ({len(readme_content)} chars > 5000 limit)'
-                        )
-                        # Store content but mark as too long for analysis
-                        report.readme_content = readme_content
-                        report.readme_pii_result = {
-                            'contains_pii': False,
-                            'pii_types': [],
-                            'evidence': [],
-                            'was_truncated': True,
-                            'error': 'Content too long for analysis (exceeds 10000 character limit)',
-                        }
-                        report.readme_model = 'skipped - content too long'
-                        logger.info('README analysis skipped due to length limit')
+                    # Process with README PII detection
+                    result = self._process_readme_for_pii(readme_content, was_truncated)
+
+                    # Store results in report
+                    report.readme_content = readme_content
+                    report.readme_pii_result = result
+
+                    # Update sensitivity flags based on README PII detection
+                    if result.get('contains_pii', False):
+                        report.personal_data_sensitive = True
+                        logger.info(f'PII detected in README: {result.get("pii_types", [])}')
                     else:
-                        # Process with README PII detection
-                        result = self._process_readme_for_pii(readme_content, was_truncated)
+                        logger.info('No PII detected in README')
 
-                        # Store results in report
-                        report.readme_content = readme_content
-                        report.readme_pii_result = result
+                    # Log truncation warning if content was truncated
+                    if was_truncated:
+                        logger.warning('README content was truncated during PII analysis - results may be incomplete')
 
-                        # Update sensitivity flags based on README PII detection
-                        if result.get('contains_pii', False):
-                            report.personal_data_sensitive = True
-                            logger.info(f'PII detected in README: {result.get("pii_types", [])}')
-                        else:
-                            logger.info('No PII detected in README')
-
-                        # Set model name
-                        report.readme_model = self.readme_llm.model_name
+                    # Set model name
+                    report.readme_model = self.readme_llm.model_name
 
                 else:
                     logger.warning('No readable content found in README sheet')
-                    report.readme_pii_result = {
-                        'contains_pii': False,
-                        'pii_types': [],
-                        'evidence': [],
-                        'error': 'No readable content found',
-                    }
 
             except Exception as e:
                 logger.error(f'Failed to process README for PII: {e}')
                 report.readme_model = f'error: {str(e)}'
-                report.readme_pii_result = {'contains_pii': False, 'pii_types': [], 'evidence': [], 'error': str(e)}
         else:
             logger.info('README scanning disabled - skipping PII analysis')
 
@@ -560,16 +540,20 @@ class ProcessDatasetUseCase:
 
         return pd.DataFrame(column_samples).to_markdown(index=False) or ''
 
-    def _extract_readme_content(self, df: Any) -> tuple[Optional[str], bool]:
+    def _extract_readme_content(
+        self, df: Any, max_chars: int = 5000, max_cells: int = 100
+    ) -> tuple[Optional[str], bool]:
         """
-        Extract all text content from README sheet.
+        Extract text content from README sheet with size limits.
 
         Args:
             df: README sheet dataframe
+            max_chars: Maximum characters to extract (prevents large prompts)
+            max_cells: Maximum number of cells to process (prevents excessive processing)
 
         Returns:
             Tuple of (content, was_truncated) where content is combined text or None,
-            and was_truncated is always False (no truncation performed)
+            and was_truncated indicates if limits were exceeded
         """
         try:
             import pandas as pd
@@ -578,20 +562,53 @@ class ProcessDatasetUseCase:
                 logger.warning('README sheet is not a pandas DataFrame')
                 return None, False
 
-            # Combine all non-null values into a single string
+            # Combine all non-null values into a single string with limits
             content_parts = []
+            total_chars = 0
+            cells_processed = 0
+            truncated = False
 
             for column in df.columns:
                 for value in df[column].dropna():
+                    # Check limits
+                    if cells_processed >= max_cells:
+                        truncated = True
+                        break
+                    if total_chars >= max_chars:
+                        truncated = True
+                        break
+
                     # Convert to string and skip if empty or just whitespace
                     str_value = str(value).strip()
                     if str_value and len(str_value) > 1:  # Skip single chars
+                        # Check if adding this would exceed the limit
+                        if total_chars + len(str_value) + 1 > max_chars:  # +1 for newline
+                            truncated = True
+                            break
+
                         content_parts.append(str_value)
+                        total_chars += len(str_value) + 1  # +1 for newline
+                        cells_processed += 1
+
+                if truncated:
+                    break
 
             if content_parts:
                 content = '\n'.join(content_parts)
-                logger.debug('README content extracted: %d cells, %d chars', len(content_parts), len(content))
-                return content, False
+
+                # Log truncation info for debugging
+                if truncated:
+                    logger.warning(
+                        'README content truncated: %d cells, %d chars (limits: %d cells, %d chars)',
+                        cells_processed,
+                        total_chars,
+                        max_cells,
+                        max_chars,
+                    )
+                else:
+                    logger.debug('README content extracted: %d cells, %d chars', cells_processed, total_chars)
+
+                return content, truncated
             else:
                 return None, False
 
@@ -633,6 +650,7 @@ class ProcessDatasetUseCase:
                 'evidence': result.get('evidence', []),
                 'was_truncated': was_truncated,
             }
+
             logger.info('README PII analysis completed: contains_pii=%s', validated_result['contains_pii'])
 
             return validated_result
