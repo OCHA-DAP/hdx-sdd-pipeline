@@ -165,14 +165,14 @@ class ProcessDatasetUseCase:
 
         # Process README content for PII if README scanning is enabled
         if self.readme_llm is not None:
-            logger.info(f'Processing README content for PII detection')
+            logger.info('Processing README content for PII detection')
             try:
-                # Extract README content from dataframe
-                readme_content = self._extract_readme_content(df)
+                # Extract README content from dataframe with truncation tracking
+                readme_content, was_truncated = self._extract_readme_content(df)
 
                 if readme_content:
                     # Process with README PII detection
-                    result = self._process_readme_for_pii(readme_content)
+                    result = self._process_readme_for_pii(readme_content, was_truncated)
 
                     # Store results in report
                     report.readme_content = readme_content
@@ -184,6 +184,10 @@ class ProcessDatasetUseCase:
                         logger.info(f'PII detected in README: {result.get("pii_types", [])}')
                     else:
                         logger.info('No PII detected in README')
+
+                    # Log truncation warning if content was truncated
+                    if was_truncated:
+                        logger.warning('README content was truncated during PII analysis - results may be incomplete')
 
                     # Set model name
                     report.readme_model = self.readme_llm.model_name
@@ -524,7 +528,7 @@ class ProcessDatasetUseCase:
             logger.warning('pandas not available - returning simple table context')
             return report.sheet_name
 
-        # Build column samples dict with PII entity types in headers
+            # Generate markdown table
         column_samples = {}
         for col in report.columns:
             # Add entity type to column name if PII detected
@@ -534,58 +538,91 @@ class ProcessDatasetUseCase:
                 key = col.name
             column_samples[key] = col.sample_values
 
-        # Pad all columns to same length
-        if column_samples:
-            max_len = max(len(values) for values in column_samples.values())
-            for key, values in column_samples.items():
-                column_samples[key] = values + [''] * (max_len - len(values))
+        return pd.DataFrame(column_samples).to_markdown(index=False) or ''
 
-            # Generate markdown table
-            return pd.DataFrame(column_samples).to_markdown(index=False) or ''
-
-        return ''
-
-    def _extract_readme_content(self, df: Any) -> Optional[str]:
+    def _extract_readme_content(
+        self, df: Any, max_chars: int = 5000, max_cells: int = 100
+    ) -> tuple[Optional[str], bool]:
         """
-        Extract readable content from README dataframe.
+        Extract text content from README sheet with size limits.
 
         Args:
             df: README sheet dataframe
+            max_chars: Maximum characters to extract (prevents large prompts)
+            max_cells: Maximum number of cells to process (prevents excessive processing)
 
         Returns:
-            Combined text content from all cells, or None if no content found
+            Tuple of (content, was_truncated) where content is combined text or None,
+            and was_truncated indicates if limits were exceeded
         """
         try:
             import pandas as pd
 
             if not isinstance(df, pd.DataFrame):
                 logger.warning('README sheet is not a pandas DataFrame')
-                return None
+                return None, False
 
-            # Combine all non-null values into a single string
+            # Combine all non-null values into a single string with limits
             content_parts = []
+            total_chars = 0
+            cells_processed = 0
+            truncated = False
+
             for column in df.columns:
                 for value in df[column].dropna():
+                    # Check limits
+                    if cells_processed >= max_cells:
+                        truncated = True
+                        break
+                    if total_chars >= max_chars:
+                        truncated = True
+                        break
+
                     # Convert to string and skip if empty or just whitespace
                     str_value = str(value).strip()
                     if str_value and len(str_value) > 1:  # Skip single chars
+                        # Check if adding this would exceed the limit
+                        if total_chars + len(str_value) + 1 > max_chars:  # +1 for newline
+                            truncated = True
+                            break
+
                         content_parts.append(str_value)
+                        total_chars += len(str_value) + 1  # +1 for newline
+                        cells_processed += 1
+
+                if truncated:
+                    break
 
             if content_parts:
-                return '\n'.join(content_parts)
+                content = '\n'.join(content_parts)
+
+                # Log truncation info for debugging
+                if truncated:
+                    logger.warning(
+                        'README content truncated: %d cells, %d chars (limits: %d cells, %d chars)',
+                        cells_processed,
+                        total_chars,
+                        max_cells,
+                        max_chars,
+                    )
+                else:
+                    logger.debug('README content extracted: %d cells, %d chars', cells_processed, total_chars)
+
+                return content, truncated
             else:
-                return None
+                return None, False
 
         except Exception as e:
-            logger.error(f'Failed to extract README content: {e}')
-            return None
+            logger.error('Failed to extract README content: %s', e)
+            return None, False
 
-    def _process_readme_for_pii(self, readme_content: str) -> Dict[str, Any]:
+    def _process_readme_for_pii(self, readme_content: str, was_truncated: bool = False) -> Dict[str, Any]:
         """
         Process README content for PII detection using the readme_scan template.
 
         Args:
             readme_content: Text content from README sheet
+            was_truncated: Whether the content was truncated during extraction
 
         Returns:
             PII detection result dictionary
@@ -603,7 +640,7 @@ class ProcessDatasetUseCase:
 
             # Validate result structure
             if not isinstance(result, dict):
-                logger.error(f'README PII detection returned non-dict result: {result}')
+                logger.error('README PII detection returned non-dict result: %s', result)
                 return {'contains_pii': False, 'pii_types': [], 'evidence': [], 'error': 'Invalid result format'}
 
             # Ensure required fields exist
@@ -611,12 +648,13 @@ class ProcessDatasetUseCase:
                 'contains_pii': result.get('contains_pii', False),
                 'pii_types': result.get('pii_types', []),
                 'evidence': result.get('evidence', []),
+                'was_truncated': was_truncated,
             }
 
-            logger.info(f'README PII analysis completed: contains_pii={validated_result["contains_pii"]}')
+            logger.info('README PII analysis completed: contains_pii=%s', validated_result['contains_pii'])
 
             return validated_result
 
         except Exception as e:
-            logger.error(f'Failed to process README for PII: {e}')
+            logger.error('Failed to process README for PII: %s', e)
             return {'contains_pii': False, 'pii_types': [], 'evidence': [], 'error': str(e)}
