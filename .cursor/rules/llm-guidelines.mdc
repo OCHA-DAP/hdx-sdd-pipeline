@@ -1,0 +1,14 @@
+---
+description: Repository-wide minimal-change coding guidance for AI edits
+alwaysApply: true
+---
+
+Follow [AGENTS.md](../../AGENTS.md) as the canonical policy.
+
+Required behavior:
+
+1. Check existing logic and functionality before editing.
+2. Build on existing code and patterns.
+3. Keep changes minimal and scoped.
+4. Avoid unrelated refactors.
+5. Preserve behavior unless explicitly asked to change it.
