@@ -17,10 +17,8 @@ from typing import List
 from dotenv import load_dotenv
 
 # Import from clean architecture
-from config.config import Config
-from src.infrastructure.factories.pipeline_factory import PipelineFactory
-from src.domain.entities import SheetReport
-from src.application.use_cases.process_dataset import ProcessDatasetUseCase
+from config import get_config
+from src.event_processor import EventProcessor
 
 # Setup logging
 logger = logging.getLogger(__name__)
@@ -29,20 +27,21 @@ logger = logging.getLogger(__name__)
 load_dotenv()
 
 
-def setup_pipeline(model_name: str) -> ProcessDatasetUseCase:
+def setup_event_processor(model_name: str, output_dir: Path) -> EventProcessor:
     """
-    Setup the pipeline with the specified model using PipelineFactory.
+    Setup the EventProcessor with the specified model and output directory.
 
     Args:
         model_name: Name of the model to use for all LLM tasks
+        output_dir: Directory to save results
 
     Returns:
-        Configured ProcessDatasetUseCase
+        Configured EventProcessor
     """
-    print(f'Setting up pipeline with model: {model_name}')
+    print(f'Setting up EventProcessor with model: {model_name}')
 
     # Initialize config
-    config = Config()
+    config = get_config()
 
     # Override model configuration to use the specified model for all tasks
     config.PII_DETECT_MODEL = model_name
@@ -54,35 +53,14 @@ def setup_pipeline(model_name: str) -> ProcessDatasetUseCase:
     config.PERSONAL_DATA_REFLECTION = True
     config.NON_PERSONAL_DATA_DETECTION = True
 
-    # Initialize factory with overridden config
-    factory = PipelineFactory(config)
+    # Disable CKAN updates for batch processing
+    config.CKAN_UPDATE = False
 
-    # Create pipeline
-    use_case = factory.create_pipeline(sample_size=5)
+    # Create EventProcessor with custom output directory
+    event_processor = EventProcessor(custom_output_path=str(output_dir))
 
-    print('Pipeline setup complete!')
-    return use_case
-
-
-def load_isp_rules_from_filename(filename: str) -> dict:
-    """
-    Load ISP (Information Sensitivity Protocol) rules using EventProcessor's matching logic.
-
-    Args:
-        filename: Name of the file to extract country from
-
-    Returns:
-        Dictionary containing ISP rules for the matched country or default
-    """
-    # Import here to avoid circular imports
-    from src.event_processor import EventProcessor
-
-    # Create a minimal EventProcessor instance just for ISP matching
-    # (we don't need the full pipeline for this)
-    processor = EventProcessor()
-
-    # Use the EventProcessor's ISP matching logic
-    return processor._get_isp_rules(package_id=None, resource_name=filename)
+    print('EventProcessor setup complete!')
+    return event_processor
 
 
 def get_groundtruth_datasets() -> List[str]:
@@ -129,13 +107,13 @@ def get_source_file_path(dataset_name: str) -> Path:
 
 
 def process_dataset(
-    pipeline: ProcessDatasetUseCase, dataset_name: str, model_name: str, output_dir: Path, skip_existing: bool = False
+    event_processor: EventProcessor, dataset_name: str, model_name: str, output_dir: Path, skip_existing: bool = False
 ) -> bool:
     """
-    Process a single dataset with the specified model.
+    Process a single dataset using EventProcessor.
 
     Args:
-        pipeline: Configured pipeline
+        event_processor: Configured EventProcessor instance
         dataset_name: Name of the dataset file
         model_name: Model name for output directory
         output_dir: Directory to save results
@@ -161,28 +139,35 @@ def process_dataset(
     print(f'📊 Processing: {dataset_name}')
 
     try:
-        # Load ISP rules based on filename
-        isp_rules = load_isp_rules_from_filename(dataset_name)
+        # Create event for EventProcessor
+        event = {
+            'resource_id': dataset_name,
+            'download_url': str(source_file),
+            'file_name': dataset_name,
+            'event_type': 'batch-processing',
+        }
 
-        # Process the dataset
-        sheet_reports: List[SheetReport] = pipeline.execute(
-            source=str(source_file),
-            resource_id=dataset_name,
-            is_url=False,
-            isp_rules=isp_rules,
-        )
+        # Process using EventProcessor - it will write directly to {output_dir}/{dataset_name}.json
+        success, message = event_processor.process_event(event)
 
-        # Convert to dictionaries
-        reports_dict = [report.to_dict() for report in sheet_reports]
+        if success:
+            # Read the generated report from the output file
+            if output_file.exists():
+                with output_file.open('r', encoding='utf-8') as f:
+                    report_data = json.load(f)
 
-        # Save results
-        output_file.parent.mkdir(parents=True, exist_ok=True)
-        with output_file.open('w', encoding='utf-8') as f:
-            json.dump(reports_dict, f, indent=2, ensure_ascii=False)
-
-        # Log summary
-        sensitive_sheets = sum(1 for r in sheet_reports if r.is_sensitive())
-        print(f'✅ Completed {dataset_name}: {len(sheet_reports)} sheets, {sensitive_sheets} sensitive')
+                # Log summary
+                reports = report_data
+                sensitive_sheets = sum(
+                    1 for r in reports if r.get('personal_data_sensitive') or r.get('non_personal_data_sensitive')
+                )
+                print(f'✅ Completed {dataset_name}: {len(reports)} sheets, {sensitive_sheets} sensitive')
+            else:
+                logger.error(f'❌ No report generated for {dataset_name}')
+                return False
+        else:
+            logger.error(f'❌ Failed to process {dataset_name}: {message}')
+            return False
 
         return True
 
@@ -205,9 +190,6 @@ def main():
     print('=' * 70)
     print()
 
-    # Setup pipeline
-    pipeline = setup_pipeline(args.model)
-
     # Get list of datasets
     datasets = get_groundtruth_datasets()
 
@@ -224,6 +206,9 @@ def main():
     output_dir = Path(f'research/results/test_results/{args.model}')
     output_dir.mkdir(parents=True, exist_ok=True)
 
+    # Setup EventProcessor with custom output directory
+    event_processor = setup_event_processor(args.model, output_dir)
+
     # Process each dataset
     total = len(datasets)
     successful = 0
@@ -236,7 +221,7 @@ def main():
         print(f'[{i}/{total}] {dataset_name}')
 
         success = process_dataset(
-            pipeline=pipeline,
+            event_processor=event_processor,
             dataset_name=dataset_name,
             model_name=args.model,
             output_dir=output_dir,
