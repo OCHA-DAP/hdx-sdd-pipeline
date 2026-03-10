@@ -44,6 +44,7 @@ class ProcessDatasetUseCase:
         pii_llm_provider: Optional[ILLMProvider] = None,
         pii_reflection_llm_provider: Optional[ILLMProvider] = None,
         non_pii_llm_provider: Optional[ILLMProvider] = None,
+        readme_llm_provider: Optional[ILLMProvider] = None,
         prompt_manager: Optional[PromptManager] = None,
         sample_size: int = 5,
     ):
@@ -55,6 +56,7 @@ class ProcessDatasetUseCase:
             pii_llm_provider: Optional LLM for PII detection (None to skip)
             pii_reflection_llm_provider: Optional LLM for PII sensitivity (None to skip)
             non_pii_llm_provider: Optional LLM for non-PII classification (None to skip)
+            readme_llm_provider: Optional LLM for README PII scanning (None to skip)
             prompt_manager: Prompt template manager
             sample_size: Number of samples per column
         """
@@ -62,6 +64,7 @@ class ProcessDatasetUseCase:
         self.pii_llm = pii_llm_provider
         self.pii_reflection_llm = pii_reflection_llm_provider
         self.non_pii_llm = non_pii_llm_provider
+        self.readme_llm = readme_llm_provider
         self.prompt_manager = prompt_manager or PromptManager()
         self.sample_size = sample_size
 
@@ -159,6 +162,45 @@ class ProcessDatasetUseCase:
         )
 
         logger.info(f"Sheet '{sheet_name}' identified as README")
+
+        # Process README content for PII if README scanning is enabled
+        if self.readme_llm is not None:
+            logger.info('Processing README content for PII detection')
+            try:
+                # Extract README content from dataframe
+                readme_content = self._extract_readme_content(df)
+
+                if readme_content:
+                    # Process with README PII detection
+                    result = self._process_readme_for_pii(readme_content)
+
+                    # Update token counts
+                    report.completion_tokens += result.pop('completion_tokens', 0)
+                    report.prompt_tokens += result.pop('prompt_tokens', 0)
+
+                    # Store results in report
+                    report.readme_content = readme_content
+                    report.readme_report = result
+
+                    # Update sensitivity flags based on README PII detection
+                    if result.get('personal_data_sensitive', False):
+                        report.personal_data_sensitive = True
+                        logger.info(f'PII detected in README: {result.get("personal_data_entities", [])}')
+                    else:
+                        logger.info('No PII detected in README')
+
+                    # Set model name
+                    report.readme_model = self.readme_llm.model_name
+
+                else:
+                    logger.warning('No readable content found in README sheet')
+
+            except Exception as e:
+                logger.error(f'Failed to process README for PII: {e}')
+                report.readme_model = f'error: {str(e)}'
+        else:
+            logger.info('README scanning disabled - skipping PII analysis')
+
         return report
 
     def _create_data_report(
@@ -506,3 +548,88 @@ class ProcessDatasetUseCase:
             return pd.DataFrame(column_samples).to_markdown(index=False) or ''
 
         return ''
+
+    def _extract_readme_content(self, df: Any) -> Optional[str]:
+        """
+        Extract readable content from README dataframe.
+
+        Args:
+            df: README sheet dataframe
+
+        Returns:
+            Combined text content from all cells, or None if no content found
+        """
+        try:
+            import pandas as pd
+
+            if not isinstance(df, pd.DataFrame):
+                logger.warning('README sheet is not a pandas DataFrame')
+                return None
+
+            # Combine all non-null values into a single string
+            content_parts = []
+            for column in df.columns:
+                for value in df[column].dropna():
+                    # Convert to string and skip if empty or just whitespace
+                    str_value = str(value).strip()
+                    if str_value and len(str_value) > 1:  # Skip single chars
+                        content_parts.append(str_value)
+
+            if content_parts:
+                return '\n'.join(content_parts)
+            else:
+                return None
+
+        except Exception as e:
+            logger.error(f'Failed to extract README content: {e}')
+            return None
+
+    def _process_readme_for_pii(self, readme_content: str) -> Dict[str, Any]:
+        """
+        Process README content for PII detection using the readme_scan template.
+
+        Args:
+            readme_content: Text content from README sheet
+
+        Returns:
+            PII detection result dictionary
+        """
+        try:
+            # Render the README scan prompt
+            prompt = self.prompt_manager.get_prompt(
+                'readme_scan',
+                version=None,  # Auto-detect latest version
+                context={'readme_string': readme_content},
+            )
+
+            # Call LLM for JSON response
+            result, comp_tokens, prompt_tokens = self.readme_llm.generate_json(prompt, max_tokens=512)
+
+            # Validate result structure
+            if not isinstance(result, dict):
+                logger.error(f'README PII detection returned non-dict result: {result}')
+                return {
+                    'personal_data_sensitive': False,
+                    'personal_data_entities': [],
+                    'evidence': [],
+                    'error': 'Invalid result format',
+                }
+
+            # Ensure required fields exist
+            validated_result = {
+                'personal_data_sensitive': result.get('personal_data_sensitive', False),
+                'personal_data_entities': result.get('personal_data_entities', []),
+                'evidence': result.get('evidence', []),
+                'completion_tokens': comp_tokens,
+                'prompt_tokens': prompt_tokens,
+            }
+
+            logger.info(
+                f'README PII analysis completed: personal_data_sensitive={validated_result["personal_data_sensitive"]}'
+            )
+
+            return validated_result
+
+        except Exception as e:
+            logger.error(f'Failed to process README for PII: {e}')
+            return {'personal_data_sensitive': False, 'personal_data_entities': [], 'evidence': [], 'error': str(e)}
