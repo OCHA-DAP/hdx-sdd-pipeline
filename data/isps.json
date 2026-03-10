@@ -1,6 +1,6 @@
 {
     "OCHA Afghanistan": {
-        "country": "afghanistan",
+        "country": "AFG",
         "sensitivity_rules": {
             "LOW/NON_SENSITIVE": {
                 "data and information type": 
@@ -26,7 +26,7 @@
         }
     },
     "OCHA Burundi": {
-        "country": "burundi",
+        "country": "BDI",
         "sensitivity_rules": {
             "LOW/NON_SENSITIVE": {
                 "data and information type": 
@@ -53,7 +53,7 @@
         }
     },
     "OCHA Cameroon (NWSW)": {
-        "country": "cameroon",
+        "country": "CMR",
         "sensitivity_rules": {
             "LOW/NON_SENSITIVE": {
                 "data and information type": [
@@ -78,7 +78,7 @@
         }
     },
     "OCHA Cameroon (Extreme Nord)": {
-        "country": "cameroon",
+        "country": "CMR",
         "sensitivity_rules": {
             "LOW/NON_SENSITIVE": {
                 "data and information type": [
@@ -103,7 +103,7 @@
         }
     },
     "OCHA Democratic Republic of the Congo": {
-        "country": "congo",
+        "country": "COD",
         "sensitivity_rules": {
             "LOW/NON_SENSITIVE": {
                 "data and information type": [
@@ -128,7 +128,7 @@
         }
     },
     "OCHA Iraq": {
-        "country": "iraq",
+        "country": "IRQ",
         "sensitivity_rules": {
             "LOW/NON_SENSITIVE": {
                 "data and information type": 
@@ -155,7 +155,7 @@
         }
     },
     "OCHA Mozambique": {
-        "country": "mozambique",
+        "country": "MOZ",
         "sensitivity_rules": {
             "LOW/NON_SENSITIVE": {
                 "data and information type": [
@@ -180,7 +180,7 @@
         }
     },
     "OCHA Myanmar": {
-        "country": "myanmar",
+        "country": "MMR",
         "sensitivity_rules": {
             "LOW/NON_SENSITIVE": {
                 "data and information type": [
@@ -205,7 +205,7 @@
         }
     },
     "OCHA Niger": {
-        "country": "niger",
+        "country": "NER",
         "sensitivity_rules": {
             "LOW/NON_SENSITIVE": {
                 "data and information type": 
@@ -231,7 +231,7 @@
         }
     },
     "OCHA Occupied Palestinian Territory": {
-        "country": "palestin",
+        "country": "PSE",
         "sensitivity_rules": {
             "LOW/NON_SENSITIVE": {
                 "data and information type": [
@@ -257,7 +257,7 @@
         }
     },
     "OCHA Somalia 1 2024 VERSION": {
-        "country": "somalia",
+        "country": "SOM",
         "sensitivity_rules": {
             "LOW/NON_SENSITIVE": {
                 "data and information type": [
@@ -282,7 +282,7 @@
         }
     },
     "OCHA South Sudan": {
-        "country": "south sudan",
+        "country": "SSD",
         "sensitivity_rules": {
             "LOW/NON_SENSITIVE": {
                 "data and information type": [
@@ -307,7 +307,7 @@
         }
     },
     "OCHA Sudan 2024": {
-        "country": "sudan",
+        "country": "SDN",
         "sensitivity_rules": {
             "LOW/NON_SENSITIVE": {
                 "data and information type": [
@@ -332,7 +332,7 @@
         }
     },
     "OCHA Syria": {
-        "country": "syria",
+        "country": "SYR",
         "sensitivity_rules": {
             "LOW/NON_SENSITIVE": {
                 "data and information type": [
@@ -357,7 +357,7 @@
         }
     },
     "OCHA Ukraine": {
-        "country": "ukraine",
+        "country": "UKR",
         "sensitivity_rules": {
             "LOW/NON_SENSITIVE": {
                 "data and information type": [
@@ -382,7 +382,7 @@
         }
     },
     "OCHA Venezuela": {
-        "country": "venezuela",
+        "country": "VEN",
         "sensitivity_rules": {
             "LOW/NON_SENSITIVE": {
                 "data and information type": [
@@ -407,7 +407,7 @@
         }
     },
     "OCHA Yemen": {
-        "country": "yem",
+        "country": "YEM",
         "sensitivity_rules": {
             "LOW/NON_SENSITIVE": {
                 "data and information type": [
