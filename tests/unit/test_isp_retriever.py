@@ -23,41 +23,37 @@ def test_isp_retriever_default():
 
 
 def test_isp_retriever_country_match(mock_ckan_client):
-    """Test ISP retriever matches country from CKAN package data."""
+    """Test ISP retriever matches ISO3 from CKAN package groups."""
     retriever = ISPRetriever()
-    mock_isps = {'default': {'rule': 'default'}, 'some_isp': {'country': 'testland', 'rule': 'custom'}}
+    mock_isps = {'default': {'rule': 'default'}, 'some_isp': {'country': 'tst', 'rule': 'custom'}}
 
-    mock_ckan_client.return_value.package_show.return_value = {
-        'solr_additions': json.dumps({'countries': ['testland']})
-    }
+    mock_ckan_client.return_value.package_show.return_value = {'groups': [{'name': 'TST'}]}
 
     with patch('builtins.open', mock_open(read_data=json.dumps(mock_isps))):
         rules = retriever.get_isp_rules('pkg123', ckan_client=mock_ckan_client.return_value)
 
-    assert rules == {'country': 'testland', 'rule': 'custom'}
+    assert rules == {'country': 'tst', 'rule': 'custom'}
 
 
-def test_isp_retriever_country_match_string(mock_ckan_client):
-    """Test ISP retriever handles string country from CKAN."""
+def test_isp_retriever_country_match_group_name_field(mock_ckan_client):
+    """Test ISP retriever matches using the group name field from CKAN."""
     retriever = ISPRetriever()
-    mock_isps = {'default': {'rule': 'default'}, 'some_isp': {'country': 'testland', 'rule': 'custom'}}
+    mock_isps = {'default': {'rule': 'default'}, 'some_isp': {'country': 'tst', 'rule': 'custom'}}
 
-    mock_ckan_client.return_value.package_show.return_value = {'solr_additions': json.dumps({'countries': 'testland'})}
+    mock_ckan_client.return_value.package_show.return_value = {'groups': [{'name': 'tst'}]}
 
     with patch('builtins.open', mock_open(read_data=json.dumps(mock_isps))):
         rules = retriever.get_isp_rules('pkg123', ckan_client=mock_ckan_client.return_value)
 
-    assert rules == {'country': 'testland', 'rule': 'custom'}
+    assert rules == {'country': 'tst', 'rule': 'custom'}
 
 
 def test_isp_retriever_no_country_match(mock_ckan_client):
     """Test ISP retriever falls back to default when no country match."""
     retriever = ISPRetriever()
-    mock_isps = {'default': {'rule': 'default'}, 'some_isp': {'country': 'testland', 'rule': 'custom'}}
+    mock_isps = {'default': {'rule': 'default'}, 'some_isp': {'country': 'tst', 'rule': 'custom'}}
 
-    mock_ckan_client.return_value.package_show.return_value = {
-        'solr_additions': json.dumps({'countries': ['otherland']})
-    }
+    mock_ckan_client.return_value.package_show.return_value = {'groups': [{'name': 'other'}]}
 
     with patch('builtins.open', mock_open(read_data=json.dumps(mock_isps))):
         rules = retriever.get_isp_rules('pkg123', ckan_client=mock_ckan_client.return_value)
@@ -123,39 +119,38 @@ def test_isp_retriever_general_exception(mock_ckan_client):
 def test_isp_retriever_resource_name_fallback(mock_ckan_client):
     """Test ISP retriever falls back to resource name matching."""
     retriever = ISPRetriever()
-    mock_isps = {'default': {'rule': 'default'}, 'some_isp': {'country': 'testland', 'rule': 'custom'}}
+    mock_isps = {'default': {'rule': 'default'}, 'some_isp': {'country': 'tst', 'rule': 'custom'}}
 
-    # CKAN returns no country info
-    mock_ckan_client.return_value.package_show.return_value = {'solr_additions': json.dumps({'countries': []})}
+    # CKAN returns no group info
+    mock_ckan_client.return_value.package_show.return_value = {'groups': []}
 
     with patch('builtins.open', mock_open(read_data=json.dumps(mock_isps))):
-        # Pass resource name that contains 'testland'
-        rules = retriever.get_isp_rules('pkg123', 'dataset_testland_2023.csv', mock_ckan_client.return_value)
+        # Resource stem should be ISO3 and matched case-insensitively
+        rules = retriever.get_isp_rules('pkg123', 'TST.csv', mock_ckan_client.return_value)
 
-    assert rules == {'country': 'testland', 'rule': 'custom'}
+    assert rules == {'country': 'tst', 'rule': 'custom'}
 
 
 def test_isp_retriever_ckan_disabled_fallback():
     """Test ISP retriever uses resource name when CKAN is disabled."""
     retriever = ISPRetriever()
-    mock_isps = {'default': {'rule': 'default'}, 'some_isp': {'country': 'testland', 'rule': 'custom'}}
+    mock_isps = {'default': {'rule': 'default'}, 'some_isp': {'country': 'tst', 'rule': 'custom'}}
 
     with patch('builtins.open', mock_open(read_data=json.dumps(mock_isps))):
-        rules = retriever.get_isp_rules(None, 'dataset_testland.csv')
+        rules = retriever.get_isp_rules(None, 'tst.csv')
 
-    assert rules == {'country': 'testland', 'rule': 'custom'}
+    assert rules == {'country': 'tst', 'rule': 'custom'}
 
 
-def test_isp_retriever_partial_country_matching():
-    """Test ISP retriever matches partial country names."""
+def test_isp_retriever_non_iso3_resource_name_falls_back_to_default():
+    """Test ISP retriever falls back when resource stem is not a valid ISO3 match."""
     retriever = ISPRetriever()
-    mock_isps = {'default': {'rule': 'default'}, 'some_isp': {'country': 'afghanistan', 'rule': 'custom'}}
+    mock_isps = {'default': {'rule': 'default'}, 'some_isp': {'country': 'afg', 'rule': 'custom'}}
 
     with patch('builtins.open', mock_open(read_data=json.dumps(mock_isps))):
-        # Test with partial match 'afg' (first 3 chars)
         rules = retriever.get_isp_rules(None, 'dataset_afg_data.csv')
 
-    assert rules == {'country': 'afghanistan', 'rule': 'custom'}
+    assert rules == {'rule': 'default'}
 
 
 def test_isp_retriever_caching():
@@ -197,32 +192,29 @@ def test_isp_retriever_clear_cache():
 
 
 def test_match_country_direct():
-    """Test direct country matching in match_country method."""
+    """Test direct ISO3 matching in match_country method."""
     retriever = ISPRetriever()
-    isps = {'test_isp': {'country': 'testland', 'rule': 'custom'}, 'default': {'rule': 'default'}}
-    country_mapping = {}
+    isps = {'test_isp': {'country': 'tst', 'rule': 'custom'}, 'default': {'rule': 'default'}}
 
-    result = retriever.match_country('This is data from testland', isps, country_mapping)
-    assert result == {'country': 'testland', 'rule': 'custom'}
+    result = retriever.match_country('TST', isps)
+    assert result == {'country': 'tst', 'rule': 'custom'}
 
 
-def test_match_country_partial():
-    """Test partial country matching in match_country method."""
+def test_match_country_requires_exact_iso3():
+    """Test non-exact strings do not match in match_country method."""
     retriever = ISPRetriever()
-    isps = {'test_isp': {'country': 'testland', 'rule': 'custom'}, 'default': {'rule': 'default'}}
-    country_mapping = {'tes': 'testland'}
+    isps = {'test_isp': {'country': 'tst', 'rule': 'custom'}, 'default': {'rule': 'default'}}
 
-    result = retriever.match_country('This is data from tes_region', isps, country_mapping)
-    assert result == {'country': 'testland', 'rule': 'custom'}
+    result = retriever.match_country('tst_region', isps)
+    assert result is None
 
 
 def test_match_country_no_match():
     """Test no match case in match_country method."""
     retriever = ISPRetriever()
-    isps = {'test_isp': {'country': 'testland', 'rule': 'custom'}, 'default': {'rule': 'default'}}
-    country_mapping = {}
+    isps = {'test_isp': {'country': 'tst', 'rule': 'custom'}, 'default': {'rule': 'default'}}
 
-    result = retriever.match_country('This is data from unknown', isps, country_mapping)
+    result = retriever.match_country('unknown', isps)
     assert result is None
 
 
@@ -230,24 +222,18 @@ def test_match_country_empty_text():
     """Test empty text case in match_country method."""
     retriever = ISPRetriever()
     isps = {'default': {'rule': 'default'}}
-    country_mapping = {}
 
-    result = retriever.match_country('', isps, country_mapping)
+    result = retriever.match_country('', isps)
     assert result is None
 
-    result = retriever.match_country(None, isps, country_mapping)
+    result = retriever.match_country(None, isps)
     assert result is None
 
 
-# Test whether isp afghanistan is found when afghanistan only in source title
-def test_match_country_afghanistan_only_in_title():
-    """Test that ISP Afghanistan is found when 'Afghanistan' only appears in source title."""
+def test_match_country_case_insensitive():
+    """Test ISO3 matching is case-insensitive."""
     retriever = ISPRetriever()
-    isps = {'afghanistan': {'country': 'Afghanistan', 'rule': 'custom'}, 'default': {'rule': 'default'}}
-    country_mapping = {}
+    isps = {'afghanistan': {'country': 'AFG', 'rule': 'custom'}, 'default': {'rule': 'default'}}
 
-    # Simulate text that contains 'Afghanistan' only in the source title
-    text_with_afghanistan = 'This is a data source about Afghanistan'
-
-    result = retriever.match_country(text_with_afghanistan, isps, country_mapping)
-    assert result == {'country': 'Afghanistan', 'rule': 'custom'}
+    result = retriever.match_country('afg', isps)
+    assert result == {'country': 'AFG', 'rule': 'custom'}
