@@ -20,6 +20,7 @@ from src.shared.utils.isp_retrieval import ISPRetriever
 from src.shared.utils.ckan import CKANClient
 
 from config import get_config
+from config.config import SlackClientWrapper
 
 logger = logging.getLogger(__name__)
 
@@ -51,6 +52,7 @@ class EventProcessor:
 
         # Initialize ISP retriever
         self.isp_retriever = ISPRetriever()
+        self.slack = SlackClientWrapper()
 
         # Setup CKAN client if CKAN_UPDATE is enabled
         if self.config.CKAN_UPDATE and not self.custom_output_path:
@@ -127,18 +129,27 @@ class EventProcessor:
 
         except Exception as e:
             logger.error(f'Failed to process event: {e}', exc_info=True)
+            self._notify_important_processing_error(event, e)
             return False, f'Processing failed: {str(e)}'
+
+    def _notify_important_processing_error(self, event: Dict[str, Any], error: Exception) -> None:
+        """Notify Slack for critical processing failures without alerting on expected non-critical outcomes."""
+        resource_id = event.get('resource_id', 'unknown-resource')
+        package_id = event.get('package_id', 'unknown-package')
+        event_type = event.get('event_type', 'unknown-event')
+        message = (
+            f'Important processing error for resource={resource_id} '
+            f'package={package_id} event_type={event_type}: {error}'
+        )
+        self.slack.post_to_slack_channel(message)
 
     def _report_exists(self, resource_id: str) -> bool:
         """Check if report already exists in CKAN."""
         if self.ckan is None:
             return False
 
-        try:
-            resource = self.ckan.resource_show(resource_id)
-            return 'sdd_report' in resource and resource['sdd_report']
-        except Exception:
-            return False
+        resource = self.ckan.resource_show(resource_id)
+        return 'sdd_report' in resource and resource['sdd_report']
 
     def _determine_sensitivity(self, reports: list) -> str:
         """Determine overall sensitivity from reports."""
