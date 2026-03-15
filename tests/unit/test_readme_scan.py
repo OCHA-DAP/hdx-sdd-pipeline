@@ -64,7 +64,8 @@ class TestReadmeScan:
         assert use_case_with_readme._is_readme_sheet('Records') is False
         assert (
             use_case_with_readme._is_readme_sheet('READ_ME') is False
-        )  # This becomes 'readme' but method looks for whole word
+        )  # Normalization lowercases and removes spaces only; 'READ_ME' -> 'read_me',
+        # which does not contain any README keyword substring, so this stays False.
 
     def test_extract_readme_content_success(self, use_case_with_readme):
         """Test successful README content extraction."""
@@ -149,7 +150,7 @@ class TestReadmeScan:
         readme_content = 'This dataset contains only aggregated statistics'
 
         mock_llm_provider.generate_json.return_value = (
-            {'personal_data_sensitive': False, 'pii_types': [], 'evidence': []},
+            {'personal_data_sensitive': False, 'personal_data_entities': [], 'evidence': []},
             10,
             20,
         )
@@ -212,7 +213,7 @@ class TestReadmeScan:
         assert report.readme_content is not None
         assert 'john@example.com' in report.readme_content
         assert '555-1234' in report.readme_content
-        assert report.readme_pii_result['personal_data_sensitive'] is True
+        assert report.readme_report['personal_data_sensitive'] is True
         assert report.readme_model == 'test-readme-model'
 
     def test_create_readme_report_no_pii(self, use_case_with_readme, mock_llm_provider):
@@ -225,7 +226,7 @@ class TestReadmeScan:
         )
 
         mock_llm_provider.generate_json.return_value = (
-            {'personal_data_sensitive': False, 'pii_types': [], 'evidence': []},
+            {'personal_data_sensitive': False, 'personal_data_entities': [], 'evidence': []},
             10,
             20,
         )
@@ -236,7 +237,7 @@ class TestReadmeScan:
 
         assert report.is_readme is True
         assert report.personal_data_sensitive is False
-        assert report.readme_pii_result['personal_data_sensitive'] is False
+        assert report.readme_report['personal_data_sensitive'] is False
 
     def test_create_readme_report_no_llm(self, use_case_with_readme):
         """Test creating README report when README scanning is disabled."""
@@ -251,7 +252,7 @@ class TestReadmeScan:
 
         assert report.is_readme is True
         assert report.readme_content is None
-        assert report.readme_pii_result is None
+        assert report.readme_report is None
         assert report.readme_model is None
 
     def test_create_readme_report_extraction_error(self, use_case_with_readme, mock_llm_provider):
@@ -265,7 +266,7 @@ class TestReadmeScan:
 
         assert report.is_readme is True
         assert report.readme_content is None
-        assert report.readme_pii_result is None
+        assert report.readme_report is None
 
     def test_create_readme_report_llm_error(self, use_case_with_readme, mock_llm_provider):
         """Test creating README report when LLM processing fails."""
@@ -290,7 +291,11 @@ class TestReadmeScan:
         mock_data_loader.load_from_file.return_value = {'README': readme_df, 'Data': data_df}
         mock_data_loader.sample_dataframe.return_value = {'Name': ['John', '', '', '', '']}
         mock_llm_provider.generate_json.return_value = (
-            {'personal_data_sensitive': True, 'pii_types': ['EMAIL_ADDRESS'], 'evidence': ['admin@example.com']},
+            {
+                'personal_data_sensitive': True,
+                'personal_data_entities': ['EMAIL_ADDRESS'],
+                'evidence': ['admin@example.com'],
+            },
             15,
             25,
         )
@@ -313,7 +318,7 @@ class TestReadmeScan:
 
         mock_data_loader.load_from_file.return_value = {'README': readme1_df, 'Instructions': readme2_df}
         mock_llm_provider.generate_json.return_value = (
-            {'personal_data_sensitive': False, 'pii_types': [], 'evidence': []},
+            {'personal_data_sensitive': False, 'personal_data_entities': [], 'evidence': []},
             10,
             20,
         )

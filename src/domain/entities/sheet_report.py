@@ -56,7 +56,7 @@ class SheetReport:
     # Special cases
     is_readme: bool = False
     readme_content: Optional[str] = None
-    readme_pii_result: Optional[Dict[str, Any]] = None
+    readme_report: Optional[Dict[str, Any]] = None
 
     def __post_init__(self):
         """Validate and normalize data after initialization."""
@@ -135,8 +135,8 @@ class SheetReport:
             result['error_message'] = self.error_message
         if self.is_readme:
             result['is_readme'] = self.is_readme
-        if self.readme_pii_result:
-            result['readme_report'] = self.readme_pii_result
+        if self.readme_report:
+            result['readme_report'] = self.readme_report
 
         return result
 
@@ -185,5 +185,5 @@ class SheetReport:
             error_message=data.get('error_message'),
             is_readme=data.get('is_readme', False),
             readme_content=data.get('readme'),
-            readme_pii_result=data.get('readme_pii_result'),
+            readme_report=data.get('readme_report', data.get('readme_report')),
         )
