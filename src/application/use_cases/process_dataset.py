@@ -11,7 +11,6 @@ from ...domain.exceptions import DataProcessingError
 from ..interfaces import ILLMProvider, IDataLoader
 from ...shared.utils.prompt_manager import PromptManager
 
-
 logger = logging.getLogger(__name__)
 
 
@@ -397,8 +396,7 @@ class ProcessDatasetUseCase:
             # Default to sensitive on error (fail safe)
             report.personal_data_classification.sensitivity = SensitivityLevel.HIGH_SENSITIVE
             report.personal_data_classification.explanation = (
-                'Classification failed due to an internal error. '
-                'Sensitivity set to HIGH_SENSITIVE as a safe default.'
+                'Classification failed due to an internal error. Sensitivity set to HIGH_SENSITIVE as a safe default.'
             )
             report.personal_data_sensitive = True
             # Set sensitive=True for columns with entity_type != 'None'
