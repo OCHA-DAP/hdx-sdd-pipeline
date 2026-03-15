@@ -106,54 +106,66 @@ HDX_URL="https://data.humdata.org/"
 The evaluation requires:
 
 1. **Test datasets** (CSV/Excel files) in `research/data/`
-2. **Ground truth annotations** in `research/results/test_results/groundtruth/`
+2. **Ground truth annotations** in `research/results/test_results/groundtruth2/`
 
 ```bash
 # Ensure directories exist
 mkdir -p research/data
-mkdir -p research/results/test_results/groundtruth
+mkdir -p research/results/test_results/groundtruth2
 
 # Add your test datasets to research/data/
 # Example: Copy sample datasets
 # cp /path/to/your/datasets/*.xlsx research/data/
 ```
 
-**Ground Truth Format**: Each ground truth file should be a JSON file with the same name as the dataset (e.g., `dataset.xlsx.json`) containing manually annotated predictions for comparison.
+**Ground Truth Format**: Each ground truth file should be a JSON file with the same name as the dataset (e.g., `dataset.xlsx.json`) containing manually annotated predictions for comparison. You can generate templates using the `/create-groundtruth-template` API endpoint.
 
 ---
 
 ## Step 1: Batch Processing Evaluation
 
-Batch processing allows you to evaluate multiple models programmatically and generate comprehensive statistics.
+Batch processing allow you to evaluate multiple models programmatically. This is the recommended way to generate the results that will be displayed in the dashboard.
+
+### Generate Results for a Single Model
 
 ```bash
 # Process all datasets with a specific model
-uv run python batch_process_model.py --model gpt-4.1-nano
+uv run python batch_process_model.py --model gpt-4.1-mini
 
-# Skip already-processed datasets
-uv run python batch_process_model.py --model gpt-4.1-nano --skip-existing
+# Skip already-processed datasets (useful if a run was interrupted)
+uv run python batch_process_model.py --model gpt-4.1-mini --skip-existing
 
 # Limit number of datasets (for testing)
-uv run python batch_process_model.py --model gpt-4.1-nano --limit 10
+uv run python batch_process_model.py --model gpt-4.1-mini --limit 10
 ```
 
-## Step 2: Dashboard-Based Evaluation
+### Generate Results for All Models (Standard Set)
 
-The dashboard provides an interactive web interface for running evaluations and visualizing results.
-
-### Step 1: Start the Backend API
-
-The backend is a FastAPI application that serves the evaluation API.
+To populate the dashboard with comparative data, you should run the batch processor for each model in the standard evaluation set:
 
 ```bash
-# Navigate to the project root
-cd /path/to/hdx-ssd-pipeline
+# Recommended batch processing for all primary models
+for model in gpt-4.1-nano gpt-4.1-mini gpt-5-nano gpt-5-mini; do
+    echo "Processing model: $model"
+    uv run python batch_process_model.py --model $model --skip-existing
+done
+```
 
-# Ensure Python environment is activated
-source .venv/bin/activate
+The results will be saved to `research/results/test_results/{MODEL_NAME}/`. The dashboard backend will automatically detect these results and compute metrics on-the-fly when you view the Statistics or Model Comparison tabs.
 
-# Start the FastAPI backend
-python -m uvicorn app.main_fastapi:app --reload --host 127.0.0.1 --port 8000
+---
+
+## Step 2: Dashboard and Web Interface
+
+The dashboard provides an interactive web interface for running evaluations, visualizing results, and comparing model performance.
+
+### Step 1: Start the Backend API (FastAPI)
+
+The backend serves the data and computes metrics between model predictions and ground truth.
+
+```bash
+# From the project root
+uv run uvicorn app.main_fastapi:app --host 127.0.0.1 --port 8000 --reload
 ```
 
 **Expected Output:**
@@ -168,20 +180,22 @@ INFO:     Application startup complete.
 
 The API will be available at: `http://localhost:8000`
 
-### Step 2: Start the Frontend Dashboard
+### Step 2: Start the Next.js App (Frontend Dashboard)
 
-Open a **new terminal window** and navigate to the dashboard frontend:
+Open a **new terminal window** and start the frontend:
 
 ```bash
-# Navigate to the frontend directory
-cd /path/to/hdx-ssd-pipeline/dashboard/frontend
+# Navigate to the frontend directory from the project root
+cd dashboard/frontend
 
-# Install Node.js dependencies (first time only)
+# Install dependencies (only required the first time)
 npm install
 
 # Start the Next.js development server
 npm run dev
 ```
+
+**Access the dashboard:** Once both the backend and frontend are running, open your browser to [http://localhost:3000](http://localhost:3000).
 
 **Expected Output:**
 
@@ -388,13 +402,13 @@ hdx-ssd-pipeline/
 │   ├── data/                    # Test datasets
 │   └── results/
 │       └── test_results/
-│           ├── groundtruth/     # Ground truth annotations
+│           ├── groundtruth2/    # Ground truth annotations
 │           ├── gpt-4.1-nano/    # Model predictions
 │           ├── gpt-4.1-mini/    # Model predictions
-│           └── metrics_summary.json
+│           └── ...              # Other model result folders
 ├── dashboard/
-│   └── frontend/                # Next.js dashboard
-├── app/                         # FastAPI backend
+│   └── frontend/                # Next.js dashboard (Node.js)
+├── app/                         # FastAPI backend (Python)
 ├── classifiers/                 # Classification logic
 ├── prompts/                     # LLM prompts
 └── docs/                        # Documentation
