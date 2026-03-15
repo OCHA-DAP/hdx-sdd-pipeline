@@ -13,7 +13,7 @@ import json
 import logging
 import argparse
 from pathlib import Path
-from typing import List, Optional
+from typing import List
 from dotenv import load_dotenv
 
 # Import from clean architecture
@@ -39,8 +39,6 @@ def setup_event_processor(model_name: str, output_dir: Path) -> EventProcessor:
         Configured EventProcessor
     """
     print(f'Setting up EventProcessor with model: {model_name}')
-    if custom_output_path:
-        print(f'Custom output path: {custom_output_path}')
 
     # Initialize config
     config = get_config()
@@ -141,7 +139,7 @@ def process_dataset(
     print(f'📊 Processing: {dataset_name}')
 
     try:
-        # Create event for EventProcessor with custom output path
+        # Create event for EventProcessor
         event = {
             'resource_id': dataset_name,
             'download_url': str(source_file),
@@ -184,14 +182,11 @@ def main():
     parser.add_argument('--model', type=str, required=True, help='Model name to use (e.g., gpt-4.1, gpt-5-nano)')
     parser.add_argument('--skip-existing', action='store_true', help='Skip datasets that already have results')
     parser.add_argument('--limit', type=int, default=None, help='Limit number of datasets to process (for testing)')
-    parser.add_argument('--output-path', type=str, default=None, help='Custom output path for results')
 
     args = parser.parse_args()
 
     print('=' * 70)
     print(f'Batch Processing with Model: {args.model}')
-    if args.output_path:
-        print(f'Output Path: {args.output_path}')
     print('=' * 70)
     print()
 

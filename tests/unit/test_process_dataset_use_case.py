@@ -76,7 +76,7 @@ class TestProcessDatasetUseCase:
         assert report.resource_id == 'test-123'
         assert report.n_records == 3
 
-    def testcreate_data_report_basic(self, use_case, mock_data_loader, mock_llm_provider):
+    def test_create_data_report_basic(self, use_case, mock_data_loader, mock_llm_provider):
         """Test creating basic data report."""
         # Setup mocks
         df = pd.DataFrame({'Name': ['John', 'Jane'], 'Age': [25, 30]})
@@ -86,7 +86,7 @@ class TestProcessDatasetUseCase:
         }
         mock_llm_provider.generate.return_value = ('PERSON_NAME', 10, 20)
 
-        report = use_case.create_data_report(
+        report = use_case._create_data_report(
             sheet_name='Sheet1', source='test.csv', resource_id='test-123', df=df, isp_rules=None
         )
 
