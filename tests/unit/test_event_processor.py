@@ -84,6 +84,20 @@ def test_process_event_success(mock_config, mock_pipeline_factory, mock_ckan_cli
     processor._save_to_ckan.assert_called_once()
 
 
+def test_process_event_uses_dataset_id_for_isp_lookup(mock_config, mock_pipeline_factory, mock_ckan_client):
+    processor = EventProcessor()
+    processor.ckan.resource_show.return_value = {'download_url': 'http://example.com/data.csv', 'name': 'data.csv'}
+    processor.isp_retriever.get_isp_rules = MagicMock(return_value={})
+    processor.pipeline.execute.return_value = []
+    processor._save_to_ckan = MagicMock()
+
+    event = {'resource_id': '123', 'dataset_id': 'ds-123'}
+    success, _ = processor.process_event(event)
+
+    assert success
+    processor.isp_retriever.get_isp_rules.assert_called_once_with('ds-123', 'data.csv', processor.ckan)
+
+
 def test_process_event_exception(mock_config, mock_pipeline_factory):
     processor = EventProcessor()
     processor.ckan = MagicMock()

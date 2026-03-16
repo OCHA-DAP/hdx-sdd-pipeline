@@ -97,14 +97,16 @@ class EventProcessor:
             else:
                 # When CKAN is disabled, expect download_url in event
                 download_url = event.get('download_url')
-                resource_name = event.get('file_name')  # Attempt to get filename from event if available
+                resource_name = event.get('file_name') or event.get(
+                    'resource_name'
+                )  # Attempt to get filename from event if available
 
             if not download_url:
                 logger.error(f'No download URL for resource {resource_id}')
                 return False, 'No download URL'
 
             # Get dataset location for ISP rules
-            package_id = event.get('package_id')
+            package_id = event.get('dataset_id')
             isp_rules = self.isp_retriever.get_isp_rules(package_id, resource_name, self.ckan)
 
             # Process dataset using our use case
