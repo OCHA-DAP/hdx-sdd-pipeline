@@ -981,7 +981,7 @@ try:
 
     # Process each sheet
     for sheet_name, df in sheets.items():
-        report = self.create_data_report(...)
+        report = self._create_data_report(...)
         reports.append(report)
 
     logger.info(f"Successfully processed {len(sheets)} sheets")

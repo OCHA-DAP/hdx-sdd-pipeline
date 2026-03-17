@@ -5,6 +5,7 @@ import json
 import logging
 from typing import List, Optional
 from datetime import datetime
+import os
 
 # Import from clean architecture
 from config.config import Config
@@ -21,9 +22,13 @@ logger = logging.getLogger(__name__)
 router = APIRouter()
 
 # Configuration
-DATASETS_DIR = Path('/Users/liangtelkamp/Documents/GitHub/hdx-ssd-pipeline/research/data')
-REPORTS_DIR = Path('/Users/liangtelkamp/Documents/GitHub/hdx-ssd-pipeline/research/results/test_results')
-GROUNDTRUTH_DIR = REPORTS_DIR / 'groundtruth2'
+# Determine project base directory (can be overridden via PROJECT_ROOT env var)
+_default_base = Path(__file__).resolve()
+BASE_DIR = Path(os.getenv('PROJECT_ROOT', str(_default_base))).parents[2]
+# Directories can be configured via environment variables; fall back to repo-relative paths
+DATASETS_DIR = Path(os.getenv('DATASETS_DIR', str(BASE_DIR / 'research' / 'data')))
+REPORTS_DIR = Path(os.getenv('REPORTS_DIR', str(BASE_DIR / 'research' / 'results' / 'test_results')))
+GROUNDTRUTH_DIR = Path(os.getenv('GROUNDTRUTH_DIR', str(REPORTS_DIR / 'groundtruth2')))
 ALLOWED_EXTENSIONS = {'.csv', '.xlsx'}
 
 # Available models for batch processing
@@ -40,14 +45,20 @@ batch_status = {
 }
 
 
-def setup_pipeline(model_name: str) -> ProcessDatasetUseCase:
-    """Setup pipeline with specified model."""
-    logger.info(f'Setting up pipeline with model: {model_name}')
+def setup_pipeline(model_name: Optional[str] = None) -> ProcessDatasetUseCase:
+    """Setup pipeline with specified model.
+    If model_name is None, the default models from Config are used.
+    """
+    if model_name is not None:
+        logger.info(f'Setting up pipeline with model override: {model_name}')
+    else:
+        logger.info('Setting up pipeline with default model configuration')
 
     config = Config()
-    config.PII_DETECT_MODEL = model_name
-    config.PII_REFLECT_MODEL = model_name
-    config.NON_PII_DETECT_MODEL = model_name
+    if model_name is not None:
+        config.PII_DETECT_MODEL = model_name
+        config.PII_REFLECT_MODEL = model_name
+        config.NON_PII_DETECT_MODEL = model_name
 
     factory = PipelineFactory(config)
     return factory.create_pipeline()
@@ -56,8 +67,17 @@ def setup_pipeline(model_name: str) -> ProcessDatasetUseCase:
 def create_groundtruth_template(dataset_path: Path, dataset_name: str) -> Path:
     """Create a groundtruth template for the uploaded dataset using ProcessDatasetUseCase structure."""
     try:
-        # Setup pipeline to use the existing data loading and report creation logic
-        pipeline = setup_pipeline()
+        # Setup pipeline strictly for report structure generation (no LLMs)
+        config = Config()
+        factory = PipelineFactory(config)
+        # We manually instantiate ProcessDatasetUseCase with no LLM providers to skip classification
+        pipeline = ProcessDatasetUseCase(
+            data_loader=factory._create_data_loader(),
+            pii_llm_provider=None,
+            pii_reflection_llm_provider=None,
+            non_pii_llm_provider=None,
+            readme_llm_provider=None,
+        )
 
         # Load data using the pipeline's data loader (same as process_dataset.py)
         sheets_data = pipeline.data_loader.load_from_file(str(dataset_path))
@@ -72,7 +92,7 @@ def create_groundtruth_template(dataset_path: Path, dataset_name: str) -> Path:
                 report = pipeline._create_readme_report(sheet_name, str(dataset_path), dataset_name, df)
             else:
                 # Create a data report structure but without LLM processing
-                report = pipeline.create_data_report(sheet_name, str(dataset_path), dataset_name, df, isp_rules=None)
+                report = pipeline._create_data_report(sheet_name, str(dataset_path), dataset_name, df, isp_rules=None)
 
             # Convert to template format with TODO placeholders
             template_report = report.to_dict()
@@ -88,7 +108,7 @@ def create_groundtruth_template(dataset_path: Path, dataset_name: str) -> Path:
                 column['non_pii_classification']['sensitivity'] = 'TODO'
 
             # Add processing status
-            template_report['template_status'] = 'TODO_MANUAL_ANNOTATION_REQUIRED'
+            template_report['template_status'] = 'TODO_MANUAL_Annotation_REQUIRED'
 
             template_reports.append(template_report)
 
@@ -143,7 +163,14 @@ async def upload_dataset(file: UploadFile = File(...)):
     if not file.filename:
         raise HTTPException(status_code=400, detail='No file provided')
 
-    file_ext = Path(file.filename).suffix.lower()
+    # Reject filenames containing path separators
+    if any(sep in file.filename for sep in ('/', '\\')):
+        raise HTTPException(status_code=400, detail='Invalid filename')
+
+    # Sanitize to a basename to prevent path traversal
+    safe_filename = Path(file.filename).name
+
+    file_ext = Path(safe_filename).suffix.lower()
     if file_ext not in ALLOWED_EXTENSIONS:
         raise HTTPException(status_code=400, detail=f'File type {file_ext} not allowed')
 
@@ -152,19 +179,29 @@ async def upload_dataset(file: UploadFile = File(...)):
         DATASETS_DIR.mkdir(parents=True, exist_ok=True)
         GROUNDTRUTH_DIR.mkdir(parents=True, exist_ok=True)
 
+        # Avoid overwriting existing files by generating a unique name if needed
+        dataset_path = DATASETS_DIR / safe_filename
+        if dataset_path.exists():
+            timestamp = datetime.utcnow().strftime('%Y%m%d%H%M%S%f')
+            stem = Path(safe_filename).stem
+            suffix = Path(safe_filename).suffix
+            unique_filename = f'{stem}_{timestamp}{suffix}'
+            dataset_path = DATASETS_DIR / unique_filename
+        else:
+            unique_filename = safe_filename
+
         # Save uploaded file to data folder
-        dataset_path = DATASETS_DIR / file.filename
         with open(dataset_path, 'wb') as buffer:
             shutil.copyfileobj(file.file, buffer)
 
         # Create groundtruth template immediately
-        template_path = create_groundtruth_template(dataset_path, file.filename)
+        template_path = create_groundtruth_template(dataset_path, unique_filename)
 
-        logger.info(f'Successfully uploaded {file.filename} and created template')
+        logger.info(f'Successfully uploaded {unique_filename} and created template')
 
         return {
             'message': 'Upload successful',
-            'filename': file.filename,
+            'filename': unique_filename,
             'size': dataset_path.stat().st_size,
             'template_path': str(template_path),
             'dataset_path': str(dataset_path),
@@ -246,7 +283,11 @@ async def run_batch_processing(datasets: List[Path], models: List[str], skip_exi
 
                     try:
                         # Process dataset
-                        dataset_path = DATASETS_DIR / f'{dataset_name}.csv'
+                        dataset_path = DATASETS_DIR / dataset_name
+
+                        # Fallbacks for legacy groundtruth files
+                        if not dataset_path.exists():
+                            dataset_path = DATASETS_DIR / f'{dataset_name}.csv'
                         if not dataset_path.exists():
                             dataset_path = DATASETS_DIR / f'{dataset_name}.xlsx'
 
@@ -349,22 +390,63 @@ async def get_performance_metrics():
                 if isinstance(groundtruth_data, list):
                     for sheet in groundtruth_data:
                         if isinstance(sheet, dict):
-                            if sheet.get('personal_data_sensitive', False):
+                            # Normalize flags to booleans to guard against placeholder strings like "TODO"
+                            personal_flag = bool(sheet.get('personal_data_sensitive', False))
+                            non_personal_flag = bool(sheet.get('non_personal_data_sensitive', False))
+                            if personal_flag:
                                 gt_personal = True
-                            if sheet.get('non_personal_data_sensitive', False):
+                            if non_personal_flag:
                                 gt_non_personal = True
                             gt_sheets[sheet.get('sheet_name', 'unknown')] = {
-                                'personal_data_sensitive': sheet.get('personal_data_sensitive', False),
-                                'non_personal_data_sensitive': sheet.get('non_personal_data_sensitive', False),
+                                'personal_data_sensitive': personal_flag,
+                                'non_personal_data_sensitive': non_personal_flag,
                             }
                 elif isinstance(groundtruth_data, dict):
-                    gt_personal = groundtruth_data.get('personal_data_sensitive', False)
-                    gt_non_personal = groundtruth_data.get('non_personal_data_sensitive', False)
-                    # For legacy template format, assume one sheet or apply globally
-                    gt_sheets['unknown'] = {
-                        'personal_data_sensitive': gt_personal,
-                        'non_personal_data_sensitive': gt_non_personal,
-                    }
+
+                    def _normalize_flag(value) -> bool:
+                        """
+                        Normalize a ground-truth flag value to a boolean.
+                        Accepts bools directly, common string/int representations,
+                        and treats any other value (including placeholders like "TODO")
+                        as False.
+                        """
+                        if isinstance(value, bool):
+                            return value
+                        if isinstance(value, str):
+                            v = value.strip().lower()
+                            if v in ('true', 'yes', 'y', '1'):
+                                return True
+                            if v in ('false', 'no', 'n', '0', ''):
+                                return False
+                            # Unrecognized strings (e.g. "todo") are treated as False
+                            return False
+                        if isinstance(value, (int, float)):
+                            return bool(value)
+                        return False
+
+                    sheets = groundtruth_data.get('sheets')
+                    if isinstance(sheets, list):
+                        # Newer template format: dict with a "sheets" list of per-sheet ground truth
+                        for sheet in sheets:
+                            if isinstance(sheet, dict):
+                                personal_flag = _normalize_flag(sheet.get('personal_data_sensitive', False))
+                                non_personal_flag = _normalize_flag(sheet.get('non_personal_data_sensitive', False))
+                                if personal_flag:
+                                    gt_personal = True
+                                if non_personal_flag:
+                                    gt_non_personal = True
+                                gt_sheets[sheet.get('sheet_name', 'unknown')] = {
+                                    'personal_data_sensitive': personal_flag,
+                                    'non_personal_data_sensitive': non_personal_flag,
+                                }
+                    else:
+                        # Legacy template format: flags at the top level, apply globally/one sheet
+                        gt_personal = _normalize_flag(groundtruth_data.get('personal_data_sensitive', False))
+                        gt_non_personal = _normalize_flag(groundtruth_data.get('non_personal_data_sensitive', False))
+                        gt_sheets['unknown'] = {
+                            'personal_data_sensitive': gt_personal,
+                            'non_personal_data_sensitive': gt_non_personal,
+                        }
 
                 gt_overall = gt_personal or gt_non_personal
 

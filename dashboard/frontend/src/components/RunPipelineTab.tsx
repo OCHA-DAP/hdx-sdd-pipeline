@@ -1,6 +1,6 @@
 "use client";
 import { useState } from "react";
-import { Upload, Play, FileText, CheckCircle } from "lucide-react";
+import { Upload, Play, FileText } from "lucide-react";
 import { getApiUrl } from "../services/api";
 
 const MODEL_OPTIONS = [

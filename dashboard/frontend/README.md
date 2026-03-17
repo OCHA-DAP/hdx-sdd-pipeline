@@ -33,7 +33,7 @@ Open [http://localhost:3000](http://localhost:3000) to view the dashboard.
 
 ## Tech Stack
 
-- Next.js 15
+- Next.js 16.1.2
 - React 19
 - TypeScript
 - Tailwind CSS

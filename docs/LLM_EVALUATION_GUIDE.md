@@ -124,7 +124,7 @@ mkdir -p research/results/test_results/groundtruth2
 
 ## Step 1: Batch Processing Evaluation
 
-Batch processing allow you to evaluate multiple models programmatically. This is the recommended way to generate the results that will be displayed in the dashboard.
+Batch processing allows you to evaluate multiple models programmatically. This is the recommended way to generate the results that will be displayed in the dashboard.
 
 ### Generate Results for a Single Model
 
