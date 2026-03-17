@@ -23,8 +23,8 @@ router = APIRouter()
 
 # Configuration
 # Determine project base directory (can be overridden via PROJECT_ROOT env var)
-_default_base = Path(__file__).resolve()
-BASE_DIR = Path(os.getenv('PROJECT_ROOT', str(_default_base))).parents[2]
+_default_base = Path(__file__).resolve().parents[1]
+BASE_DIR = Path(os.getenv('PROJECT_ROOT', str(_default_base)))
 # Directories can be configured via environment variables; fall back to repo-relative paths
 DATASETS_DIR = Path(os.getenv('DATASETS_DIR', str(BASE_DIR / 'research' / 'data')))
 REPORTS_DIR = Path(os.getenv('REPORTS_DIR', str(BASE_DIR / 'research' / 'results' / 'test_results')))
@@ -43,6 +43,28 @@ batch_status = {
     'started_at': None,
     'progress': 0,
 }
+
+
+def _normalize_flag(value) -> bool:
+    """
+    Normalize a ground-truth flag value to a boolean.
+    Accepts bools directly, common string/int representations,
+    and treats any other value (including placeholders like "TODO")
+    as False.
+    """
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, str):
+        v = value.strip().lower()
+        if v in ('true', 'yes', 'y', '1'):
+            return True
+        if v in ('false', 'no', 'n', '0', ''):
+            return False
+        # Unrecognized strings (e.g. "todo") are treated as False
+        return False
+    if isinstance(value, (int, float)):
+        return bool(value)
+    return False
 
 
 def setup_pipeline(model_name: Optional[str] = None) -> ProcessDatasetUseCase:
@@ -68,11 +90,9 @@ def create_groundtruth_template(dataset_path: Path, dataset_name: str) -> Path:
     """Create a groundtruth template for the uploaded dataset using ProcessDatasetUseCase structure."""
     try:
         # Setup pipeline strictly for report structure generation (no LLMs)
-        config = Config()
-        factory = PipelineFactory(config)
         # We manually instantiate ProcessDatasetUseCase with no LLM providers to skip classification
         pipeline = ProcessDatasetUseCase(
-            data_loader=factory._create_data_loader(),
+            data_loader=SmartDataLoader(max_rows=1000),
             pii_llm_provider=None,
             pii_reflection_llm_provider=None,
             non_pii_llm_provider=None,
@@ -99,13 +119,18 @@ def create_groundtruth_template(dataset_path: Path, dataset_name: str) -> Path:
 
             # Set all sensitivity flags to TODO placeholders
             template_report['personal_data_sensitive'] = 'TODO'
-            template_report['non_pii_classification']['sensitivity'] = 'TODO'
+            template_report['non_personal_data_sensitive'] = 'TODO'
+
+            if not template_report.get('non_personal_data'):
+                template_report['non_personal_data'] = {}
+            template_report['non_personal_data']['sensitivity'] = 'TODO'
 
             # Set all column classifications to TODO
             for column in template_report.get('columns', []):
-                column['pii_classification']['entity_type'] = 'TODO'
-                column['pii_classification']['sensitive'] = 'TODO'
-                column['non_pii_classification']['sensitivity'] = 'TODO'
+                if not column.get('personal_data'):
+                    column['personal_data'] = {}
+                column['personal_data']['entity_type'] = 'TODO'
+                column['personal_data']['sensitive'] = 'TODO'
 
             # Add processing status
             template_report['template_status'] = 'TODO_MANUAL_Annotation_REQUIRED'
@@ -117,27 +142,7 @@ def create_groundtruth_template(dataset_path: Path, dataset_name: str) -> Path:
 
         with open(template_path, 'w') as f:
             json.dump(
-                {
-                    'dataset_name': dataset_name,
-                    'created_at': datetime.now().isoformat(),
-                    'template_type': 'groundtruth_annotation',
-                    'instructions': {
-                        'personal_data_sensitive': 'Set to true/false based on whether the sheet contains any '
-                        'personal sensitive data',
-                        'non_pii_classification': 'Set sensitivity level: '
-                        'NON_SENSITIVE, MODERATE_SENSITIVE, HIGH_SENSITIVE, or SEVERE_SENSITIVE',
-                        'columns': {
-                            'pii_classification': {
-                                'entity_type': 'Set to appropriate PII type: NONE, PERSON_NAME, EMAIL_ADDRESS, etc.',
-                                'sensitive': 'Set to true/false based on whether this PII is sensitive in context',
-                            },
-                            'non_pii_classification': {
-                                'sensitivity': 'Set sensitivity level for non-PII data in this column'
-                            },
-                        },
-                    },
-                    'sheets': template_reports,
-                },
+                template_reports,
                 f,
                 indent=2,
             )
@@ -295,7 +300,10 @@ async def run_batch_processing(datasets: List[Path], models: List[str], skip_exi
                             logger.warning(f'Dataset file not found: {dataset_name}')
                             continue
 
-                        result = pipeline.process_dataset(str(dataset_path))
+                        reports = pipeline.execute(
+                            source=str(dataset_path), resource_id=dataset_name, is_url=False, isp_rules=None
+                        )
+                        result = [report.to_dict() for report in reports]
 
                         # Save result
                         model_result_dir.mkdir(parents=True, exist_ok=True)
@@ -386,13 +394,12 @@ async def get_performance_metrics():
                 gt_personal = False
                 gt_non_personal = False
                 gt_sheets = {}
-
                 if isinstance(groundtruth_data, list):
                     for sheet in groundtruth_data:
                         if isinstance(sheet, dict):
                             # Normalize flags to booleans to guard against placeholder strings like "TODO"
-                            personal_flag = bool(sheet.get('personal_data_sensitive', False))
-                            non_personal_flag = bool(sheet.get('non_personal_data_sensitive', False))
+                            personal_flag = _normalize_flag(sheet.get('personal_data_sensitive', False))
+                            non_personal_flag = _normalize_flag(sheet.get('non_personal_data_sensitive', False))
                             if personal_flag:
                                 gt_personal = True
                             if non_personal_flag:
@@ -402,28 +409,6 @@ async def get_performance_metrics():
                                 'non_personal_data_sensitive': non_personal_flag,
                             }
                 elif isinstance(groundtruth_data, dict):
-
-                    def _normalize_flag(value) -> bool:
-                        """
-                        Normalize a ground-truth flag value to a boolean.
-                        Accepts bools directly, common string/int representations,
-                        and treats any other value (including placeholders like "TODO")
-                        as False.
-                        """
-                        if isinstance(value, bool):
-                            return value
-                        if isinstance(value, str):
-                            v = value.strip().lower()
-                            if v in ('true', 'yes', 'y', '1'):
-                                return True
-                            if v in ('false', 'no', 'n', '0', ''):
-                                return False
-                            # Unrecognized strings (e.g. "todo") are treated as False
-                            return False
-                        if isinstance(value, (int, float)):
-                            return bool(value)
-                        return False
-
                     sheets = groundtruth_data.get('sheets')
                     if isinstance(sheets, list):
                         # Newer template format: dict with a "sheets" list of per-sheet ground truth
@@ -753,7 +738,7 @@ async def get_model_results(model_name: str):
                     {
                         'model': model_name,
                         'dataset': dataset_name,
-                        'processed_at': result_file.stat().st_mtime,
+                        'processed_at': datetime.fromtimestamp(result_file.stat().st_mtime).isoformat(),
                         'file_path': str(result_file),
                         'status': 'completed',
                     }
@@ -765,7 +750,7 @@ async def get_model_results(model_name: str):
                 {
                     'model': model_name,
                     'dataset': result_file.stem,
-                    'processed_at': result_file.stat().st_mtime,
+                    'processed_at': datetime.fromtimestamp(result_file.stat().st_mtime).isoformat(),
                     'file_path': str(result_file),
                     'status': 'failed',
                 }
