@@ -48,6 +48,19 @@ def test_isp_retriever_country_match_group_name_field(mock_ckan_client):
     assert rules == {'country': 'tst', 'rule': 'custom'}
 
 
+def test_isp_retriever_group_id_field_falls_back_to_default(mock_ckan_client):
+    """Test ISP retriever ignores the CKAN group id field and falls back to default."""
+    retriever = ISPRetriever()
+    mock_isps = {'default': {'rule': 'default'}, 'drc_isp': {'country': 'cod', 'rule': 'custom'}}
+
+    mock_ckan_client.return_value.package_show.return_value = {'groups': [{'name': 'country-group', 'id': 'cod'}]}
+
+    with patch('builtins.open', mock_open(read_data=json.dumps(mock_isps))):
+        rules = retriever.get_isp_rules('pkg123', ckan_client=mock_ckan_client.return_value)
+
+    assert rules == {'rule': 'default'}
+
+
 def test_isp_retriever_no_country_match(mock_ckan_client):
     """Test ISP retriever falls back to default when no country match."""
     retriever = ISPRetriever()

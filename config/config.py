@@ -3,6 +3,7 @@
 import os
 from dataclasses import dataclass
 import logging
+from urllib.parse import urlparse
 import slack_sdk
 import slack_sdk.errors as slack_errors
 from dotenv import load_dotenv
@@ -62,16 +63,30 @@ class SlackClientWrapper:
     def __init__(self) -> None:
         config = get_config()
         self.slack_channel = config.HDX_SDD_SLACK_CHANNEL
+        self.message_prefix = self._derive_message_prefix(getattr(config, 'HDX_URL', ''))
         self.slack_client = None
         token = config.HDX_SDD_SLACK_ACCESS_TOKEN
         if token:
             self.slack_client = slack_sdk.WebClient(token=token)
             logger.debug('Slack client initialized')
 
+    @staticmethod
+    def _derive_message_prefix(hdx_url: str) -> str:
+        """Derive Slack prefix from the first host label in HDX_URL."""
+        if not hdx_url:
+            return '[SDD Pipeline]'
+
+        hostname = urlparse(hdx_url).hostname or hdx_url
+        first_word = hostname.split('.')[0].strip() if hostname else ''
+        if not first_word:
+            return '[SDD Pipeline]'
+
+        return f'[{first_word}]'
+
     def post_to_slack_channel(self, message: str):
         if self.slack_client:
             try:
-                text = f'[SDD Pipeline] {message}'
+                text = f'{self.message_prefix} {message}'
                 self.slack_client.chat_postMessage(channel=self.slack_channel, text=text)
             except slack_errors.SlackApiError as e:
                 # Log Slack API errors but don't raise to prevent blocking the pipeline
