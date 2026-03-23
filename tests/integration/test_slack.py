@@ -12,6 +12,8 @@ class TestSlackClientWrapper:
         """Set up test environment before each test."""
         self.test_channel = 'test-channel'
         self.test_message = 'Test message'
+        self.test_hdx_url = 'https://data.humdata.org'
+        self.test_prefix = '[data]'
 
     @patch('config.config.get_config')
     def test_init_with_token(self, mock_get_config):
@@ -19,6 +21,7 @@ class TestSlackClientWrapper:
         mock_config = Mock()
         mock_config.HDX_SDD_SLACK_CHANNEL = self.test_channel
         mock_config.HDX_SDD_SLACK_ACCESS_TOKEN = 'test-token'
+        mock_config.HDX_URL = self.test_hdx_url
         mock_get_config.return_value = mock_config
 
         with patch('slack_sdk.WebClient') as mock_web_client:
@@ -28,6 +31,7 @@ class TestSlackClientWrapper:
             mock_web_client.assert_called_once_with(token='test-token')
             assert slack_wrapper.slack_client == mock_web_client.return_value
             assert slack_wrapper.slack_channel == self.test_channel
+            assert slack_wrapper.message_prefix == self.test_prefix
 
     @patch('config.config.get_config')
     def test_init_without_token(self, mock_get_config):
@@ -35,6 +39,7 @@ class TestSlackClientWrapper:
         mock_config = Mock()
         mock_config.HDX_SDD_SLACK_CHANNEL = self.test_channel
         mock_config.HDX_SDD_SLACK_ACCESS_TOKEN = None
+        mock_config.HDX_URL = self.test_hdx_url
         mock_get_config.return_value = mock_config
 
         slack_wrapper = SlackClientWrapper()
@@ -42,6 +47,7 @@ class TestSlackClientWrapper:
         # Verify client is None when no token
         assert slack_wrapper.slack_client is None
         assert slack_wrapper.slack_channel == self.test_channel
+        assert slack_wrapper.message_prefix == self.test_prefix
 
     @patch('config.config.get_config')
     def test_post_to_slack_channel_success(self, mock_get_config):
@@ -49,6 +55,7 @@ class TestSlackClientWrapper:
         mock_config = Mock()
         mock_config.HDX_SDD_SLACK_CHANNEL = self.test_channel
         mock_config.HDX_SDD_SLACK_ACCESS_TOKEN = 'test-token'
+        mock_config.HDX_URL = self.test_hdx_url
         mock_get_config.return_value = mock_config
 
         slack_wrapper = SlackClientWrapper()
@@ -61,7 +68,7 @@ class TestSlackClientWrapper:
 
         # Verify the message was posted with correct format
         slack_wrapper.slack_client.chat_postMessage.assert_called_once_with(
-            channel=self.test_channel, text=f'[SDD Pipeline] {self.test_message}'
+            channel=self.test_channel, text=f'{self.test_prefix} {self.test_message}'
         )
 
     @patch('config.config.get_config')
@@ -70,6 +77,7 @@ class TestSlackClientWrapper:
         mock_config = Mock()
         mock_config.HDX_SDD_SLACK_CHANNEL = self.test_channel
         mock_config.HDX_SDD_SLACK_ACCESS_TOKEN = None
+        mock_config.HDX_URL = self.test_hdx_url
         mock_get_config.return_value = mock_config
 
         slack_wrapper = SlackClientWrapper()
@@ -86,6 +94,7 @@ class TestSlackClientWrapper:
         mock_config = Mock()
         mock_config.HDX_SDD_SLACK_CHANNEL = self.test_channel
         mock_config.HDX_SDD_SLACK_ACCESS_TOKEN = 'test-token'
+        mock_config.HDX_URL = self.test_hdx_url
         mock_get_config.return_value = mock_config
 
         slack_wrapper = SlackClientWrapper()
