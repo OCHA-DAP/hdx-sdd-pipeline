@@ -52,56 +52,6 @@
             }
         }
     },
-    "OCHA Cameroon (NWSW)": {
-        "country": "CMR",
-        "sensitivity_rules": {
-            "LOW/NON_SENSITIVE": {
-                "data and information type": [
-                    "Consolidated, aggregated and cleared anonymized information, at an administrative level agreed by the group [admin 2, unless otherwise specified], including:\n- Operational presence infographics monthly infographics\n- Factsheets\n- Situation report\n- Humanitarian snapshot\n- Bulletin and Other clusters public documents"
-                ]
-            },
-            "MODERATE_SENSITIVE": {
-                "data and information type": [
-                    "- 5W matrix in Excel or infographics at deeper than admin3 level\n- Aggregated assessments reports\n- Figures (population, response)\n- Meeting minutes\n- Humanitarian contact list\n- Assessment reports not anonymized\n- Email communication not anonymized\n- Other IM products or document classified by its author"
-                ]
-            },
-            "HIGH_SENSITIVE": {
-                "data and information type": [
-                    "- Disaggregated assessments reports\n- Sensitive infographics\n- Field activity planning\n- Any other document classified by its author"
-                ]
-            },
-            "SEVERE_SENSITIVE": {
-                "data and information type": [
-            "- Aid-Worker personal Contact Details\n- Individual survey responses\n- Personal data (i.e. beneficiary lists), etc.\n- Access information\n- Any other document classified by its author\n- Health facility and operational partners names (only where explicit and written permission has been given by the relevant hub)"
-                ]
-            }
-        }
-    },
-    "OCHA Cameroon (Extreme Nord)": {
-        "country": "CMR",
-        "sensitivity_rules": {
-            "LOW/NON_SENSITIVE": {
-                "data and information type": [
-            "Compiled, aggregated, and anonymized information at the agreed level of aggregation for sharing. This includes the following types:\nHumanitarian situation overview (Snapshot)\nFactsheets\nMeeting schedules\nCommon Operational DataSet (COD)\nOperational presence (5W)\nFunding tracking dashboards\nNewsletters\nHumanitarian bulletins\nProtection policies (PSEA)\nCall for tenders\nOther sector documents"
-                ]
-            },
-            "MODERATE_SENSITIVE": {
-                "data and information type": [
-                    "Humanitarian access maps\n5W matrix in Excel or infographic at a deeper level than admin level 3\nAggregated assessment reports\nFigures (population, response)\nMeeting minutes\nList of humanitarian contacts\nNon-anonymized assessment reports\nNon-anonymized email communications\nOther IM products\nCash transfer programming (CASH)\nAny other document classified as such by its author"
-                ]
-            },
-          "HIGH_SENSITIVE": {
-                "data and information type": [
-            "Security information data\nBiometric data\nPersonnel information\nIndividual data related to GBV and protection\nDisaggregated assessment reports\nSensitive infographics\nField activity planning\nAny other document classified as such by its author"
-                ]
-            },
-            "SEVERE_SENSITIVE": {
-                "data and information type": [
-                    "Personal contact details of humanitarian worker\nIndividual survey responses\nPersonal data (e.g., lists of beneficiaries), etc.\nAny other document classified as such by its author"
-                ]
-            }
-        }
-    },
     "OCHA Democratic Republic of the Congo": {
         "country": "COD",
         "sensitivity_rules": {
@@ -175,31 +125,6 @@
             "SEVERE_SENSITIVE": {
                 "data and information type": [
                     "- Any raw survey/ assessment data, e.g.: intention survey, protection needs assessment, responses from FGDs and KIIs, etc. \n- 5W data- set (without \nencrypted data) \n- Personal data of people served (e.g.: biometric data and/ or registration lists, \nverification survey data- set, GBV incidents data/ registered GBV cases list)12 \n- Access/ security data that is not aggregated \n-Referral\u2019s report/ forms"
-                ]
-            }
-        }
-    },
-    "OCHA Myanmar": {
-        "country": "MMR",
-        "sensitivity_rules": {
-            "LOW/NON_SENSITIVE": {
-                "data and information type": [
-                    "HNO and underlying national- level aggregate survey results\nCODs and FODs\nAccess restrictions (township level)\n3/4/5W data (at national and township level)\nSome organization names"
-                ]
-            },
-            "MODERATE_SENSITIVE": {
-                "data and information type": [
-                    "Aggregated survey results (e.g. aggregated to the township level)\n3/4/5W data (this data at the village-tract level and below is restricted)\nNames of some organizations who do not want to be publicly- known"
-                ]
-            },
-            "HIGH_SENSITIVE": {
-                "data and information type": [
-                    "Aggregated survey results (e.g. aggregated to the household level and with additional disaggregation based on different indicators)\nAid-Worker Contact Details / Lists"
-                ]
-            },
-            "SEVERE_SENSITIVE": {
-                "data and information type": [
-                    "Raw survey data, e.g. individual survey responses at HH-level data\nPersonal data of beneficiaries\n(i.e. Beneficiary lists) [footnote: Personally identifiable data like beneficiary lists should be shared within bilateral agreements based on organizational policies framed in accordance with the minimum standards prescribed by the UN General Assembly, Guidelines for the Regulation of Computerized Personal Data Files, as adopted by Resolution A/Res/45/95 of 14 December 1990, available at: http://www.refworld.org/docid/3ddcafaac.html and other international instruments concerning the protection of personal data   and individuals\u2019 privacy.]"
                 ]
             }
         }
