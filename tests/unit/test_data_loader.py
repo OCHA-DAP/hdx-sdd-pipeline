@@ -189,6 +189,69 @@ class TestSmartDataLoader:
         assert list(result['sheet1'].columns) == ['Name', 'Age']
 
     @patch('src.infrastructure.storage.data_loader.requests.get')
+    def test_load_from_url_applies_default_user_agent(self, mock_requests_get):
+        """Test load_from_url applies loader default user-agent when none provided by caller."""
+        loader = SmartDataLoader(user_agent='TestUA/2.0.0')
+
+        mock_response = MagicMock()
+        mock_response.content = b'Name,Age\nJohn,25\nJane,30'
+        mock_response.raise_for_status.return_value = None
+        mock_requests_get.return_value = mock_response
+
+        loader.load_from_url('https://example.com/data.csv')
+
+        _, kwargs = mock_requests_get.call_args
+        assert kwargs['headers']['User-Agent'] == 'TestUA/2.0.0'
+
+    @patch('src.infrastructure.storage.data_loader.requests.get')
+    def test_load_from_url_preserves_explicit_user_agent(self, mock_requests_get):
+        """Test load_from_url keeps caller-provided user-agent header."""
+        loader = SmartDataLoader(user_agent='DefaultUA/2.0.0')
+
+        mock_response = MagicMock()
+        mock_response.content = b'Name,Age\nJohn,25\nJane,30'
+        mock_response.raise_for_status.return_value = None
+        mock_requests_get.return_value = mock_response
+
+        loader.load_from_url('https://example.com/data.csv', http_headers={'User-Agent': 'CallerUA/9.9.9'})
+
+        _, kwargs = mock_requests_get.call_args
+        assert kwargs['headers']['User-Agent'] == 'CallerUA/9.9.9'
+
+    @patch('src.infrastructure.storage.data_loader.requests.get')
+    def test_load_from_url_keeps_authorization_for_hdx_domain(self, mock_requests_get):
+        """Test Authorization header is kept for configured HDX domain and subdomains."""
+        loader = SmartDataLoader(hdx_base_url='https://hdx.example.org')
+
+        mock_response = MagicMock()
+        mock_response.content = b'Name,Age\nJohn,25\nJane,30'
+        mock_response.raise_for_status.return_value = None
+        mock_requests_get.return_value = mock_response
+
+        loader.load_from_url('https://data.hdx.example.org/file.csv', http_headers={'Authorization': 'Bearer secret'})
+
+        _, kwargs = mock_requests_get.call_args
+        assert kwargs['headers']['Authorization'] == 'Bearer secret'
+
+    @patch('src.infrastructure.storage.data_loader.requests.get')
+    def test_load_from_url_drops_authorization_for_non_hdx_domain(self, mock_requests_get):
+        """Test Authorization header is removed for non-HDX download targets."""
+        loader = SmartDataLoader(hdx_base_url='https://hdx.example.org')
+
+        mock_response = MagicMock()
+        mock_response.content = b'Name,Age\nJohn,25\nJane,30'
+        mock_response.raise_for_status.return_value = None
+        mock_requests_get.return_value = mock_response
+
+        loader.load_from_url(
+            'https://storage.other-cloud.org/file.csv',
+            http_headers={'Authorization': 'Bearer secret'},
+        )
+
+        _, kwargs = mock_requests_get.call_args
+        assert 'Authorization' not in kwargs['headers']
+
+    @patch('src.infrastructure.storage.data_loader.requests.get')
     def test_load_from_url_excel(self, mock_requests_get):
         """Test load_from_url with Excel."""
         loader = SmartDataLoader()

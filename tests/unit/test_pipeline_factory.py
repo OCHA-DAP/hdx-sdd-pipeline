@@ -24,6 +24,8 @@ class TestPipelineFactory:
         config.NON_PII_DETECT_MODEL = 'gpt-4.1-nano'
         config.AZURE_OPENAI_ENDPOINT = 'https://test.openai.azure.com'
         config.AZURE_OPENAI_API_KEY = 'test-key'
+        config.SDD_USER_AGENT = 'HDXINTERNAL:SDDPipeline/test'
+        config.HDX_URL = 'https://hdx.example.org'
         return config
 
     @pytest.fixture
@@ -68,7 +70,11 @@ class TestPipelineFactory:
         assert isinstance(pipeline, ProcessDatasetUseCase)
 
         # Verify data loader was created
-        mock_data_loader.assert_called_once_with(max_rows=1000)
+        mock_data_loader.assert_called_once_with(
+            max_rows=1000,
+            user_agent='HDXINTERNAL:SDDPipeline/test',
+            hdx_base_url='https://hdx.example.org',
+        )
 
         # Verify all four LLM providers were created
         assert mock_azure.call_count == 4
