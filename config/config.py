@@ -7,6 +7,7 @@ from urllib.parse import urlparse
 import slack_sdk
 import slack_sdk.errors as slack_errors
 from dotenv import load_dotenv
+from src.version import __version__
 
 logger = logging.getLogger(__name__)
 
@@ -26,6 +27,7 @@ class Config:
     # CKAN
     HDX_URL: str = os.getenv('HDX_URL', '')
     HDX_KEY: str = os.getenv('HDX_KEY', '')
+    SDD_USER_AGENT: str = os.getenv('SDD_USER_AGENT', f'HDXINTERNAL:SDDPipeline/{__version__}')
 
     # Processing / Models
     RERUN: bool = os.getenv('RERUN', 'false').lower() == 'true'

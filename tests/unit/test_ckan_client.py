@@ -34,6 +34,19 @@ class TestCKANClient:
         assert client_no_token.api_token is None
         assert client_no_token.headers == {}
 
+    def test_initialization_with_user_agent(self):
+        """Test client initialization includes configured user-agent header."""
+        client = CKANClient(base_url='https://test.hdx.org', api_token='test-token-123', user_agent='TestUA/1.0.0')
+
+        assert client.headers['Authorization'] == 'test-token-123'
+        assert client.headers['User-Agent'] == 'TestUA/1.0.0'
+
+    def test_initialization_without_user_agent(self):
+        """Test client initialization does not include user-agent when omitted."""
+        client = CKANClient(base_url='https://test.hdx.org', api_token='test-token-123')
+
+        assert 'User-Agent' not in client.headers
+
     @patch('src.shared.utils.ckan.requests.get')
     def test_request_get_success(self, mock_get, client):
         """Test successful GET request."""

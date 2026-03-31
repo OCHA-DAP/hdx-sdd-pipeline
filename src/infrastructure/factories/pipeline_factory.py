@@ -54,7 +54,11 @@ class PipelineFactory:
         logger.info('Creating processing pipeline...')
 
         # Always create data loader
-        data_loader = SmartDataLoader(max_rows=1000)
+        data_loader = SmartDataLoader(
+            max_rows=1000,
+            user_agent=self.config.SDD_USER_AGENT,
+            hdx_base_url=self.config.HDX_URL,
+        )
 
         # Create LLM providers based on config
         pii_llm = self._create_pii_llm() if self.config.PERSONAL_DATA_DETECTION else None

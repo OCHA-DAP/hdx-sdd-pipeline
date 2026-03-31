@@ -1,10 +1,11 @@
 """Data loader implementation with smart preprocessing."""
 
 import logging
-from typing import Dict, List, Any
+from typing import Dict, List, Any, Optional
 from pathlib import Path
 from contextlib import contextmanager
 import tempfile
+from urllib.parse import urlparse
 import requests
 import pandas as pd
 import csv
@@ -28,14 +29,18 @@ class SmartDataLoader(IDataLoader):
 
     SUPPORTED_EXTENSIONS = ('.csv', '.xls', '.xlsx')
 
-    def __init__(self, max_rows: int = 1000):
+    def __init__(self, max_rows: int = 1000, user_agent: Optional[str] = None, hdx_base_url: Optional[str] = None):
         """
         Initialize data loader.
 
         Args:
             max_rows: Maximum rows to load per sheet
+            user_agent: Optional default User-Agent header for outbound URL requests
+            hdx_base_url: Optional HDX base URL used to scope Authorization header forwarding
         """
         self.max_rows = max_rows
+        self.user_agent = user_agent
+        self.hdx_base_url = hdx_base_url
 
     def validate_url(self, url: str) -> bool:
         """
@@ -74,6 +79,13 @@ class SmartDataLoader(IDataLoader):
 
         if http_headers is None:
             http_headers = {}
+
+        if self.user_agent:
+            has_user_agent = any(k.lower() == 'user-agent' for k in http_headers)
+            if not has_user_agent:
+                http_headers = {**http_headers, 'User-Agent': self.user_agent}
+
+        http_headers = self._sanitize_headers_for_url(url, http_headers)
 
         try:
             file_type = 'CSV' if url.lower().endswith('.csv') else 'Excel'
@@ -148,6 +160,39 @@ class SmartDataLoader(IDataLoader):
         except Exception as e:
             logger.error(f'Failed to load file {file_path}: {e}', exc_info=True)
             raise DataProcessingError(f'Failed to load file: {e}')
+
+    def _sanitize_headers_for_url(self, url: str, http_headers: Dict[str, str]) -> Dict[str, str]:
+        """Remove sensitive headers when destination is outside trusted HDX domains."""
+        if not http_headers:
+            return http_headers
+
+        # HTTP header names are case-insensitive; detect any Authorization header regardless of casing.
+        has_authorization = any(k.lower() == 'authorization' for k in http_headers.keys())
+        if not has_authorization:
+            return http_headers
+
+        if self._is_hdx_domain(url):
+            return http_headers
+
+        # Remove all Authorization headers in a case-insensitive way.
+        sanitized_headers = {
+            k: v for k, v in http_headers.items() if k.lower() != 'authorization'
+        }
+        return sanitized_headers
+
+    def _is_hdx_domain(self, url: str) -> bool:
+        """Return True when URL host matches configured HDX host or one of its subdomains."""
+        request_host = urlparse(url).hostname
+        if not request_host or not self.hdx_base_url:
+            return False
+
+        hdx_host = urlparse(self.hdx_base_url).hostname
+        if not hdx_host:
+            return False
+
+        request_host = request_host.lower()
+        hdx_host = hdx_host.lower()
+        return request_host == hdx_host or request_host.endswith(f'.{hdx_host}')
 
     def _detect_csv_delimiter(self, source: str) -> str:
         """Detect CSV delimiter, falling back to comma."""
