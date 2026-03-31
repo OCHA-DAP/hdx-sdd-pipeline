@@ -19,12 +19,16 @@ class CKANClient:
         self,
         base_url: Optional[str] = None,
         api_token: Optional[str] = None,
+        user_agent: Optional[str] = None,
     ):
         # --- Configuration ---
         self.base_url = base_url
         self.api_token = api_token
+        self.user_agent = user_agent
         self.project_root = Path(__file__).resolve().parent.parent
         self.headers = {'Authorization': self.api_token} if self.api_token else {}
+        if self.user_agent:
+            self.headers['User-Agent'] = self.user_agent
 
     # --- Core request helper ---
     @handle_exception()

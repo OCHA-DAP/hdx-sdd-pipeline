@@ -56,7 +56,11 @@ class EventProcessor:
 
         # Setup CKAN client if CKAN_UPDATE is enabled
         if self.config.CKAN_UPDATE and not self.custom_output_path:
-            self.ckan = CKANClient(base_url=self.config.HDX_URL, api_token=self.config.HDX_KEY)
+            self.ckan = CKANClient(
+                base_url=self.config.HDX_URL,
+                api_token=self.config.HDX_KEY,
+                user_agent=self.config.SDD_USER_AGENT,
+            )
             logger.info('CKAN client initialized')
         else:
             logger.info('CKAN_UPDATE is disabled - CKAN operations will be skipped')
