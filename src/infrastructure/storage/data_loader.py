@@ -80,8 +80,10 @@ class SmartDataLoader(IDataLoader):
         if http_headers is None:
             http_headers = {}
 
-        if self.user_agent and 'User-Agent' not in http_headers:
-            http_headers = {**http_headers, 'User-Agent': self.user_agent}
+        if self.user_agent:
+            has_user_agent = any(k.lower() == 'user-agent' for k in http_headers)
+            if not has_user_agent:
+                http_headers = {**http_headers, 'User-Agent': self.user_agent}
 
         http_headers = self._sanitize_headers_for_url(url, http_headers)
 
@@ -161,14 +163,21 @@ class SmartDataLoader(IDataLoader):
 
     def _sanitize_headers_for_url(self, url: str, http_headers: Dict[str, str]) -> Dict[str, str]:
         """Remove sensitive headers when destination is outside trusted HDX domains."""
-        if not http_headers or 'Authorization' not in http_headers:
+        if not http_headers:
+            return http_headers
+
+        # HTTP header names are case-insensitive; detect any Authorization header regardless of casing.
+        has_authorization = any(k.lower() == 'authorization' for k in http_headers.keys())
+        if not has_authorization:
             return http_headers
 
         if self._is_hdx_domain(url):
             return http_headers
 
-        sanitized_headers = {**http_headers}
-        sanitized_headers.pop('Authorization', None)
+        # Remove all Authorization headers in a case-insensitive way.
+        sanitized_headers = {
+            k: v for k, v in http_headers.items() if k.lower() != 'authorization'
+        }
         return sanitized_headers
 
     def _is_hdx_domain(self, url: str) -> bool:

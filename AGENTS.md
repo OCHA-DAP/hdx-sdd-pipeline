@@ -27,8 +27,8 @@ These rules apply to all AI-assisted code changes in this repository.
 - The requirements files in `requirements/` are the source of truth for functional task scope.
 - When adding a feature, update the relevant requirements file first, get human approval, then implement.
 - Requirement status markers must be used consistently:
-	- `[x]` = implemented
-	- `[ ]` = planned/not yet implemented
+  - `[x]` = implemented
+  - `[ ]` = planned/not yet implemented
 
 ## Constraints
 
