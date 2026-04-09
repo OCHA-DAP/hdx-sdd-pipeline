@@ -8,6 +8,19 @@ from pathlib import Path
 src_path = Path(__file__).parent.parent / 'src'
 sys.path.insert(0, str(src_path))
 
+# Mock Google Sheets client initialization to avoid FileNotFoundError: service_account.json
+from unittest.mock import MagicMock, patch
+
+# We mock at the module levels where initialization happens
+mock_creds = MagicMock()
+mock_gspread_client = MagicMock()
+
+patcher_creds = patch('google.oauth2.service_account.Credentials.from_service_account_file', return_value=mock_creds)
+patcher_gspread = patch('gspread.authorize', return_value=mock_gspread_client)
+
+patcher_creds.start()
+patcher_gspread.start()
+
 
 @pytest.fixture
 def sample_column_data():
