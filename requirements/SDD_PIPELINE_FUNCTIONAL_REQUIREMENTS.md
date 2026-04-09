@@ -63,7 +63,7 @@ Any new feature request for this project must follow this order:
   - Implemented behavior: When CKAN is enabled and report already exists, event returns successful no-op outcome.
 
 - [x] FR-SDD-023: ISP rules must be retrieved and applied during sensitivity analysis.
-  - Implemented behavior: Event processor resolves ISP rules from package/resource context before executing classification pipeline.
+  - Implemented behavior: Event processor resolves ISP rules by matching the country's ISO3 code in CKAN package groups or delimited within the resource filename, using a default rule set if no matches are found, before executing the classification pipeline.
 
 - [x] FR-SDD-024: ISP retrieval must use a strategy pattern to support different rule sources.
   - Implemented behavior: ISP retrieval is decoupled via an `IISPStrategy` protocol, allowing rules to be retrieved dynamically from external services (e.g., Google Sheets) or loaded locally from a cached JSON file.
