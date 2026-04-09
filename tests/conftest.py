@@ -3,13 +3,11 @@
 import pytest
 import sys
 from pathlib import Path
+from unittest.mock import MagicMock, patch
 
 # Add src to path for imports
 src_path = Path(__file__).parent.parent / 'src'
 sys.path.insert(0, str(src_path))
-
-# Mock Google Sheets client initialization to avoid FileNotFoundError: service_account.json
-from unittest.mock import MagicMock, patch
 
 # We mock at the module levels where initialization happens
 mock_creds = MagicMock()

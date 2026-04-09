@@ -114,7 +114,7 @@ class ISPRetriever:
             return self._isps_cache
 
         cache_key = 'isp_rules_cache'
-        
+
         if self.store:
             try:
                 cached_isps = self.store.get_object(cache_key)
@@ -127,14 +127,14 @@ class ISPRetriever:
 
         try:
             self._isps_cache = self.strategy.get_isps()
-            
+
             if self.store and self._isps_cache:
                 try:
                     # Cache the ISP rules for 12 hours
-                    self.store.set_object(cache_key, self._isps_cache, expire_in_seconds=60*60*12)
+                    self.store.set_object(cache_key, self._isps_cache, expire_in_seconds=60 * 60 * 12)
                 except Exception as e:
                     logger.error(f'Failed to set ISP rules to Redis cache: {e}')
-                    
+
             return self._isps_cache
         except Exception as e:
             logger.error(f'Failed to load ISP rules: {e}')

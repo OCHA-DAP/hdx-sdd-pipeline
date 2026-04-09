@@ -254,6 +254,7 @@ def test_match_country_case_insensitive():
 
 def test_isp_retriever_redis_cache_hit():
     from unittest.mock import MagicMock
+
     mock_store = MagicMock()
     mock_store.get_object.return_value = {'default': {'rule': 'cached_rule'}}
     retriever = ISPRetriever(store=mock_store)
@@ -266,6 +267,7 @@ def test_isp_retriever_redis_cache_hit():
 
 def test_isp_retriever_redis_cache_miss():
     from unittest.mock import MagicMock
+
     mock_store = MagicMock()
     mock_store.get_object.return_value = None
     retriever = ISPRetriever(store=mock_store)
@@ -275,11 +277,12 @@ def test_isp_retriever_redis_cache_miss():
         rules = retriever.get_isp_rules(None)
 
     assert rules == {'rule': 'default_rule'}
-    mock_store.set_object.assert_called_once_with('isp_rules_cache', mock_isps, expire_in_seconds=60*60*12)
+    mock_store.set_object.assert_called_once_with('isp_rules_cache', mock_isps, expire_in_seconds=60 * 60 * 12)
 
 
 def test_isp_retriever_redis_cache_exception_handled():
     from unittest.mock import MagicMock
+
     mock_store = MagicMock()
     mock_store.get_object.side_effect = Exception('Redis error')
     retriever = ISPRetriever(store=mock_store)
