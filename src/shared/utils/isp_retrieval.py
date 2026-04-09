@@ -5,10 +5,11 @@ This module handles loading ISP rules from JSON and matching them
 based on ISO3 codes from package metadata and resource names.
 """
 
-import json
 import logging
 from pathlib import Path
 from typing import Dict, Any, Optional
+
+from src.application.interfaces.isp_strategy import IISPStrategy
 
 logger = logging.getLogger(__name__)
 
@@ -22,14 +23,19 @@ class ISPRetriever:
     or resource filenames.
     """
 
-    def __init__(self, isp_file_path: str = 'data/isps.json'):
+    def __init__(self, strategy: Optional[IISPStrategy] = None):
         """
         Initialize ISP retriever.
 
         Args:
-            isp_file_path: Path to the ISP rules JSON file
+            strategy: Strategy to retrieve ISP rules. Defaults to LocalJSONISPStrategy.
         """
-        self.isp_file_path = isp_file_path
+        if strategy is None:
+            from src.infrastructure.external.isp_strategies import LocalJSONISPStrategy
+            self.strategy = LocalJSONISPStrategy('data/isps.json')
+        else:
+            self.strategy = strategy
+            
         self._isps_cache = None
 
     def get_isp_rules(
@@ -90,7 +96,8 @@ class ISPRetriever:
             return None
 
         for isp_name, isp_data in isps.items():
-            country_filter = isp_data.get('country', '')
+            # Support both backwards-compatible 'country' and newer 'ISO_CODE' fields
+            country_filter = isp_data.get('ISO_CODE', isp_data.get('country', ''))
             if isinstance(country_filter, str) and country_filter.strip().lower() == normalized_iso3:
                 logger.info(f'Using ISP: {isp_name} (matched ISO3: {normalized_iso3})')
                 return isp_data
@@ -98,16 +105,15 @@ class ISPRetriever:
         return None
 
     def _load_isp_rules(self) -> Dict[str, Any]:
-        """Load ISP rules from JSON file with caching."""
+        """Load ISP rules using the configured strategy with caching."""
         if self._isps_cache is not None:
             return self._isps_cache
 
         try:
-            with open(self.isp_file_path, 'r', encoding='utf-8') as f:
-                self._isps_cache = json.load(f)
-                return self._isps_cache
+            self._isps_cache = self.strategy.get_isps()
+            return self._isps_cache
         except Exception as e:
-            logger.error(f'Failed to load ISP rules file: {e}')
+            logger.error(f'Failed to load ISP rules: {e}')
             return {}
 
     def _match_from_package_groups(

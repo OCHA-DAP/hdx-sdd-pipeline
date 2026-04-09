@@ -1,13 +1,6 @@
-from typing import Dict, Any, Protocol
 import json
+from typing import Dict, Any
 from src.infrastructure.external.google_sheets_client import google_sheets_client
-
-class ISPStrategy(Protocol):
-    """
-    Protocol defining the interface for ISP retrieval strategies.
-    """
-    def get_isps(self) -> Dict[str, Any]:
-        ...
 
 class GoogleSheetsISPStrategy:
     """
@@ -83,19 +76,3 @@ class LocalJSONISPStrategy:
         """
         with open(self.json_path, 'r', encoding='utf-8') as f:
             return json.load(f)
-
-class ISPService:
-    """
-    Service to retrieve ISP data using a provided strategy.
-    """
-    def __init__(self, strategy: ISPStrategy = None):
-        if strategy is None:
-            self.strategy = LocalJSONISPStrategy()
-        else:
-            self.strategy = strategy
-
-    def get_isps(self) -> Dict[str, Any]:
-        """
-        Delegates the retrieval of ISP data to the configured strategy.
-        """
-        return self.strategy.get_isps()
