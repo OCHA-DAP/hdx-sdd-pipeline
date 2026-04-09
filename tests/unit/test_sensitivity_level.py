@@ -19,7 +19,7 @@ class TestSensitivityLevel:
     def test_from_string_with_underscores(self):
         """Test parsing with underscores."""
         result = SensitivityLevel.from_string('moderate_sensitive')
-        assert result == SensitivityLevel.MODERATE_SENSITIVE
+        assert result == SensitivityLevel.MEDIUM_SENSITIVE
 
     def test_from_string_with_hyphens(self):
         """Test parsing with hyphens."""
@@ -50,7 +50,7 @@ class TestSensitivityLevel:
 
     def test_is_sensitive_true(self):
         """Test is_sensitive returns True for sensitive levels."""
-        assert SensitivityLevel.MODERATE_SENSITIVE.is_sensitive() is True
+        assert SensitivityLevel.MEDIUM_SENSITIVE.is_sensitive() is True
         assert SensitivityLevel.MEDIUM_SENSITIVE.is_sensitive() is True
         assert SensitivityLevel.HIGH_SENSITIVE.is_sensitive() is True
         assert SensitivityLevel.SEVERE_SENSITIVE.is_sensitive() is True

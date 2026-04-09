@@ -7,7 +7,7 @@ This guide provides step-by-step instructions for generating LLM evaluation repo
 The HDX SSD Pipeline evaluates LLMs on their ability to:
 
 - **Detect PII (Personally Identifiable Information)** in table columns
-- **Assess PII sensitivity levels** (e.g., NON_SENSITIVE, MODERATE_SENSITIVE, HIGH_SENSITIVE, SEVERE_SENSITIVE)
+- **Assess PII sensitivity levels** (e.g., NON_SENSITIVE, MEDIUM_SENSITIVE, HIGH_SENSITIVE, SEVERE_SENSITIVE)
 - **Classify non-PII sensitivity** based on Information Sensitivity Protocol (ISP) rules
 
 You can evaluate models using two methods:
@@ -298,7 +298,7 @@ The dashboard will be available at: `http://localhost:3000`
 **Non-Personal Data**:
 
 - `NON_SENSITIVE`: Public or aggregated data
-- `MODERATE_SENSITIVE`: Disaggregated data without personal identifiers
+- `MEDIUM_SENSITIVE`: Disaggregated data without personal identifiers
 - `HIGH_SENSITIVE`: Community/household-level data or facility data with coordinates
 - `SEVERE_SENSITIVE`: Individual-level data or personal beneficiary information
 

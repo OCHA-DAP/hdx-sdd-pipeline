@@ -375,7 +375,7 @@ class ProcessDatasetUseCase:
             report.personal_data_classification = PersonalDataClassification.from_dict(result)
 
             # Update the legacy boolean flag for backward compatibility
-            # True for both MODERATE_SENSITIVE and HIGH_SENSITIVE
+            # True for both MEDIUM_SENSITIVE and HIGH_SENSITIVE
             report.personal_data_sensitive = report.personal_data_classification.sensitivity.is_sensitive()
 
             # Update column sensitivity flags based on the classification result
@@ -458,9 +458,9 @@ class ProcessDatasetUseCase:
         Extract sensitivity level from LLM response text.
 
         Handles formats like:
-        - "Classification: MODERATE_SENSITIVE\n\nExplanation: ..."
-        - "MODERATE_SENSITIVE"
-        - "The classification is MODERATE_SENSITIVE because..."
+        - "Classification: MEDIUM_SENSITIVE\n\nExplanation: ..."
+        - "MEDIUM_SENSITIVE"
+        - "The classification is MEDIUM_SENSITIVE because..."
 
         Args:
             text: LLM response text
@@ -493,8 +493,6 @@ class ProcessDatasetUseCase:
             return SensitivityLevel.SEVERE_SENSITIVE
         if 'HIGH_SENSITIVE' in text_upper or 'HIGH-SENSITIVE' in text_upper:
             return SensitivityLevel.HIGH_SENSITIVE
-        if 'MODERATE_SENSITIVE' in text_upper or 'MODERATE-SENSITIVE' in text_upper:
-            return SensitivityLevel.MODERATE_SENSITIVE
         if 'MEDIUM_SENSITIVE' in text_upper or 'MEDIUM-SENSITIVE' in text_upper:
             return SensitivityLevel.MEDIUM_SENSITIVE
         if 'NON_SENSITIVE' in text_upper or 'NON-SENSITIVE' in text_upper:

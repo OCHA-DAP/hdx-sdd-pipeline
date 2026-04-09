@@ -283,7 +283,7 @@ def example_4_custom_configuration():
         'country': 'Ukraine',
         'rules': {
             'location_data': 'HIGH_SENSITIVE',
-            'demographic_data': 'MODERATE_SENSITIVE',
+            'demographic_data': 'MEDIUM_SENSITIVE',
             'health_data': 'SEVERE_SENSITIVE',
         },
         'context': 'Humanitarian crisis - extra caution required',

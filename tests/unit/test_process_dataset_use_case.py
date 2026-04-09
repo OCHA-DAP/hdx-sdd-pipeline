@@ -202,14 +202,14 @@ class TestProcessDatasetUseCase:
         isp_rules = {'country': 'Ukraine', 'rules': {'location_data': 'HIGH_SENSITIVE'}}
 
         mock_llm_provider.generate_json.return_value = (
-            {'sensitivity': 'MODERATE_SENSITIVE', 'explanation': 'Test explanation', 'confidence': 0.8},
+            {'sensitivity': 'MEDIUM_SENSITIVE', 'explanation': 'Test explanation', 'confidence': 0.8},
             10,
             20,
         )
 
         result = use_case._classify_non_pii(report, isp_rules=isp_rules)
 
-        assert result.non_pii_classification.sensitivity == SensitivityLevel.MODERATE_SENSITIVE
+        assert result.non_pii_classification.sensitivity == SensitivityLevel.MEDIUM_SENSITIVE
 
     def test_classify_non_pii_error_handling(self, use_case, mock_llm_provider):
         """Test non-PII classification handles errors."""
@@ -331,9 +331,9 @@ class TestProcessDatasetUseCase:
 
     def test_extract_sensitivity_from_text_classification_format(self, use_case):
         """Test _extract_sensitivity_from_text with 'Classification:' format."""
-        text = 'Classification: MODERATE_SENSITIVE\n\nExplanation: This data is moderately sensitive.'
+        text = 'Classification: MEDIUM_SENSITIVE\n\nExplanation: This data is moderately sensitive.'
         result = use_case._extract_sensitivity_from_text(text)
-        assert result == SensitivityLevel.MODERATE_SENSITIVE
+        assert result == SensitivityLevel.MEDIUM_SENSITIVE
 
         text = 'Classification: HIGH_SENSITIVE\n\nDetails here.'
         result = use_case._extract_sensitivity_from_text(text)
@@ -381,7 +381,7 @@ class TestProcessDatasetUseCase:
         result = use_case._extract_sensitivity_from_text(text)
         assert result == SensitivityLevel.HIGH_SENSITIVE
 
-        # Test MODERATE_SENSITIVE
+        # Test MEDIUM_SENSITIVE
         text = 'MODERATE-SENSITIVE classification'
         result = use_case._extract_sensitivity_from_text(text)
-        assert result == SensitivityLevel.MODERATE_SENSITIVE
+        assert result == SensitivityLevel.MEDIUM_SENSITIVE

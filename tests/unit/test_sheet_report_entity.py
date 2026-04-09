@@ -312,14 +312,14 @@ class TestSheetReport:
         report = SheetReport(file_name='test.csv', sheet_name='Sheet1')
 
         # Set all fields
-        report.personal_data_classification.sensitivity = SensitivityLevel.MODERATE_SENSITIVE
+        report.personal_data_classification.sensitivity = SensitivityLevel.MEDIUM_SENSITIVE
         report.personal_data_classification.explanation = 'Some identifying information'
         report.personal_data_classification.confidence = 0.85
 
         result = report.to_dict()
 
         personal_data = result['personal_data']
-        assert personal_data['sensitivity'] == 'MODERATE_SENSITIVE'
+        assert personal_data['sensitivity'] == 'MEDIUM_SENSITIVE'
         assert personal_data['explanation'] == 'Some identifying information'
         assert personal_data['confidence'] == 0.85
 
