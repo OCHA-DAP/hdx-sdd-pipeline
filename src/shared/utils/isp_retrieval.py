@@ -24,12 +24,13 @@ class ISPRetriever:
     or resource filenames.
     """
 
-    def __init__(self, strategy: Optional[IISPStrategy] = None):
+    def __init__(self, strategy: Optional[IISPStrategy] = None, store=None):
         """
         Initialize ISP retriever.
 
         Args:
             strategy: Strategy to retrieve ISP rules. Defaults to LocalJSONISPStrategy.
+            store: RedisKeyValueStore to cache ISP rules.
         """
         if strategy is None:
             from src.infrastructure.external.isp_strategies import LocalJSONISPStrategy
@@ -39,6 +40,7 @@ class ISPRetriever:
             self.strategy = strategy
 
         self._isps_cache = None
+        self.store = store
 
     def get_isp_rules(
         self, package_id: Optional[str], resource_name: Optional[str] = None, ckan_client=None
@@ -111,8 +113,28 @@ class ISPRetriever:
         if self._isps_cache is not None:
             return self._isps_cache
 
+        cache_key = 'isp_rules_cache'
+        
+        if self.store:
+            try:
+                cached_isps = self.store.get_object(cache_key)
+                if cached_isps:
+                    logger.info('Loaded ISP rules from Redis cache')
+                    self._isps_cache = cached_isps
+                    return self._isps_cache
+            except Exception as e:
+                logger.error(f'Failed to load ISP rules from Redis cache: {e}')
+
         try:
             self._isps_cache = self.strategy.get_isps()
+            
+            if self.store and self._isps_cache:
+                try:
+                    # Cache the ISP rules for 12 hours
+                    self.store.set_object(cache_key, self._isps_cache, expire_in_seconds=60*60*12)
+                except Exception as e:
+                    logger.error(f'Failed to set ISP rules to Redis cache: {e}')
+                    
             return self._isps_cache
         except Exception as e:
             logger.error(f'Failed to load ISP rules: {e}')

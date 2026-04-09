@@ -18,6 +18,7 @@ from src.shared.utils.isp_retrieval import ISPRetriever
 
 # Legacy imports for CKAN and Redis (to be refactored later)
 from src.shared.utils.ckan import CKANClient
+from hdx_redis_lib import connect_to_key_value_store_with_env_vars
 
 from config import get_config
 from config.config import SlackClientWrapper
@@ -63,7 +64,14 @@ class EventProcessor:
             strategy = LocalJSONISPStrategy(json_path=self.config.ISP_LOCAL_JSON_PATH)
             logger.info(f'Using LocalJSONISPStrategy for ISP retrieval ({self.config.ISP_LOCAL_JSON_PATH})')
 
-        self.isp_retriever = ISPRetriever(strategy=strategy)
+        kv_store = None
+        if self.config.WORKER_ENABLED:
+            try:
+                kv_store = connect_to_key_value_store_with_env_vars(expire_in_seconds=60 * 60 * 12)
+            except Exception as e:
+                logger.warning(f'Could not initialize Redis KV store: {e}')
+
+        self.isp_retriever = ISPRetriever(strategy=strategy, store=kv_store)
         self.slack = SlackClientWrapper()
 
         # Setup CKAN client if CKAN_UPDATE is enabled

@@ -250,3 +250,43 @@ def test_match_country_case_insensitive():
 
     result = retriever.match_country('afg', isps)
     assert result == {'country': 'AFG', 'rule': 'custom'}
+
+
+def test_isp_retriever_redis_cache_hit():
+    from unittest.mock import MagicMock
+    mock_store = MagicMock()
+    mock_store.get_object.return_value = {'default': {'rule': 'cached_rule'}}
+    retriever = ISPRetriever(store=mock_store)
+
+    rules = retriever.get_isp_rules(None)
+
+    assert rules == {'rule': 'cached_rule'}
+    mock_store.get_object.assert_called_once_with('isp_rules_cache')
+
+
+def test_isp_retriever_redis_cache_miss():
+    from unittest.mock import MagicMock
+    mock_store = MagicMock()
+    mock_store.get_object.return_value = None
+    retriever = ISPRetriever(store=mock_store)
+    mock_isps = {'default': {'rule': 'default_rule'}}
+
+    with patch('builtins.open', mock_open(read_data=json.dumps(mock_isps))):
+        rules = retriever.get_isp_rules(None)
+
+    assert rules == {'rule': 'default_rule'}
+    mock_store.set_object.assert_called_once_with('isp_rules_cache', mock_isps, expire_in_seconds=60*60*12)
+
+
+def test_isp_retriever_redis_cache_exception_handled():
+    from unittest.mock import MagicMock
+    mock_store = MagicMock()
+    mock_store.get_object.side_effect = Exception('Redis error')
+    retriever = ISPRetriever(store=mock_store)
+    mock_isps = {'default': {'rule': 'default_rule'}}
+
+    with patch('builtins.open', mock_open(read_data=json.dumps(mock_isps))):
+        rules = retriever.get_isp_rules(None)
+
+    # Should fall back to strategy without failing
+    assert rules == {'rule': 'default_rule'}
