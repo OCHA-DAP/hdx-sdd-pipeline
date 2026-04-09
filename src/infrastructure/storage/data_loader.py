@@ -175,9 +175,7 @@ class SmartDataLoader(IDataLoader):
             return http_headers
 
         # Remove all Authorization headers in a case-insensitive way.
-        sanitized_headers = {
-            k: v for k, v in http_headers.items() if k.lower() != 'authorization'
-        }
+        sanitized_headers = {k: v for k, v in http_headers.items() if k.lower() != 'authorization'}
         return sanitized_headers
 
     def _is_hdx_domain(self, url: str) -> bool:

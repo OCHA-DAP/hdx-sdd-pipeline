@@ -33,10 +33,11 @@ class ISPRetriever:
         """
         if strategy is None:
             from src.infrastructure.external.isp_strategies import LocalJSONISPStrategy
+
             self.strategy = LocalJSONISPStrategy('data/isps.json')
         else:
             self.strategy = strategy
-            
+
         self._isps_cache = None
 
     def get_isp_rules(
@@ -161,7 +162,7 @@ class ISPRetriever:
                 normalized_iso = iso_code.strip().lower()
                 if not normalized_iso or normalized_iso == 'default':
                     continue
-                
+
                 # Check for the ISO code delimited by non-alphanumeric characters (or start/end of string)
                 if re.search(rf'(?:^|[^a-z0-9]){re.escape(normalized_iso)}(?:[^a-z0-9]|$)', normalized_name):
                     logger.info(f'Using ISP: {isp_name} (detected ISO3 in filename: {resource_name})')

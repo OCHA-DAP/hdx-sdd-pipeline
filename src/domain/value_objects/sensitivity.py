@@ -39,7 +39,6 @@ class SensitivityLevel(str, Enum):
             'non_sensitive': cls.NON_SENSITIVE,
             'non-sensitive': cls.NON_SENSITIVE,
             'low': cls.NON_SENSITIVE,
-
             'medium_sensitive': cls.MEDIUM_SENSITIVE,
             'medium-sensitive': cls.MEDIUM_SENSITIVE,
             'medium': cls.MEDIUM_SENSITIVE,
