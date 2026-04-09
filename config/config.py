@@ -47,6 +47,11 @@ class Config:
     OUTPUT_DIR: str = os.getenv('OUTPUT_DIR', '/tmp/reports')
     DOWNLOAD_DIR: str = os.getenv('DOWNLOAD_DIR', '/tmp/download')
 
+    # ISP Configuration
+    ISP_STRATEGY: str = os.getenv('ISP_STRATEGY', 'local') # 'local' or 'google_sheets'
+    ISP_GOOGLE_SHEET_URL: str = os.getenv('ISP_GOOGLE_SHEET_URL')
+    ISP_LOCAL_JSON_PATH: str = os.getenv('ISP_LOCAL_JSON_PATH', 'data/isps.json')
+
     # Azure endpoints
     AZURE_OPENAI_ENDPOINT: str = os.getenv('AZURE_OPENAI_ENDPOINT', '')
     AZURE_OPENAI_API_KEY: str = os.getenv('AZURE_OPENAI_API_KEY', '')

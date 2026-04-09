@@ -65,6 +65,9 @@ Any new feature request for this project must follow this order:
 - [x] FR-SDD-023: ISP rules must be retrieved and applied during sensitivity analysis.
   - Implemented behavior: Event processor resolves ISP rules from package/resource context before executing classification pipeline.
 
+- [x] FR-SDD-024: ISP retrieval must use a strategy pattern to support different rule sources.
+  - Implemented behavior: ISP retrieval is decoupled via an `IISPStrategy` protocol, allowing rules to be retrieved dynamically from external services (e.g., Google Sheets) or loaded locally from a cached JSON file.
+
 ### Classification and sensitivity
 
 - [x] FR-SDD-030: The dataset pipeline must execute the implemented multi-stage classification flow.

@@ -51,7 +51,17 @@ class EventProcessor:
         self.pipeline = factory.create_pipeline(sample_size=5)
 
         # Initialize ISP retriever
-        self.isp_retriever = ISPRetriever()
+        isp_strategy_name = self.config.ISP_STRATEGY.lower()
+        if isp_strategy_name == 'google_sheets':
+            from src.infrastructure.external.isp_strategies import GoogleSheetsISPStrategy
+            strategy = GoogleSheetsISPStrategy(spreadsheet_url=self.config.ISP_GOOGLE_SHEET_URL)
+            logger.info(f'Using GoogleSheetsISPStrategy for ISP retrieval ({self.config.ISP_GOOGLE_SHEET_URL})')
+        else:
+            from src.infrastructure.external.isp_strategies import LocalJSONISPStrategy
+            strategy = LocalJSONISPStrategy(json_path=self.config.ISP_LOCAL_JSON_PATH)
+            logger.info(f'Using LocalJSONISPStrategy for ISP retrieval ({self.config.ISP_LOCAL_JSON_PATH})')
+            
+        self.isp_retriever = ISPRetriever(strategy=strategy)
         self.slack = SlackClientWrapper()
 
         # Setup CKAN client if CKAN_UPDATE is enabled
