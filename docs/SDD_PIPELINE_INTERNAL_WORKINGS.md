@@ -279,51 +279,69 @@ Provide the output as a single, valid JSON object following this exact schema:
 - `SEVERE_SENSITIVE` - Serious harm or legal consequences
 - `UNDETERMINED` - Cannot determine
 
-**Prompt Template** (`src/prompts/non_pii_classification/v0.jinja`):
+**Prompt Template** (`src/prompts/non_pii_classification/v1.jinja`):
 
 ```jinja
 ### Instruction:
-You are a data governance assistant. Your task is to determine the overall
-sensitivity level of this table, based strictly on the provided Information
-Sharing Protocols (ISP) and the table's content and state which columns make
-the table sensitive.
+
+You are a data governance assistant. Your task is to determine the overall **sensitivity level** of this table, based **strictly** on the provided Information Sharing Protocols (ISP) and the table's content. You must also state which columns make the table sensitive.
 
 Follow these exact steps:
-1. Analyze the table schema AND the records of the table.
-2. Use the ISP sensitivity levels: NON_SENSITIVE, MEDIUM_SENSITIVE,
-   HIGH_SENSITIVE, SEVERE_SENSITIVE. Only assign a sensitivity level if
-   explicitly supported by ISP guidance.
-3. Identify ONLY the columns that are sensitive on their own OR that become
-   sensitive in combination with others, DIRECTLY supported by ISP guidance.
-4. If multiple sensitivity levels might apply, always choose the highest one
-   explicitly mentioned in the ISP for the relevant data type.
+
+1.  **Analyze** the table schema **AND** the values of each column in the table.
+2.  Use the ISP sensitivity levels: `NON_SENSITIVE`, `MEDIUM_SENSITIVE`, `HIGH_SENSITIVE`, `SEVERE_SENSITIVE`. Only assign a sensitivity level if **explicitly** supported by ISP guidance.
+3.  **Identify ONLY** the columns that are sensitive on their own **OR** that become sensitive in combination with others, **DIRECTLY** supported by ISP guidance.
+4.  If multiple sensitivity levels might apply, always choose the **highest** one explicitly mentioned in the ISP for the relevant data type. We rather be cautious than miss something.
+
+-----
 
 ### Input:
+
 ISP Rules
-SEVERE_SENSITIVE: {{ isp.sensitivity_rules.SEVERE_SENSITIVE['data and information type'] }}
-HIGH_SENSITIVE: {{ isp.sensitivity_rules.HIGH_SENSITIVE['data and information type'] }}
-MEDIUM_SENSITIVE: {{ isp.sensitivity_rules.MEDIUM_SENSITIVE['data and information type'] }}
-NON_SENSITIVE: {{ isp.sensitivity_rules['LOW/NON_SENSITIVE']['data and information type'] }}
+SEVERE_SENSITIVE: `{{ isp.severe_sensitivity }}`
+HIGH_SENSITIVE: `{{ isp.high_sensitivity }}`
+MEDIUM_SENSITIVE: `{{ isp.medium_sensitivity }}`
+NON_SENSITIVE: `{{ isp.low_no_sensitivity }}`
 
 Table:
-{{ table_markdown }}
+`{{ table_markdown }}`
 
-### Response Format:
-- Sensitivity Classification: <ONE OF: NON_SENSITIVE / MEDIUM_SENSITIVE / HIGH_SENSITIVE / SEVERE_SENSITIVE>
-- List with ONLY the columns that are sensitive or in combination with other columns are sensitive.
-- Cited ISP Rule(s): Quote the specific ISP rule(s) that directly support the classification.
-- No markdown
+-----
+
+### **JSON Response Format:**
+
+Provide the output as a single, valid JSON object following this exact schema:
+
+```json
+{
+  "sensitivity": "<ONE OF: NON_SENSITIVE / MEDIUM_SENSITIVE / HIGH_SENSITIVE / SEVERE_SENSITIVE>",
+  "sensitive_columns": [
+    "<List ONLY the names of the columns that are sensitive or in combination with other columns are sensitive>",
+    // ... more column names
+  ],
+  "cited_isp_rules": [
+    "<Quote the specific ISP rule(s) that directly support the classification. If none directly apply, explain briefly why it is NON_SENSITIVE.>"
+    // ... more rule quotes
+  ],
+  "explanation": "<Provide a brief, clear explanation of WHY the final SensitivityClassification was chosen, referencing the content of the identified SensitiveColumns and how they map to the CitedISPRules.>"
+}
+```
 ```
 
 **Token Usage**: ~500-1000 prompt tokens, ~50-100 completion tokens per table
 
 **Model Configuration**: Uses `NON_PII_DETECT_MODEL` environment variable
 
-**Extraction Logic**: The pipeline uses multiple strategies to extract sensitivity:
+**Extraction Logic**: The pipeline uses a JSON-based extraction strategy:
 
-1. Look for "Classification: LEVEL" format
-2. Search for sensitivity keywords in text
-3. Fallback to `SensitivityLevel.from_string()` method
+1. Request a structured JSON response from the LLM
+2. Parse the JSON using `generate_json()`
+3. Map JSON fields directly to the `NonPIIClassification` entity:
+   - `sensitivity` -> `SensitivityLevel`
+   - `sensitive_columns` -> List of column names
+   - `cited_isp_rules` -> ISP rule quotes
+   - `explanation` -> Detailed reasoning
+4. Fallback to `UNDETERMINED` if JSON parsing fails or required fields are missing
 
 ---
 

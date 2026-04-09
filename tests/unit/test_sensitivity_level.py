@@ -51,7 +51,6 @@ class TestSensitivityLevel:
     def test_is_sensitive_true(self):
         """Test is_sensitive returns True for sensitive levels."""
         assert SensitivityLevel.MEDIUM_SENSITIVE.is_sensitive() is True
-        assert SensitivityLevel.MEDIUM_SENSITIVE.is_sensitive() is True
         assert SensitivityLevel.HIGH_SENSITIVE.is_sensitive() is True
         assert SensitivityLevel.SEVERE_SENSITIVE.is_sensitive() is True
 

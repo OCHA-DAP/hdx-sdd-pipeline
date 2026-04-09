@@ -1,6 +1,5 @@
 import json
 from typing import Dict, Any
-from src.infrastructure.external.google_sheets_client import google_sheets_client
 
 
 class GoogleSheetsISPStrategy:
@@ -38,6 +37,8 @@ class GoogleSheetsISPStrategy:
         """
         Retrieves ISP data from Google Sheets and transforms it into a dictionary format.
         """
+        from src.infrastructure.external.google_sheets_client import google_sheets_client
+
         spreadsheet = google_sheets_client.open_by_url(self.spreadsheet_url)
         worksheet = spreadsheet.worksheet('Data and Information Types Copy from ISP')
 

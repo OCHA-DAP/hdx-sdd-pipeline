@@ -54,7 +54,7 @@ class SensitivityLevel(str, Enum):
 
     def is_sensitive(self) -> bool:
         """Check if this sensitivity level indicates sensitive data."""
-        return self in {self.MEDIUM_SENSITIVE, self.MEDIUM_SENSITIVE, self.HIGH_SENSITIVE, self.SEVERE_SENSITIVE}
+        return self in {self.MEDIUM_SENSITIVE, self.HIGH_SENSITIVE, self.SEVERE_SENSITIVE}
 
     def __str__(self) -> str:
         return self.value

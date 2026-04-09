@@ -67,6 +67,7 @@ Any new feature request for this project must follow this order:
 
 - [x] FR-SDD-024: ISP retrieval must use a strategy pattern to support different rule sources.
   - Implemented behavior: ISP retrieval is decoupled via an `IISPStrategy` protocol, allowing rules to be retrieved dynamically from external services (e.g., Google Sheets) or loaded locally from a cached JSON file.
+  - Support Requirement: Strategy implementations must lazily initialize external clients (e.g., Google Sheets) to prevent process crashes if credentials are missing but the strategy is not actively used.
 
 - [x] FR-SDD-025: ISP rules must be optionally cached in a Redis key-value store to reduce subsequent load operations across events.
   - Implemented behavior: `ISPRetriever` checks for a Redis key-value store during `_load_isp_rules`; if available, it will retrieve or set cached ISP rules into Redis. If not, it falls back to a process-local memory cache.
