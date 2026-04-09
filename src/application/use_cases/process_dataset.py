@@ -221,6 +221,7 @@ class ProcessDatasetUseCase:
             processing_timestamp=datetime.now(),
             n_records=len(df),
             n_columns=len(sample_dict),
+            isp_used=isp_rules.get('ISO_CODE') if isp_rules else None,
         )
 
         # Create columns

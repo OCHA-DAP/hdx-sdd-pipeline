@@ -6,6 +6,7 @@ based on ISO3 codes from package metadata and resource names.
 """
 
 import logging
+import re
 from pathlib import Path
 from typing import Dict, Any, Optional
 
@@ -147,12 +148,26 @@ class ISPRetriever:
         return None
 
     def _match_from_resource_name(self, resource_name: Optional[str], isps: Dict[str, Any]) -> Optional[Dict[str, Any]]:
-        """Try to match ISP from resource name stem (expected ISO3)."""
+        """Try to match ISP from resource name by searching for the ISO3 code within it."""
         if not resource_name:
             return None
 
-        resource_iso3 = Path(resource_name).stem
-        return self.match_country(resource_iso3, isps)
+        resource_stem = Path(resource_name).stem
+        normalized_name = resource_stem.lower()
+
+        for isp_name, isp_data in isps.items():
+            iso_code = isp_data.get('ISO_CODE', isp_data.get('country', ''))
+            if isinstance(iso_code, str):
+                normalized_iso = iso_code.strip().lower()
+                if not normalized_iso or normalized_iso == 'default':
+                    continue
+                
+                # Check for the ISO code delimited by non-alphanumeric characters (or start/end of string)
+                if re.search(rf'(?:^|[^a-z0-9]){re.escape(normalized_iso)}(?:[^a-z0-9]|$)', normalized_name):
+                    logger.info(f'Using ISP: {isp_name} (detected ISO3 in filename: {resource_name})')
+                    return isp_data
+
+        return None
 
     def clear_cache(self):
         """Clear cached ISP data."""

@@ -18,7 +18,7 @@ class TestSensitivityLevel:
 
     def test_from_string_with_underscores(self):
         """Test parsing with underscores."""
-        result = SensitivityLevel.from_string('moderate_sensitive')
+        result = SensitivityLevel.from_string('medium_sensitive')
         assert result == SensitivityLevel.MEDIUM_SENSITIVE
 
     def test_from_string_with_hyphens(self):

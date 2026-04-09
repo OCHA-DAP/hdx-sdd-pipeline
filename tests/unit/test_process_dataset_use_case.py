@@ -382,6 +382,6 @@ class TestProcessDatasetUseCase:
         assert result == SensitivityLevel.HIGH_SENSITIVE
 
         # Test MEDIUM_SENSITIVE
-        text = 'MODERATE-SENSITIVE classification'
+        text = 'MEDIUM-SENSITIVE classification'
         result = use_case._extract_sensitivity_from_text(text)
         assert result == SensitivityLevel.MEDIUM_SENSITIVE

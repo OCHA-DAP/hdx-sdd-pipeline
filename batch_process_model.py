@@ -157,7 +157,7 @@ def process_dataset(
                     report_data = json.load(f)
 
                 # Log summary
-                reports = report_data
+                reports = report_data.get('sdd_report', [])
                 sensitive_sheets = sum(
                     1 for r in reports if r.get('personal_data_sensitive') or r.get('non_personal_data_sensitive')
                 )
