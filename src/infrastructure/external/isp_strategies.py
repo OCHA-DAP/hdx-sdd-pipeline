@@ -1,5 +1,8 @@
 import json
+import logging
 from typing import Dict, Any
+
+logger = logging.getLogger(__name__)
 
 
 class GoogleSheetsISPStrategy:
@@ -44,12 +47,26 @@ class GoogleSheetsISPStrategy:
 
         values = worksheet.get_all_values()
 
+        if not values or len(values) < 5:
+            logger.error(
+                f'ISP Google Sheet at {self.spreadsheet_url} has insufficient rows ({len(values)}), expected at least 5'
+            )
+            return {}
+
         isp_dict = {}
-        for idx, value in enumerate(values[0]):
-            if idx == 0:
+        header = values[0]
+        for idx, value in enumerate(header):
+            if idx == 0 or not value:
                 continue
+
+            # Ensure all required rows have this column
+            if any(len(values[i]) <= idx for i in range(1, 5)):
+                logger.warning(f'Column {idx} ("{value}") in ISP sheet is missing sensitivity cells. Skipping.')
+                continue
+
             if values[1][idx] == '' and values[2][idx] == '' and values[3][idx] == '' and values[4][idx] == '':
                 continue
+
             isp_dict[value] = {
                 'low_no_sensitivity': values[1][idx],
                 'medium_sensitivity': values[2][idx],
