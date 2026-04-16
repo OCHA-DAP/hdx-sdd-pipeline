@@ -132,7 +132,7 @@ class TestReadmeScan:
             25,
         )
 
-        result = use_case_with_readme._process_readme_for_pii(readme_content)
+        result = use_case_with_readme._process_readme_for_pii(readme_content, ctx={'dataset_context': None, 'resource_context': None})
 
         assert result['personal_data_sensitive'] is True
         assert 'EMAIL_ADDRESS' in result['personal_data_entities']
@@ -142,7 +142,7 @@ class TestReadmeScan:
 
         # Verify prompt was called correctly
         mock_prompt_manager.get_prompt.assert_called_once_with(
-            'readme_scan', version=None, context={'readme_string': readme_content}
+            'readme_scan', version=None, context={'readme_string': readme_content, 'dataset_context': None, 'resource_context': None}
         )
 
     def test_process_readme_for_pii_no_pii(self, use_case_with_readme, mock_llm_provider, mock_prompt_manager):
@@ -155,7 +155,7 @@ class TestReadmeScan:
             20,
         )
 
-        result = use_case_with_readme._process_readme_for_pii(readme_content)
+        result = use_case_with_readme._process_readme_for_pii(readme_content, ctx={'dataset_context': None, 'resource_context': None})
 
         assert result['personal_data_sensitive'] is False
         assert result['personal_data_entities'] == []
@@ -168,7 +168,7 @@ class TestReadmeScan:
         # LLM returns non-dict result
         mock_llm_provider.generate_json.return_value = ('invalid string result', 10, 20)
 
-        result = use_case_with_readme._process_readme_for_pii(readme_content)
+        result = use_case_with_readme._process_readme_for_pii(readme_content, ctx={'dataset_context': None, 'resource_context': None})
 
         assert result['personal_data_sensitive'] is False
         assert result['personal_data_entities'] == []
@@ -181,7 +181,7 @@ class TestReadmeScan:
 
         mock_llm_provider.generate_json.side_effect = Exception('API Error')
 
-        result = use_case_with_readme._process_readme_for_pii(readme_content)
+        result = use_case_with_readme._process_readme_for_pii(readme_content, ctx={'dataset_context': None, 'resource_context': None})
 
         assert result['personal_data_sensitive'] is False
         assert result['personal_data_entities'] == []
@@ -205,7 +205,7 @@ class TestReadmeScan:
         )
 
         report = use_case_with_readme._create_readme_report(
-            sheet_name='README', source='test.xlsx', resource_id='test-123', df=df
+            sheet_name='README', source='test.xlsx', resource_id='test-123', df=df, ctx={'dataset_context': None, 'resource_context': None}
         )
 
         assert report.is_readme is True
@@ -232,7 +232,7 @@ class TestReadmeScan:
         )
 
         report = use_case_with_readme._create_readme_report(
-            sheet_name='README', source='test.xlsx', resource_id='test-123', df=df
+            sheet_name='README', source='test.xlsx', resource_id='test-123', df=df, ctx={'dataset_context': None, 'resource_context': None}
         )
 
         assert report.is_readme is True
@@ -247,7 +247,7 @@ class TestReadmeScan:
         use_case_no_readme = ProcessDatasetUseCase(data_loader=Mock(), readme_llm_provider=None)
 
         report = use_case_no_readme._create_readme_report(
-            sheet_name='README', source='test.xlsx', resource_id='test-123', df=df
+            sheet_name='README', source='test.xlsx', resource_id='test-123', df=df, ctx={'dataset_context': None, 'resource_context': None}
         )
 
         assert report.is_readme is True
@@ -261,7 +261,7 @@ class TestReadmeScan:
         df = 'not a dataframe'
 
         report = use_case_with_readme._create_readme_report(
-            sheet_name='README', source='test.xlsx', resource_id='test-123', df=df
+            sheet_name='README', source='test.xlsx', resource_id='test-123', df=df, ctx={'dataset_context': None, 'resource_context': None}
         )
 
         assert report.is_readme is True
@@ -275,7 +275,7 @@ class TestReadmeScan:
         mock_llm_provider.generate_json.side_effect = Exception('LLM Error')
 
         report = use_case_with_readme._create_readme_report(
-            sheet_name='README', source='test.xlsx', resource_id='test-123', df=df
+            sheet_name='README', source='test.xlsx', resource_id='test-123', df=df, ctx={'dataset_context': None, 'resource_context': None}
         )
 
         assert report.is_readme is True
