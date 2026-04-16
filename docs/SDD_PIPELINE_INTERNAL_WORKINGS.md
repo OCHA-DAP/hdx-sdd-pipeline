@@ -847,7 +847,18 @@ src/prompts/
 │   ├── v0.jinja
 │   └── v1.jinja
 └── readme_scan/
-    └── v0.jinja
+    ├── v0.jinja
+    └── v1.jinja
+
+### Context Metadata
+
+The pipelines enrich prompts with dynamic `Dataset Context` and `Resource Context` fetched natively from the HDX package metadata (or event payload hooks).
+
+*   **Dataset Context**: Extracted package-level fields including Title, Description, Source, Geography, and Organization.
+*   **Resource Context**: Extracted resource-level properties like file name and description.
+
+These variables are string-truncated (max 300 chars) and automatically passed into Jinja rendering context, allowing the prompt template to render them immediately above data tables or text scans via simple `{% if dataset_context %}...{% endif %}` conditional logic.
+
 ```
 
 **Versioning**: Multiple versions can coexist, allowing A/B testing and gradual rollout

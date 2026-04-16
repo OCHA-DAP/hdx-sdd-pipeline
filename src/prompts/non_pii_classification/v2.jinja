@@ -1,0 +1,59 @@
+### Instruction:
+
+You are a data governance assistant. Your task is to determine the overall **sensitivity level** of this table, based **strictly** on the provided Information Sharing Protocols (ISP) and the table's content. You must also state which columns make the table sensitive.
+
+Follow these exact steps:
+
+1.  **Analyze** the table schema **AND** the values of each column in the table.
+2.  Use the ISP sensitivity levels: `NON_SENSITIVE`, `MEDIUM_SENSITIVE`, `HIGH_SENSITIVE`, `SEVERE_SENSITIVE`. Only assign a sensitivity level if **explicitly** supported by ISP guidance.
+3.  **Identify ONLY** the columns that are sensitive on their own **OR** that become sensitive in combination with others, **DIRECTLY** supported by ISP guidance.
+4.  If multiple sensitivity levels might apply, always choose the **highest** one explicitly mentioned in the ISP for the relevant data type. We rather be cautious than miss something.
+
+-----
+
+### Input:
+
+ISP Rules
+SEVERE_SENSITIVE: `{{ isp.severe_sensitivity }}`
+HIGH_SENSITIVE: `{{ isp.high_sensitivity }}`
+MEDIUM_SENSITIVE: `{{ isp.medium_sensitivity }}`
+NON_SENSITIVE: `{{ isp.low_no_sensitivity }}`
+
+{% if dataset_context %}
+### Dataset Context:
+{% if dataset_context.Title %}- Title: {{ dataset_context.Title }}
+{% endif %}{% if dataset_context.Description %}- Description: {{ dataset_context.Description }}
+{% endif %}{% if dataset_context.Source %}- Source: {{ dataset_context.Source }}
+{% endif %}{% if dataset_context.Geography %}- Geography: {{ dataset_context.Geography }}
+{% endif %}{% if dataset_context.Organization %}- Organization: {{ dataset_context.Organization }}
+{% endif %}
+{% endif %}
+{% if resource_context %}
+### Resource Context:
+{% if resource_context.Name %}- Name: {{ resource_context.Name }}
+{% endif %}{% if resource_context.Description %}- Description: {{ resource_context.Description }}
+{% endif %}
+{% endif %}
+Table:
+`{{ table_markdown }}`
+
+-----
+
+### **JSON Response Format:**
+
+Provide the output as a single, valid JSON object following this exact schema:
+
+```json
+{
+  "sensitivity": "<ONE OF: NON_SENSITIVE / MEDIUM_SENSITIVE / HIGH_SENSITIVE / SEVERE_SENSITIVE>",
+  "sensitive_columns": [
+    "<List ONLY the names of the columns that are sensitive or in combination with other columns are sensitive>",
+    // ... more column names
+  ],
+  "cited_isp_rules": [
+    "<Quote the specific ISP rule(s) that directly support the classification. If none directly apply, explain briefly why it is NON_SENSITIVE.>"
+    // ... more rule quotes
+  ],
+  "explanation": "<Provide a brief, clear explanation of WHY the final SensitivityClassification was chosen, referencing the content of the identified SensitiveColumns and how they map to the CitedISPRules.>"
+}
+```

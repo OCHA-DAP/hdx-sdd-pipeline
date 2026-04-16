@@ -74,6 +74,8 @@ class ProcessDatasetUseCase:
         is_url: bool = True,
         isp_rules: Optional[Dict[str, Any]] = None,
         http_headers: Optional[Dict[str, str]] = None,
+        dataset_context: Optional[Dict[str, str]] = None,
+        resource_context: Optional[Dict[str, str]] = None,
     ) -> List[SheetReport]:
         """
         Process a dataset from URL or file.
@@ -117,12 +119,17 @@ class ProcessDatasetUseCase:
                     f"Processing sheet {idx}/{len(sheets)}: '{sheet_name}' ({len(df)} rows, {len(df.columns)} columns)"
                 )
 
-                # Check if it's a README sheet
+                # Context to pass to downstream tasks
+                ctx = {
+                    "dataset_context": dataset_context or {},
+                    "resource_context": resource_context or {},
+                }
+
                 if self._is_readme_sheet(sheet_name):
                     logger.debug(f"Sheet '{sheet_name}' identified as README/metadata")
-                    report = self._create_readme_report(sheet_name, source, resource_id, df)
+                    report = self._create_readme_report(sheet_name, source, resource_id, df, ctx)
                 else:
-                    report = self._create_data_report(sheet_name, source, resource_id, df, isp_rules)
+                    report = self._create_data_report(sheet_name, source, resource_id, df, isp_rules, ctx)
 
                 reports.append(report)
                 logger.debug(f"Completed processing sheet '{sheet_name}'")
@@ -148,7 +155,7 @@ class ProcessDatasetUseCase:
         normalized = sheet_name.lower().replace(' ', '')
         return any(keyword in normalized for keyword in ['readme', 'instructions', 'metadata', 'info'])
 
-    def _create_readme_report(self, sheet_name: str, source: str, resource_id: Optional[str], df: Any) -> SheetReport:
+    def _create_readme_report(self, sheet_name: str, source: str, resource_id: Optional[str], df: Any, ctx: Dict[str, Any]) -> SheetReport:
         """Create report for README sheet."""
         report = SheetReport(
             resource_id=resource_id,
@@ -171,7 +178,7 @@ class ProcessDatasetUseCase:
 
                 if readme_content:
                     # Process with README PII detection
-                    result = self._process_readme_for_pii(readme_content)
+                    result = self._process_readme_for_pii(readme_content, ctx)
 
                     # Update token counts
                     report.completion_tokens += result.pop('completion_tokens', 0)
@@ -203,7 +210,7 @@ class ProcessDatasetUseCase:
         return report
 
     def _create_data_report(
-        self, sheet_name: str, source: str, resource_id: Optional[str], df: Any, isp_rules: Optional[Dict[str, Any]]
+        self, sheet_name: str, source: str, resource_id: Optional[str], df: Any, isp_rules: Optional[Dict[str, Any]], ctx: Dict[str, Any]
     ) -> SheetReport:
         """Create and process report for data sheet."""
         logger.debug(f"Creating data report for sheet '{sheet_name}' with {len(df)} rows")
@@ -235,10 +242,10 @@ class ProcessDatasetUseCase:
         report = self._classify_pii(report)
 
         # Step 4: Reflect on PII sensitivity
-        report = self._classify_pii_sensitivity(report)
+        report = self._classify_pii_sensitivity(report, ctx)
 
         # Step 5: Classify non-PII
-        report = self._classify_non_pii(report, isp_rules)
+        report = self._classify_non_pii(report, isp_rules, ctx)
 
         # Step 6: Update sensitivity flags
         report.update_non_pii_sensitivity()
@@ -294,7 +301,7 @@ class ProcessDatasetUseCase:
         report.pii_classifier_model = self.pii_llm.model_name
         return report
 
-    def _classify_pii_sensitivity(self, report: SheetReport) -> SheetReport:
+    def _classify_pii_sensitivity(self, report: SheetReport, ctx: Dict[str, Any]) -> SheetReport:
         """Classify sensitivity for PII columns."""
         if self.pii_reflection_llm is None:
             logger.info('PII sensitivity classification disabled - skipping')
@@ -366,6 +373,8 @@ class ProcessDatasetUseCase:
                 version=None,  # Auto-detect latest version
                 context={
                     'table_markdown': table_markdown,
+                    'dataset_context': ctx['dataset_context'],
+                    'resource_context': ctx['resource_context'],
                 },
             )
             # Call LLM
@@ -408,7 +417,7 @@ class ProcessDatasetUseCase:
 
         return report
 
-    def _classify_non_pii(self, report: SheetReport, isp_rules: Optional[Dict[str, Any]]) -> SheetReport:
+    def _classify_non_pii(self, report: SheetReport, isp_rules: Optional[Dict[str, Any]], ctx: Dict[str, Any]) -> SheetReport:
         """Classify non-PII sensitivity for the table."""
         if self.non_pii_llm is None:
             logger.info('Non-PII classification disabled - skipping')
@@ -424,7 +433,13 @@ class ProcessDatasetUseCase:
             prompt = self.prompt_manager.get_prompt(
                 'non_pii_classification',
                 version=None,  # Auto-detect latest version
-                context={'table_name': report.sheet_name, 'table_markdown': table_summary, 'isp': isp_rules or {}},
+                context={
+                    'table_name': report.sheet_name, 
+                    'table_markdown': table_summary, 
+                    'isp': isp_rules or {},
+                    'dataset_context': ctx['dataset_context'],
+                    'resource_context': ctx['resource_context']
+                },
             )
 
             # Log prompt for debugging
@@ -595,7 +610,7 @@ class ProcessDatasetUseCase:
             logger.error(f'Failed to extract README content: {e}')
             return None
 
-    def _process_readme_for_pii(self, readme_content: str) -> Dict[str, Any]:
+    def _process_readme_for_pii(self, readme_content: str, ctx: Dict[str, Any]) -> Dict[str, Any]:
         """
         Process README content for PII detection using the readme_scan template.
 
@@ -610,7 +625,11 @@ class ProcessDatasetUseCase:
             prompt = self.prompt_manager.get_prompt(
                 'readme_scan',
                 version=None,  # Auto-detect latest version
-                context={'readme_string': readme_content},
+                context={
+                    'readme_string': readme_content,
+                    'dataset_context': ctx['dataset_context'],
+                    'resource_context': ctx['resource_context']
+                },
             )
 
             # Call LLM for JSON response

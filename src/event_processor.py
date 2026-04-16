@@ -114,16 +114,54 @@ class EventProcessor:
 
             # Get resource info from CKAN
             resource_name = None
+            dataset_context = {}
+            resource_context = {}
+
             if self.ckan:
                 resource = self.ckan.resource_show(resource_id)
                 download_url = resource.get('download_url')
                 resource_name = resource.get('name', 'unknown_dataset.csv')
+                
+                package_id = event.get('package_id') or event.get('dataset_id')
+                package = self.ckan.package_show(package_id) if package_id else {}
+                
+                dataset_context = {
+                    "Title": package.get('title'),
+                    "Description": package.get('notes'),
+                    "Source": package.get('dataset_source'),
+                    "Geography": ", ".join(g.get('title', g.get('name', '')) for g in package.get('groups', [])) if package.get('groups') else None,
+                    "Organization": package.get('organization', {}).get('title') if package.get('organization') else None
+                }
+                resource_context = {
+                    "Name": resource_name,
+                    "Description": resource.get('description'),
+                }
             else:
                 # When CKAN is disabled, expect download_url in event
                 download_url = event.get('download_url')
                 resource_name = event.get('file_name') or event.get(
                     'resource_name'
                 )  # Attempt to get filename from event if available
+                dataset_context = {
+                    "Title": event.get('dataset_title'),
+                    "Description": event.get('dataset_description'),
+                }
+                resource_context = {
+                    "Name": resource_name,
+                    "Description": event.get('resource_description')
+                }
+
+            def clean_metadata(md: dict) -> dict:
+                cleaned = {}
+                for k, v in md.items():
+                    if v is None: continue
+                    v_str = str(v).strip()
+                    if not v_str: continue
+                    cleaned[k] = v_str[:300]
+                return cleaned
+                
+            dataset_context = clean_metadata(dataset_context)
+            resource_context = clean_metadata(resource_context)
 
             if not download_url:
                 logger.error(f'No download URL for resource {resource_id}')
@@ -142,6 +180,8 @@ class EventProcessor:
                 is_url=self.custom_output_path is None,
                 isp_rules=isp_rules,
                 http_headers=http_headers,
+                dataset_context=dataset_context,
+                resource_context=resource_context,
             )
 
             # Determine overall sensitivity

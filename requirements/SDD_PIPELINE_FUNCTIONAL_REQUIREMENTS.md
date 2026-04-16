@@ -83,6 +83,9 @@ Any new feature request for this project must follow this order:
 - [x] FR-SDD-032: Final resource sensitivity must aggregate sheet-level outcomes.
   - Implemented behavior: Resource result is categorized as one of: not-sensitive, sensitive-pd, sensitive-non-pd, sensitive-pd-and-non-pd.
 
+- [ ] FR-SDD-033: LLM prompts for PII Reflection, Non-PII Classification, and README Scan must include extensive contextual metadata.
+  - Expected behavior: The pipeline extracts Dataset Context (Title, Description, Source, Geography, Organization) and Resource Context (Name, Description). The text fields are filtered (omitting null/empty strings), truncated to a maximum of 300 characters, and injected into the prompt context for PII Reflection, Non-PII Classification, and README Scan. PII Detection (Step 1) must remain unaffected.
+
 ### Persistence and outputs
 
 - [x] FR-SDD-040: Results must be persisted either to CKAN or local output depending on runtime mode.
