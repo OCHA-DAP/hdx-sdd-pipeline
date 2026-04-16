@@ -121,8 +121,8 @@ class ProcessDatasetUseCase:
 
                 # Context to pass to downstream tasks
                 ctx = {
-                    "dataset_context": dataset_context or {},
-                    "resource_context": resource_context or {},
+                    'dataset_context': dataset_context or {},
+                    'resource_context': resource_context or {},
                 }
 
                 if self._is_readme_sheet(sheet_name):
@@ -155,7 +155,9 @@ class ProcessDatasetUseCase:
         normalized = sheet_name.lower().replace(' ', '')
         return any(keyword in normalized for keyword in ['readme', 'instructions', 'metadata', 'info'])
 
-    def _create_readme_report(self, sheet_name: str, source: str, resource_id: Optional[str], df: Any, ctx: Dict[str, Any]) -> SheetReport:
+    def _create_readme_report(
+        self, sheet_name: str, source: str, resource_id: Optional[str], df: Any, ctx: Dict[str, Any]
+    ) -> SheetReport:
         """Create report for README sheet."""
         report = SheetReport(
             resource_id=resource_id,
@@ -210,7 +212,13 @@ class ProcessDatasetUseCase:
         return report
 
     def _create_data_report(
-        self, sheet_name: str, source: str, resource_id: Optional[str], df: Any, isp_rules: Optional[Dict[str, Any]], ctx: Dict[str, Any]
+        self,
+        sheet_name: str,
+        source: str,
+        resource_id: Optional[str],
+        df: Any,
+        isp_rules: Optional[Dict[str, Any]],
+        ctx: Dict[str, Any],
     ) -> SheetReport:
         """Create and process report for data sheet."""
         logger.debug(f"Creating data report for sheet '{sheet_name}' with {len(df)} rows")
@@ -417,7 +425,9 @@ class ProcessDatasetUseCase:
 
         return report
 
-    def _classify_non_pii(self, report: SheetReport, isp_rules: Optional[Dict[str, Any]], ctx: Dict[str, Any]) -> SheetReport:
+    def _classify_non_pii(
+        self, report: SheetReport, isp_rules: Optional[Dict[str, Any]], ctx: Dict[str, Any]
+    ) -> SheetReport:
         """Classify non-PII sensitivity for the table."""
         if self.non_pii_llm is None:
             logger.info('Non-PII classification disabled - skipping')
@@ -434,11 +444,11 @@ class ProcessDatasetUseCase:
                 'non_pii_classification',
                 version=None,  # Auto-detect latest version
                 context={
-                    'table_name': report.sheet_name, 
-                    'table_markdown': table_summary, 
+                    'table_name': report.sheet_name,
+                    'table_markdown': table_summary,
                     'isp': isp_rules or {},
                     'dataset_context': ctx['dataset_context'],
-                    'resource_context': ctx['resource_context']
+                    'resource_context': ctx['resource_context'],
                 },
             )
 
@@ -628,7 +638,7 @@ class ProcessDatasetUseCase:
                 context={
                     'readme_string': readme_content,
                     'dataset_context': ctx['dataset_context'],
-                    'resource_context': ctx['resource_context']
+                    'resource_context': ctx['resource_context'],
                 },
             )
 

@@ -68,7 +68,13 @@ class TestProcessDatasetUseCase:
         """Test creating README report."""
         df = pd.DataFrame({'col1': [1, 2, 3]})
 
-        report = use_case._create_readme_report(sheet_name='README', source='test.xlsx', resource_id='test-123', df=df, ctx={'dataset_context': None, 'resource_context': None})
+        report = use_case._create_readme_report(
+            sheet_name='README',
+            source='test.xlsx',
+            resource_id='test-123',
+            df=df,
+            ctx={'dataset_context': None, 'resource_context': None},
+        )
 
         assert report.sheet_name == 'README'
         assert report.is_readme is True
@@ -87,7 +93,12 @@ class TestProcessDatasetUseCase:
         mock_llm_provider.generate.return_value = ('PERSON_NAME', 10, 20)
 
         report = use_case._create_data_report(
-            sheet_name='Sheet1', source='test.csv', resource_id='test-123', df=df, isp_rules=None, ctx={'dataset_context': None, 'resource_context': None}
+            sheet_name='Sheet1',
+            source='test.csv',
+            resource_id='test-123',
+            df=df,
+            isp_rules=None,
+            ctx={'dataset_context': None, 'resource_context': None},
         )
 
         assert report.sheet_name == 'Sheet1'
@@ -189,7 +200,9 @@ class TestProcessDatasetUseCase:
             20,
         )
 
-        result = use_case._classify_non_pii(report, isp_rules=None, ctx={'dataset_context': None, 'resource_context': None})
+        result = use_case._classify_non_pii(
+            report, isp_rules=None, ctx={'dataset_context': None, 'resource_context': None}
+        )
 
         assert result.non_pii_classification.sensitivity == SensitivityLevel.HIGH_SENSITIVE
         assert result.completion_tokens == 10
@@ -207,7 +220,9 @@ class TestProcessDatasetUseCase:
             20,
         )
 
-        result = use_case._classify_non_pii(report, isp_rules=isp_rules, ctx={'dataset_context': None, 'resource_context': None})
+        result = use_case._classify_non_pii(
+            report, isp_rules=isp_rules, ctx={'dataset_context': None, 'resource_context': None}
+        )
 
         assert result.non_pii_classification.sensitivity == SensitivityLevel.MEDIUM_SENSITIVE
 
@@ -217,7 +232,9 @@ class TestProcessDatasetUseCase:
 
         mock_llm_provider.generate_json.side_effect = Exception('API error')
 
-        result = use_case._classify_non_pii(report, isp_rules=None, ctx={'dataset_context': None, 'resource_context': None})
+        result = use_case._classify_non_pii(
+            report, isp_rules=None, ctx={'dataset_context': None, 'resource_context': None}
+        )
 
         # Should mark as UNDETERMINED on error
         assert result.non_pii_classification.sensitivity == SensitivityLevel.UNDETERMINED
@@ -394,10 +411,10 @@ class TestProcessDatasetUseCase:
         mock_data_loader.sample_dataframe.return_value = {'Name': ['John', '', '', '', '']}
         mock_llm_provider.generate.return_value = ('AGE', 10, 20)
         mock_llm_provider.generate_json.return_value = ({'sensitivity': 'HIGH_SENSITIVE'}, 10, 20)
-        
+
         # Must assign readme_llm, else it skips readme scan entirely!
         use_case.readme_llm = mock_llm_provider
-        
+
         dataset_ctx = {'Title': 'Test DS', 'Geography': 'Global'}
         resource_ctx = {'Name': 'test.csv'}
 
@@ -407,22 +424,22 @@ class TestProcessDatasetUseCase:
                 resource_id='test-123',
                 is_url=False,
                 dataset_context=dataset_ctx,
-                resource_context=resource_ctx
+                resource_context=resource_ctx,
             )
 
         assert len(reports) == 2
         mock_data_loader.load_from_file.assert_called_once()
-        
+
         # Verify get_prompt was called with context dictionary holding dataset_context and resource_context
         call_args_list = mock_prompt_manager.get_prompt.call_args_list
         found_pii_reflection = False
         found_non_pii = False
         found_readme = False
-        
+
         for call in call_args_list:
             prompt_name = call.args[0]
             context = call.kwargs.get('context', {})
-            
+
             if prompt_name == 'pii_reflection':
                 assert context.get('dataset_context') == dataset_ctx
                 assert context.get('resource_context') == resource_ctx

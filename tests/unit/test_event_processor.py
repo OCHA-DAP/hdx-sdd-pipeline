@@ -162,20 +162,20 @@ def test_report_exists_exception(mock_config, mock_pipeline_factory, mock_ckan_c
 
 def test_process_event_metadata_extraction(mock_config, mock_pipeline_factory, mock_ckan_client):
     processor = EventProcessor()
-    
+
     # Mock return values for ckan package and resource show
     package_data = {
         'title': 'Test Title',
-        'notes': 'Test Description that is quite long ' * 20, # over 300 chars
+        'notes': 'Test Description that is quite long ' * 20,  # over 300 chars
         'organization': {'title': 'Test Org'},
         'groups': [{'title': 'Spain'}, {'title': 'Global'}],
-        'dataset_source': 'Test Source'
+        'dataset_source': 'Test Source',
     }
-    
+
     processor.ckan.resource_show.return_value = {
         'download_url': 'http://example.com/data.csv',
-        'name': '   ', # empty name should be stripped to None
-        'description': 'Valid Description'
+        'name': '   ',  # empty name should be stripped to None
+        'description': 'Valid Description',
     }
     processor.ckan.package_show.return_value = package_data
     processor.isp_retriever.get_isp_rules = MagicMock(return_value={})
@@ -186,22 +186,22 @@ def test_process_event_metadata_extraction(mock_config, mock_pipeline_factory, m
     success, _ = processor.process_event(event)
 
     assert success
-    
+
     # Check that pipeline.execute was called and see what kwargs it got
     call_args = processor.pipeline.execute.call_args
     assert call_args is not None
     kwargs = call_args[1]
-    
+
     dataset_context = kwargs.get('dataset_context')
     resource_context = kwargs.get('resource_context')
-    
+
     assert dataset_context is not None
     assert dataset_context.get('Title') == 'Test Title'
     assert dataset_context.get('Organization') == 'Test Org'
-    assert len(dataset_context.get('Description')) == 300 # Should be truncated
+    assert len(dataset_context.get('Description')) == 300  # Should be truncated
     assert dataset_context.get('Geography') == 'Spain, Global'
     assert dataset_context.get('Source') == 'Test Source'
-    
+
     assert resource_context is not None
-    assert 'Name' not in resource_context # Blank was stripped
+    assert 'Name' not in resource_context  # Blank was stripped
     assert resource_context.get('Description') == 'Valid Description'
