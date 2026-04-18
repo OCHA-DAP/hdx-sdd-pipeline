@@ -59,26 +59,27 @@ class ISPRetriever:
             ckan_client: CKAN client instance for fetching package data
 
         Returns:
-            ISP rules dictionary
+            ISP rules dictionary with an injected 'isp_name' key
         """
         isps = self._load_isp_rules()
         if not isps:
-            return {}
+            logger.info('No ISP rules loaded - using ISP: default')
+            return {'isp_name': 'default'}
 
-        default_isp = isps.get('default', {})
+        # 1. Try matching from package groups first
+        matched_data = self._match_from_package_groups(package_id, isps, ckan_client)
+        if matched_data:
+            return matched_data
 
-        # Try matching from package groups first
-        matched_isp = self._match_from_package_groups(package_id, isps, ckan_client)
-        if matched_isp:
-            return matched_isp
+        # 2. Try matching from resource name (expected ISO3 filename stem)
+        matched_data = self._match_from_resource_name(resource_name, isps)
+        if matched_data:
+            return matched_data
 
-        # Try matching from resource name (expected ISO3 filename stem)
-        matched_isp = self._match_from_resource_name(resource_name, isps)
-        if matched_isp:
-            return matched_isp
-
-        # Fallback to default
+        # 3. Fallback to default
         logger.info('No specific ISP found - using ISP: default')
+        default_isp = isps.get('default', {}).copy()
+        default_isp['isp_name'] = 'default'
         return default_isp
 
     def match_country(self, iso3_code: Optional[str], isps: Dict[str, Any]) -> Optional[Dict[str, Any]]:
@@ -90,7 +91,7 @@ class ISPRetriever:
             isps: Dictionary of ISP rules
 
         Returns:
-            Matching ISP data or None
+            Matching ISP data (with injected isp_name) or None
         """
         if not iso3_code:
             return None
@@ -104,7 +105,9 @@ class ISPRetriever:
             country_filter = isp_data.get('ISO_CODE', isp_data.get('country', ''))
             if isinstance(country_filter, str) and country_filter.strip().lower() == normalized_iso3:
                 logger.info(f'Using ISP: {isp_name} (matched ISO3: {normalized_iso3})')
-                return isp_data
+                result = isp_data.copy()
+                result['isp_name'] = isp_name
+                return result
 
         return None
 
@@ -188,7 +191,9 @@ class ISPRetriever:
                 # Check for the ISO code delimited by non-alphanumeric characters (or start/end of string)
                 if re.search(rf'(?:^|[^a-z0-9]){re.escape(normalized_iso)}(?:[^a-z0-9]|$)', normalized_name):
                     logger.info(f'Using ISP: {isp_name} (detected ISO3 in filename: {resource_name})')
-                    return isp_data
+                    result = isp_data.copy()
+                    result['isp_name'] = isp_name
+                    return result
 
         return None
 

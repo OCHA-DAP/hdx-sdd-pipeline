@@ -19,7 +19,7 @@ def test_isp_retriever_default():
     with patch('builtins.open', mock_open(read_data=json.dumps(mock_isps))):
         rules = retriever.get_isp_rules(None)
 
-    assert rules == {'rule': 'default_rule'}
+    assert rules == {'rule': 'default_rule', 'isp_name': 'default'}
 
 
 def test_isp_retriever_country_match(mock_ckan_client):
@@ -32,7 +32,7 @@ def test_isp_retriever_country_match(mock_ckan_client):
     with patch('builtins.open', mock_open(read_data=json.dumps(mock_isps))):
         rules = retriever.get_isp_rules('pkg123', ckan_client=mock_ckan_client.return_value)
 
-    assert rules == {'country': 'tst', 'rule': 'custom'}
+    assert rules == {'country': 'tst', 'rule': 'custom', 'isp_name': 'some_isp'}
 
 
 def test_isp_retriever_country_match_group_name_field(mock_ckan_client):
@@ -45,7 +45,7 @@ def test_isp_retriever_country_match_group_name_field(mock_ckan_client):
     with patch('builtins.open', mock_open(read_data=json.dumps(mock_isps))):
         rules = retriever.get_isp_rules('pkg123', ckan_client=mock_ckan_client.return_value)
 
-    assert rules == {'country': 'tst', 'rule': 'custom'}
+    assert rules == {'country': 'tst', 'rule': 'custom', 'isp_name': 'some_isp'}
 
 
 def test_isp_retriever_group_id_field_falls_back_to_default(mock_ckan_client):
@@ -58,7 +58,7 @@ def test_isp_retriever_group_id_field_falls_back_to_default(mock_ckan_client):
     with patch('builtins.open', mock_open(read_data=json.dumps(mock_isps))):
         rules = retriever.get_isp_rules('pkg123', ckan_client=mock_ckan_client.return_value)
 
-    assert rules == {'rule': 'default'}
+    assert rules == {'rule': 'default', 'isp_name': 'default'}
 
 
 def test_isp_retriever_no_country_match(mock_ckan_client):
@@ -71,7 +71,7 @@ def test_isp_retriever_no_country_match(mock_ckan_client):
     with patch('builtins.open', mock_open(read_data=json.dumps(mock_isps))):
         rules = retriever.get_isp_rules('pkg123', ckan_client=mock_ckan_client.return_value)
 
-    assert rules == {'rule': 'default'}
+    assert rules == {'rule': 'default', 'isp_name': 'default'}
 
 
 def test_isp_retriever_ckan_disabled():
@@ -82,7 +82,7 @@ def test_isp_retriever_ckan_disabled():
     with patch('builtins.open', mock_open(read_data=json.dumps(mock_isps))):
         rules = retriever.get_isp_rules('pkg123')
 
-    assert rules == {'rule': 'default_rule'}
+    assert rules == {'rule': 'default_rule', 'isp_name': 'default'}
 
 
 def test_isp_retriever_file_error():
@@ -92,7 +92,7 @@ def test_isp_retriever_file_error():
     with patch('builtins.open', side_effect=Exception('File not found')):
         rules = retriever.get_isp_rules(None)
 
-    assert rules == {}
+    assert rules == {'isp_name': 'default'}
 
 
 def test_isp_retriever_default_exception():
@@ -102,7 +102,7 @@ def test_isp_retriever_default_exception():
     with patch('builtins.open', side_effect=Exception('File error')):
         rules = retriever.get_isp_rules(None)
 
-    assert rules == {}
+    assert rules == {'isp_name': 'default'}
 
 
 def test_isp_retriever_ckan_disabled_exception():
@@ -112,7 +112,7 @@ def test_isp_retriever_ckan_disabled_exception():
     with patch('builtins.open', side_effect=Exception('File error')):
         rules = retriever.get_isp_rules(None)
 
-    assert rules == {}
+    assert rules == {'isp_name': 'default'}
 
 
 def test_isp_retriever_general_exception(mock_ckan_client):
@@ -126,7 +126,7 @@ def test_isp_retriever_general_exception(mock_ckan_client):
     with patch('builtins.open', mock_open(read_data=json.dumps(mock_isps))):
         rules = retriever.get_isp_rules('pkg123', ckan_client=mock_ckan_client.return_value)
 
-    assert rules == {'rule': 'default'}
+    assert rules == {'rule': 'default', 'isp_name': 'default'}
 
 
 def test_isp_retriever_resource_name_fallback(mock_ckan_client):
@@ -141,7 +141,7 @@ def test_isp_retriever_resource_name_fallback(mock_ckan_client):
         # Resource stem should be ISO3 and matched case-insensitively
         rules = retriever.get_isp_rules('pkg123', 'TST.csv', mock_ckan_client.return_value)
 
-    assert rules == {'country': 'tst', 'rule': 'custom'}
+    assert rules == {'country': 'tst', 'rule': 'custom', 'isp_name': 'some_isp'}
 
 
 def test_isp_retriever_ckan_disabled_fallback():
@@ -152,7 +152,7 @@ def test_isp_retriever_ckan_disabled_fallback():
     with patch('builtins.open', mock_open(read_data=json.dumps(mock_isps))):
         rules = retriever.get_isp_rules(None, 'tst.csv')
 
-    assert rules == {'country': 'tst', 'rule': 'custom'}
+    assert rules == {'country': 'tst', 'rule': 'custom', 'isp_name': 'some_isp'}
 
 
 def test_isp_retriever_non_iso3_resource_name_falls_back_to_default():
@@ -163,7 +163,7 @@ def test_isp_retriever_non_iso3_resource_name_falls_back_to_default():
     with patch('builtins.open', mock_open(read_data=json.dumps(mock_isps))):
         rules = retriever.get_isp_rules(None, 'dataset_ag_data.csv')
 
-    assert rules == {'rule': 'default'}
+    assert rules == {'rule': 'default', 'isp_name': 'default'}
 
 
 def test_isp_retriever_caching():
@@ -181,7 +181,7 @@ def test_isp_retriever_caching():
 
         # File should only be opened once
         assert mock_file_obj.call_count == 1
-        assert rules1 == rules2 == {'rule': 'default_rule'}
+        assert rules1 == rules2 == {'rule': 'default_rule', 'isp_name': 'default'}
 
 
 def test_isp_retriever_clear_cache():
@@ -210,7 +210,7 @@ def test_match_country_direct():
     isps = {'test_isp': {'country': 'tst', 'rule': 'custom'}, 'default': {'rule': 'default'}}
 
     result = retriever.match_country('TST', isps)
-    assert result == {'country': 'tst', 'rule': 'custom'}
+    assert result == {'country': 'tst', 'rule': 'custom', 'isp_name': 'test_isp'}
 
 
 def test_match_country_requires_exact_iso3():
@@ -249,7 +249,7 @@ def test_match_country_case_insensitive():
     isps = {'afghanistan': {'country': 'AFG', 'rule': 'custom'}, 'default': {'rule': 'default'}}
 
     result = retriever.match_country('afg', isps)
-    assert result == {'country': 'AFG', 'rule': 'custom'}
+    assert result == {'country': 'AFG', 'rule': 'custom', 'isp_name': 'afghanistan'}
 
 
 def test_isp_retriever_redis_cache_hit():
@@ -261,7 +261,7 @@ def test_isp_retriever_redis_cache_hit():
 
     rules = retriever.get_isp_rules(None)
 
-    assert rules == {'rule': 'cached_rule'}
+    assert rules == {'rule': 'cached_rule', 'isp_name': 'default'}
     mock_store.get_object.assert_called_once_with('isp_rules_cache')
 
 
@@ -276,7 +276,7 @@ def test_isp_retriever_redis_cache_miss():
     with patch('builtins.open', mock_open(read_data=json.dumps(mock_isps))):
         rules = retriever.get_isp_rules(None)
 
-    assert rules == {'rule': 'default_rule'}
+    assert rules == {'rule': 'default_rule', 'isp_name': 'default'}
     mock_store.set_object.assert_called_once_with('isp_rules_cache', mock_isps, expire_in_seconds=60 * 60 * 12)
 
 
@@ -292,4 +292,4 @@ def test_isp_retriever_redis_cache_exception_handled():
         rules = retriever.get_isp_rules(None)
 
     # Should fall back to strategy without failing
-    assert rules == {'rule': 'default_rule'}
+    assert rules == {'rule': 'default_rule', 'isp_name': 'default'}

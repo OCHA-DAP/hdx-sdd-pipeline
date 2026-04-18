@@ -40,9 +40,6 @@ class SheetReport:
     non_pii_model: Optional[str] = None
     readme_model: Optional[str] = None
 
-    # ISP Context
-    isp_used: Optional[str] = None
-
     # Classifications
     columns: List[Column] = field(default_factory=list)
     non_pii_classification: NonPIIClassification = field(default_factory=NonPIIClassification)
@@ -122,11 +119,7 @@ class SheetReport:
             'columns': [col.to_dict() for col in self.columns],
         }
 
-        # Handle non-PII and embed ISP context into it
-        non_personal_data_dict = self.non_pii_classification.to_dict()
-        if self.isp_used:
-            non_personal_data_dict['isp_name'] = self.isp_used
-        result['non_personal_data'] = non_personal_data_dict
+        result['non_personal_data'] = self.non_pii_classification.to_dict()
 
         # Optional fields
         if self.pii_classifier_model:
@@ -194,5 +187,4 @@ class SheetReport:
             is_readme=data.get('is_readme', False),
             readme_content=data.get('readme'),
             readme_report=data.get('readme_report', data.get('readme_report')),
-            isp_used=data.get('isp_used') or non_pii_data.get('isp_name'),
         )

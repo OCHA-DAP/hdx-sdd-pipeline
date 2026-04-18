@@ -221,7 +221,6 @@ class ProcessDatasetUseCase:
             processing_timestamp=datetime.now(),
             n_records=len(df),
             n_columns=len(sample_dict),
-            isp_used=isp_rules.get('ISO_CODE') if isp_rules else None,
         )
 
         # Create columns
@@ -437,9 +436,7 @@ class ProcessDatasetUseCase:
 
             # Store ISP name if provided
             if isp_rules:
-                # Extract ISP name - could be from 'country' field or use a default
-                isp_name = isp_rules.get('country', 'unknown')
-                report.non_pii_classification.isp_name = isp_name
+                report.non_pii_classification.isp_name = isp_rules.get('isp_name', 'default')
 
             # Update token counts
             report.completion_tokens += comp_tokens
