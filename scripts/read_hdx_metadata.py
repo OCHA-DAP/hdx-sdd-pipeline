@@ -6,14 +6,8 @@ Usage: python scripts/read_hdx_metadata.py <resource_id>
 import sys
 import json
 import logging
-from pathlib import Path
 from src.shared.utils.ckan import CKANClient
 from config.config import get_config
-
-# Add the project root to sys.path to allow imports from src
-project_root = Path(__file__).resolve().parent.parent
-sys.path.append(str(project_root))
-
 
 # Setup logging
 logging.basicConfig(level=logging.INFO, format='%(levelname)s: %(message)s')
