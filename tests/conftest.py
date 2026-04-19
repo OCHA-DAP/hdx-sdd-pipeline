@@ -13,11 +13,21 @@ sys.path.insert(0, str(src_path))
 mock_creds = MagicMock()
 mock_gspread_client = MagicMock()
 
-patcher_creds = patch('google.oauth2.service_account.Credentials.from_service_account_file', return_value=mock_creds)
-patcher_gspread = patch('gspread.authorize', return_value=mock_gspread_client)
-
-patcher_creds.start()
-patcher_gspread.start()
+@pytest.fixture(autouse=True)
+def mock_google_clients():
+    """Patch Google auth and gspread for each test and clean up afterwards."""
+    patcher_creds = patch(
+        'google.oauth2.service_account.Credentials.from_service_account_file',
+        return_value=mock_creds,
+    )
+    patcher_gspread = patch('gspread.authorize', return_value=mock_gspread_client)
+    patcher_creds.start()
+    patcher_gspread.start()
+    try:
+        yield
+    finally:
+        patcher_gspread.stop()
+        patcher_creds.stop()
 
 
 @pytest.fixture

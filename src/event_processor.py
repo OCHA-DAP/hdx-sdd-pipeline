@@ -57,7 +57,16 @@ class EventProcessor:
             from src.infrastructure.external.isp_strategies import GoogleSheetsISPStrategy
 
             strategy = GoogleSheetsISPStrategy(spreadsheet_url=self.config.ISP_GOOGLE_SHEET_URL)
-            logger.info(f'Using GoogleSheetsISPStrategy for ISP retrieval ({self.config.ISP_GOOGLE_SHEET_URL})')
+            spreadsheet_url = self.config.ISP_GOOGLE_SHEET_URL
+            if not spreadsheet_url or not str(spreadsheet_url).strip():
+                message = (
+                    'ISP_STRATEGY is set to "google_sheets" but ISP_GOOGLE_SHEET_URL is unset or empty. '
+                    'Set ISP_GOOGLE_SHEET_URL to a valid Google Sheets URL or choose a different ISP_STRATEGY.'
+                )
+                logger.error(message)
+                raise ValueError(message)
+            strategy = GoogleSheetsISPStrategy(spreadsheet_url=spreadsheet_url)
+            logger.info(f'Using GoogleSheetsISPStrategy for ISP retrieval ({spreadsheet_url})')
         else:
             from src.infrastructure.external.isp_strategies import LocalJSONISPStrategy
 

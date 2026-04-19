@@ -20,7 +20,7 @@ class GoogleSheetsISPStrategy:
             'burundi': 'BDI',
             'cameroon (nwsw)': 'CMR',
             'cameroon (extreme nord)': 'CMR',
-            'democratic republic of the congo ': 'COD',
+            'democratic republic of the congo': 'COD',
             'haiti': 'HTI',
             'iraq': 'IRQ',
             'mozambique': 'MOZ',
