@@ -13,6 +13,7 @@ sys.path.insert(0, str(src_path))
 mock_creds = MagicMock()
 mock_gspread_client = MagicMock()
 
+
 @pytest.fixture(autouse=True)
 def mock_google_clients():
     """Patch Google auth and gspread for each test and clean up afterwards."""

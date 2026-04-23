@@ -51,6 +51,9 @@ class Config:
     ISP_STRATEGY: str = os.getenv('ISP_STRATEGY', 'google_sheets')  # 'local' or 'google_sheets'
     ISP_GOOGLE_SHEET_URL: str = os.getenv('ISP_GOOGLE_SHEET_URL')
     ISP_LOCAL_JSON_PATH: str = os.getenv('ISP_LOCAL_JSON_PATH', 'data/isps.json')
+    GOOGLE_SHEETS_PRIVATE_KEY: str = os.getenv('GOOGLE_SHEETS_PRIVATE_KEY')
+    GOOGLE_SHEETS_CLIENT_EMAIL: str = os.getenv('GOOGLE_SHEETS_CLIENT_EMAIL')
+    GOOGLE_SHEETS_TOKEN_URI: str = os.getenv('GOOGLE_SHEETS_TOKEN_URI')
 
     # Azure endpoints
     AZURE_OPENAI_ENDPOINT: str = os.getenv('AZURE_OPENAI_ENDPOINT', '')

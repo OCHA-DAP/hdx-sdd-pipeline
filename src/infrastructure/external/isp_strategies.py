@@ -40,9 +40,9 @@ class GoogleSheetsISPStrategy:
         """
         Retrieves ISP data from Google Sheets and transforms it into a dictionary format.
         """
-        from src.infrastructure.external.google_sheets_client import google_sheets_client
+        from src.infrastructure.external.google_sheets_client import get_gsheets
 
-        spreadsheet = google_sheets_client.open_by_url(self.spreadsheet_url)
+        spreadsheet = get_gsheets().open_by_url(self.spreadsheet_url)
         worksheet = spreadsheet.worksheet('Data and Information Types Copy from ISP')
 
         values = worksheet.get_all_values()

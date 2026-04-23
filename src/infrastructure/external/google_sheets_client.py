@@ -1,28 +1,31 @@
+import logging
 import gspread
-from google.oauth2.service_account import Credentials
+from gspread import client as gs_client
+from config.config import get_config
+
+logger = logging.getLogger(__name__)
+
+CONFIG = None
 
 
-class GoogleSheetsClientProxy:
+def get_gsheets() -> gs_client.Client:
     """
-    A proxy for the gspread client that initializes only when accessed.
-    This prevents unintended side effects (like loading service account JSON)
-    at module import time.
+    Returns an authenticated gspread client using credentials from the configuration.
+    Initializes the configuration and client on the first call.
     """
+    global CONFIG
+    if not CONFIG:
+        CONFIG = get_config()
 
-    def __init__(self):
-        self._client = None
-        self.scopes = ['https://www.googleapis.com/auth/spreadsheets', 'https://www.googleapis.com/auth/drive']
-
-    def _initialize(self):
-        if self._client is None:
-            # authenticate and create client
-            credentials = Credentials.from_service_account_file('service_account.json', scopes=self.scopes)
-            self._client = gspread.authorize(credentials)
-
-    def __getattr__(self, name):
-        self._initialize()
-        return getattr(self._client, name)
-
-
-# Create the proxy instance
-google_sheets_client = GoogleSheetsClientProxy()
+    try:
+        gsheet = gspread.service_account_from_dict(
+            {
+                'private_key': CONFIG.GOOGLE_SHEETS_PRIVATE_KEY,
+                'client_email': CONFIG.GOOGLE_SHEETS_CLIENT_EMAIL,
+                'token_uri': CONFIG.GOOGLE_SHEETS_TOKEN_URI,
+            }
+        )
+        return gsheet
+    except Exception as exc:
+        logger.error(f'Exception of type {type(exc).__name__} while creating google sheets client: {str(exc)}')
+        raise

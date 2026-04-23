@@ -34,6 +34,11 @@ services:
       HDX_URL: ${HDX_URL:-https://data.humdata.local}
       HDX_KEY: ${HDX_KEY:-YOUR_HDX_TOKEN}
       HDX_SDD_SLACK_ACCESS_TOKEN: ${HDX_SDD_SLACK_ACCESS_TOKEN:-your-token-here}
+      ISP_STRATEGY: ${ISP_STRATEGY:-google_sheets}
+      ISP_GOOGLE_SHEET_URL: ${ISP_GOOGLE_SHEET_URL:-}
+      GOOGLE_SHEETS_PRIVATE_KEY: ${GOOGLE_SHEETS_PRIVATE_KEY:-}
+      GOOGLE_SHEETS_CLIENT_EMAIL: ${GOOGLE_SHEETS_CLIENT_EMAIL:-}
+      GOOGLE_SHEETS_TOKEN_URI: ${GOOGLE_SHEETS_TOKEN_URI:-}
     entrypoint: [ "tail", "-f", "/dev/null" ]
     networks:
       - redis-network
