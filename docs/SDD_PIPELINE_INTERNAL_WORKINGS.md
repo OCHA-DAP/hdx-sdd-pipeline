@@ -146,27 +146,33 @@ The pipeline performs **three distinct evaluation steps**, each with specific ob
 **Output**: One of the following entity types per column:
 
 - `NONE` - No PII detected
-- `NAME` - Person names
-- `EMAIL` - Email addresses
-- `PHONE` - Phone numbers
-- `ADDRESS` - Physical addresses
+- `PERSON_NAME` - Person names
+- `ORGANIZATION_NAME` - Organization names
+- `EMAIL_ADDRESS` - Email addresses
+- `PHONE_NUMBER` - Phone numbers
+- `HOME_ADDRESS` - Home addresses
 - `ID_NUMBER` - Identification numbers
-- `DATE_OF_BIRTH` - Birth dates
-- `FINANCIAL` - Financial information
-- `HEALTH` - Health-related data
-- `BIOMETRIC` - Biometric data
+- `PASSPORT_NUMBER` - Passport numbers
+- `SOCIAL_SECURITY_NUMBER` - Social security numbers
+- `CREDIT_CARD` - Credit card numbers
+- `BANK_ACCOUNT` - Bank account details
+- `DATE_OF_BIRTH` - Dates of birth
+- `IP_ADDRESS` - IP addresses
+- `AGE` - Age information
+- `GENDER` - Gender information
+- `DISABILITY` - Disability information
 - `UNDETERMINED` - Cannot determine
 
-**Prompt Template** (`src/prompts/pii_detection/v0.jinja`):
+**Prompt Template** (`src/prompts/pii_detection/v1.jinja`):
 
 ```jinja
 ### INSTRUCTION
-You are a PII classification system. Given a column name **AND** sample values,
-determine if this column contains a specific type of PII.
-Choose ONE category from the following list or respond with 'None' if the column
-doesn't contain PII:
+You are a PII classification system. Given a column name **AND** sample values, determine if this column contains a specific type of PII.
+Choose ONE category from the following list or respond with 'None' if the column doesn't contain PII:
 
-PII entities list: {{ PII_ENTITIES_LIST }}
+PII entities list: [PERSON_NAME, ORGANIZATION_NAME, EMAIL_ADDRESS, PHONE_NUMBER, HOME_ADDRESS, ID_NUMBER, PASSPORT_NUMBER, SOCIAL_SECURITY_NUMBER, CREDIT_CARD, BANK_ACCOUNT, DATE_OF_BIRTH, IP_ADDRESS, AGE, GENDER, DISABILITY]
+
+- A date is None UNLESS it is a date of birth of a person.
 
 Return ONLY the entity name or only 'None' with no additional text.
 
@@ -716,18 +722,27 @@ class NonPIIClassification:
 **PIIEntityType** (Enum):
 
 ```python
-class PIIEntityType(Enum):
-    NONE = "None"
-    NAME = "Name"
-    EMAIL = "Email"
-    PHONE = "Phone"
-    ADDRESS = "Address"
-    ID_NUMBER = "ID Number"
-    DATE_OF_BIRTH = "Date of Birth"
-    FINANCIAL = "Financial"
-    HEALTH = "Health"
-    BIOMETRIC = "Biometric"
-    UNDETERMINED = "Undetermined"
+class PIIEntityType(str, Enum):
+    PERSON_NAME = 'PERSON_NAME'
+    EMAIL_ADDRESS = 'EMAIL_ADDRESS'
+    PHONE_NUMBER = 'PHONE_NUMBER'
+    AGE = 'AGE'
+    ORGANIZATION_NAME = 'ORGANIZATION_NAME'
+    LOCATION = 'LOCATION'
+    ADDRESS = 'ADDRESS'
+    HOME_ADDRESS = 'HOME_ADDRESS'
+    DISABILITY = 'DISABILITY'
+    ID_NUMBER = 'ID_NUMBER'
+    PASSPORT_NUMBER = 'PASSPORT_NUMBER'
+    SOCIAL_SECURITY_NUMBER = 'SOCIAL_SECURITY_NUMBER'
+    CREDIT_CARD = 'CREDIT_CARD'
+    BANK_ACCOUNT = 'BANK_ACCOUNT'
+    DATE_OF_BIRTH = 'DATE_OF_BIRTH'
+    GENDER = 'GENDER'
+    IP_ADDRESS = 'IP_ADDRESS'
+    URL = 'URL'
+    NONE = 'None'
+    UNDETERMINED = 'UNDETERMINED'
 ```
 
 **SensitivityLevel** (Enum):
