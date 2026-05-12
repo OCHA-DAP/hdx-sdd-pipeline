@@ -32,7 +32,7 @@ event_bus = connect_to_hdx_event_bus(
 if __name__ == '__main__':
     # Initialize event processor
     logger.info('Initializing event processor...')
-    processor = EventProcessor()
+    processor = EventProcessor(config=main_config)
 
     if not main_config.WORKER_ENABLED:
         logger.info('WORKER_ENABLED is false. Sleeping indefinitely...')

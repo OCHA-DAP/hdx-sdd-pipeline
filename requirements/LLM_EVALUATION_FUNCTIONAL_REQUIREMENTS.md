@@ -1,6 +1,6 @@
 # LLM Evaluation Functional Requirements (Implemented Baseline)
 
-Last updated: 2026-03-18
+Last updated: 2026-05-10
 Scope: Evaluation workflows (batch processing + FastAPI/Next.js dashboard integration).
 Purpose: Document currently implemented requirements so future changes preserve existing evaluation behavior.
 
@@ -47,7 +47,7 @@ Any new feature request for this project must follow this order:
 
 ### Model execution and batch processing
 
-- [x] FR-EVAL-020: Evaluation must support an explicit list of selectable model names.
+- [x] FR-EVAL-020: Evaluation must support an explicit list of selectable model names (e.g., gpt-4.1 series, gpt-5 series, DeepSeek-V3.1, DeepSeek-V4-Flash).
   - Implemented behavior: Backend publishes available model list and uses it for model-specific reporting/batch operations.
 
 - [x] FR-EVAL-021: Batch processing must support per-model execution across all available datasets.
@@ -73,11 +73,11 @@ Any new feature request for this project must follow this order:
 - [x] FR-EVAL-032: Performance analytics must be computed against available ground truth at both file and sheet levels.
   - Implemented behavior: Confusion-matrix metrics include accuracy, precision, recall, F1, and tested counts for overall, personal, and non-personal categories.
 
-- [x] FR-EVAL-033: Ground-truth placeholder values must be normalized safely during analytics.
-  - Implemented behavior: Ground-truth normalization converts recognized boolean-like values and treats unknown placeholders (for example TODO) as false.
+- [x] FR-EVAL-033: Ground-truth and model result values must be normalized safely during analytics, including support for file-level sensitivity strings.
+  - Implemented behavior: Normalization converts boolean-like values, specific sensitivity strings (e.g., 'sensitive-pd', 'not-sensitive'), and aggregates sheet-level flags if a file-level flag is missing. Unknown placeholders (e.g., TODO) are treated as false.
 
-- [x] FR-EVAL-034: Cost analytics must be derived from stored token usage and model pricing map.
-  - Implemented behavior: Prompt/completion tokens are aggregated per model and converted to total and per-report cost estimates.
+- [x] FR-EVAL-034: Cost analytics must be derived from stored token usage and model pricing map, supporting separate input and output token costs.
+  - Implemented behavior: Prompt and completion tokens are aggregated per model and converted to total and per-report cost estimates using model-specific input/output pricing.
 
 ### Operational safeguards
 

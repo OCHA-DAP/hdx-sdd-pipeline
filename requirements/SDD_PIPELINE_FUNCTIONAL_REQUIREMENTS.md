@@ -102,6 +102,12 @@ Any new feature request for this project must follow this order:
 - [x] FR-SDD-052: Processing failures must be logged with diagnostic context and returned as failure status.
   - Implemented behavior: Exceptions are logged with stack details and caller receives structured failure result.
 
+- [x] FR-SDD-026: ISP rules from Google Sheets must be sourced as structured per-rule records with discrete fields (data type, category, disaggregation, sensitivity).
+  - Implemented behavior: `GoogleSheetsISPStrategy` reads the "Data & Information Types Dataset" worksheet, parses each row into a structured rule record grouped by country ISO3 code, and generates backward-compatible text blobs for legacy prompt templates. The structured `rules` list is available for richer prompt rendering in v2+ templates.
+
+- [x] FR-SDD-027: When no country-specific ISP is matched, the default ISP must use a simplified binary classification (Low/No Sensitivity vs. Severe Sensitivity).
+  - Implemented behavior: The default ISP entry contains only two sensitivity tiers with an explicit list of severe sensitivity exceptions. The v2 non-PII classification prompt renders this as a binary decision, reducing false positives from over-classification.
+
 ## Notes for implementers
 
 - Do not change startup logging order without explicit requirement update.

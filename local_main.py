@@ -30,7 +30,7 @@ configure_console_logging()
 logger = logging.getLogger(__name__)
 
 main_config = get_config()
-event_processor = EventProcessor()
+event_processor = EventProcessor(config=main_config)
 
 
 def load_events_from_file(file_path: str) -> list:

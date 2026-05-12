@@ -42,6 +42,10 @@ interface ReportDetail {
         non_personal_sensitivity?: string;
         isp_used?: string;
       };
+      groundtruth?: {
+        personal_data_sensitive: boolean;
+        non_personal_data_sensitive: boolean;
+      };
     };
   };
   groundtruth?: any;
@@ -150,7 +154,7 @@ export default function ResultsTab({ selectedModel: propSelectedModel }: Props =
   const analyzeErrors = (reportDetail: ReportDetail, model: string, dataset: string) => {
     const errors: ErrorAnalysis[] = [];
     
-    if (!reportDetail.groundtruth) return;
+    if (!reportDetail.groundtruth && !Object.values(reportDetail.sheets).some(s => s.groundtruth)) return;
     
     const gt = reportDetail.groundtruth;
     
@@ -161,29 +165,34 @@ export default function ResultsTab({ selectedModel: propSelectedModel }: Props =
         non_personal_data_sensitive: sheetData.metadata.non_personal_data_sensitive
       };
       
+      // Use sheet-level ground truth if available, otherwise fallback to file-level
+      const sheetGt = sheetData.groundtruth || gt;
+      
+      if (!sheetGt) return;
+      
       // Check for false positives (model predicted sensitive but ground truth says not)
-      if (prediction.personal_data_sensitive && !gt.personal_data_sensitive) {
+      if (prediction.personal_data_sensitive && !sheetGt.personal_data_sensitive) {
         errors.push({
           dataset,
           model,
           errorType: 'false_positive',
           groundTruth: {
-            personal_data_sensitive: gt.personal_data_sensitive,
-            non_personal_data_sensitive: gt.non_personal_data_sensitive
+            personal_data_sensitive: sheetGt.personal_data_sensitive,
+            non_personal_data_sensitive: sheetGt.non_personal_data_sensitive
           },
           prediction,
           sheetName
         });
       }
       
-      if (prediction.non_personal_data_sensitive && !gt.non_personal_data_sensitive) {
+      if (prediction.non_personal_data_sensitive && !sheetGt.non_personal_data_sensitive) {
         errors.push({
           dataset,
           model,
           errorType: 'false_positive',
           groundTruth: {
-            personal_data_sensitive: gt.personal_data_sensitive,
-            non_personal_data_sensitive: gt.non_personal_data_sensitive
+            personal_data_sensitive: sheetGt.personal_data_sensitive,
+            non_personal_data_sensitive: sheetGt.non_personal_data_sensitive
           },
           prediction,
           sheetName
@@ -191,28 +200,28 @@ export default function ResultsTab({ selectedModel: propSelectedModel }: Props =
       }
       
       // Check for false negatives (ground truth says sensitive but model predicted not)
-      if (!prediction.personal_data_sensitive && gt.personal_data_sensitive) {
+      if (!prediction.personal_data_sensitive && sheetGt.personal_data_sensitive) {
         errors.push({
           dataset,
           model,
           errorType: 'false_negative',
           groundTruth: {
-            personal_data_sensitive: gt.personal_data_sensitive,
-            non_personal_data_sensitive: gt.non_personal_data_sensitive
+            personal_data_sensitive: sheetGt.personal_data_sensitive,
+            non_personal_data_sensitive: sheetGt.non_personal_data_sensitive
           },
           prediction,
           sheetName
         });
       }
       
-      if (!prediction.non_personal_data_sensitive && gt.non_personal_data_sensitive) {
+      if (!prediction.non_personal_data_sensitive && sheetGt.non_personal_data_sensitive) {
         errors.push({
           dataset,
           model,
           errorType: 'false_negative',
           groundTruth: {
-            personal_data_sensitive: gt.personal_data_sensitive,
-            non_personal_data_sensitive: gt.non_personal_data_sensitive
+            personal_data_sensitive: sheetGt.personal_data_sensitive,
+            non_personal_data_sensitive: sheetGt.non_personal_data_sensitive
           },
           prediction,
           sheetName
@@ -486,20 +495,20 @@ export default function ResultsTab({ selectedModel: propSelectedModel }: Props =
 
 
                                   {/* Ground Truth Comparison */}
-                                  {reportDetail.groundtruth && (
+                                  {(sheetData.groundtruth || reportDetail.groundtruth) && (
                                     <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3 mb-4">
                                       <div className="text-sm text-yellow-800">
                                         <div className="grid grid-cols-2 gap-4">
                                           <div>
-                                            <span className="font-medium text-yellow-800">Ground Truth:</span>
+                                            <span className="font-medium text-yellow-800">Ground Truth ({sheetData.groundtruth ? 'Sheet' : 'File'}):</span>
                                             <div className="mt-1 space-y-1">
                                               <div className="flex items-center gap-2">
-                                                {reportDetail.groundtruth.personal_data_sensitive ? <CheckCircle className="w-3 h-3 text-green-600" /> : <XCircle className="w-3 h-3 text-red-600" />}
-                                                <span className="text-xs">Personal: {reportDetail.groundtruth.personal_data_sensitive ? 'Yes' : 'No'}</span>
+                                                {(sheetData.groundtruth || reportDetail.groundtruth).personal_data_sensitive ? <CheckCircle className="w-3 h-3 text-green-600" /> : <XCircle className="w-3 h-3 text-red-600" />}
+                                                <span className="text-xs">Personal: {(sheetData.groundtruth || reportDetail.groundtruth).personal_data_sensitive ? 'Yes' : 'No'}</span>
                                               </div>
                                               <div className="flex items-center gap-2">
-                                                {reportDetail.groundtruth.non_personal_data_sensitive ? <CheckCircle className="w-3 h-3 text-green-600" /> : <XCircle className="w-3 h-3 text-red-600" />}
-                                                <span className="text-xs">Non-Personal: {reportDetail.groundtruth.non_personal_data_sensitive ? 'Yes' : 'No'}</span>
+                                                {(sheetData.groundtruth || reportDetail.groundtruth).non_personal_data_sensitive ? <CheckCircle className="w-3 h-3 text-green-600" /> : <XCircle className="w-3 h-3 text-red-600" />}
+                                                <span className="text-xs">Non-Personal: {(sheetData.groundtruth || reportDetail.groundtruth).non_personal_data_sensitive ? 'Yes' : 'No'}</span>
                                               </div>
                                             </div>
                                           </div>

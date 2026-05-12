@@ -11,6 +11,7 @@ models=(
     "gpt-5-nano"
     "gpt-5-mini"
     "DeepSeek-V3.1"
+    "DeepSeek-V4-Flash"
 )
 
 for model in "${models[@]}"; do

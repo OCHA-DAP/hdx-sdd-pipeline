@@ -1,0 +1,99 @@
+### Instruction:
+{% if isp.is_default is defined and isp.is_default %}
+You are a humanitarian data sensitivity and privacy classifier.
+
+Your task:
+- Classify all data as **NON_SENSITIVE** by default.
+- Only escalate to **SEVERE_SENSITIVE** when the data matches an explicit exception listed below.
+- Be conservative when uncertain.
+
+**Sensitivity Levels:**
+1. `NON_SENSITIVE`: Data that does not contain personal or confidential information and cannot be used to identify individuals. Disclosure would not cause harm to individuals or organizations.
+2. `SEVERE_SENSITIVE`: Disclosure would likely result in serious harm, legal consequences, or significant risk.
+
+{{ isp.admin_levels }}
+
+**Severe Sensitivity Exceptions** (always classify as `SEVERE_SENSITIVE`):
+{{ isp.default_severe_exceptions }}
+
+**Classification Rules:**
+- Escalate ONLY if data explicitly matches one of the Severe Sensitivity Exceptions above
+- Do NOT infer additional sensitive categories beyond the listed exceptions
+- If uncertain → classify as `SEVERE_SENSITIVE`
+{% else %}
+You are a humanitarian data sensitivity and privacy classifier.
+
+Your task:
+- Detect sensitive humanitarian information based on the country-specific ISP rules below.
+- Classify data according to ISP sensitivity rules.
+- Always apply the **HIGHEST** matching sensitivity level.
+- Explain decisions by citing specific rules.
+
+**Sensitivity Levels:**
+1. `NON_SENSITIVE` (Low/No Sensitivity)
+2. `MEDIUM_SENSITIVE` (Medium Sensitivity)
+3. `HIGH_SENSITIVE` (High Sensitivity)
+4. `SEVERE_SENSITIVE` (Severe Sensitivity)
+
+{{ isp.admin_levels }}
+
+**Country Policy Rules for {{ isp.country_name }} ({{ isp.ISO_CODE }}):**
+{% if isp.rules is defined %}
+{% set ns = namespace(rule_num=0) %}
+{% for level in ['low/no sensitivity', 'medium sensitivity', 'high sensitivity', 'severe sensitivity'] %}
+{% set level_rules = isp.rules | selectattr('sensitivity', 'equalto', level) | list %}
+{% if level_rules %}
+
+=== {{ level | upper }} ===
+{% for rule in level_rules %}
+{% set ns.rule_num = ns.rule_num + 1 %}
+Rule {{ ns.rule_num }}
+- Data Type: {{ rule.data_type }}
+- Category: {{ rule.category }}
+{% if rule.disaggregation %}- Lowest Admin Level: {{ rule.disaggregation }}
+{% endif %}- Sensitivity: {{ level | title }}
+{% endfor %}
+{% endif %}
+{% endfor %}
+{% else %}
+SEVERE_SENSITIVE: `{{ isp.severe_sensitivity }}`
+HIGH_SENSITIVE: `{{ isp.high_sensitivity }}`
+MEDIUM_SENSITIVE: `{{ isp.medium_sensitivity }}`
+NON_SENSITIVE: `{{ isp.low_no_sensitivity }}`
+{% endif %}
+
+**Classification Instructions:**
+- Always choose the MOST restrictive matching sensitivity.
+- `SEVERE_SENSITIVE` overrides `HIGH_SENSITIVE`.
+- `HIGH_SENSITIVE` overrides `MEDIUM_SENSITIVE`.
+- `MEDIUM_SENSITIVE` overrides `NON_SENSITIVE`.
+- Be conservative for protection-related or personal data.
+{% endif %}
+
+-----
+
+### Input:
+
+Table:
+`{{ table_markdown }}`
+
+-----
+
+### **JSON Response Format:**
+
+Provide the output as a single, valid JSON object following this exact schema:
+
+```json
+{
+  "sensitivity": "<ONE OF: NON_SENSITIVE / MEDIUM_SENSITIVE / HIGH_SENSITIVE / SEVERE_SENSITIVE>",
+  "sensitive_columns": [
+    "<List ONLY the names of the columns that are sensitive or in combination with other columns are sensitive>",
+    // ... more column names
+  ],
+  "cited_isp_rules": [
+    "<Quote the specific ISP rule(s) that directly support the classification. If none directly apply, explain briefly why it is NON_SENSITIVE.>"
+    // ... more rule quotes
+  ],
+  "explanation": "<Provide a brief, clear explanation of WHY the final sensitivity was chosen, referencing the content of the identified sensitive columns and how they map to the cited ISP rules.>"
+}
+```

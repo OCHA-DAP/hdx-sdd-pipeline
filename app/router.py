@@ -32,7 +32,7 @@ GROUNDTRUTH_DIR = Path(os.getenv('GROUNDTRUTH_DIR', str(REPORTS_DIR / 'groundtru
 ALLOWED_EXTENSIONS = {'.csv', '.xlsx'}
 
 # Available models for batch processing
-AVAILABLE_MODELS = ['gpt-4.1-nano', 'gpt-4.1-mini', 'gpt-4.1', 'gpt-5-nano', 'gpt-5-mini', 'DeepSeek-V3.1']
+AVAILABLE_MODELS = ['gpt-4.1-nano', 'gpt-4.1-mini', 'gpt-4.1', 'gpt-5-nano', 'gpt-5-mini', 'DeepSeek-V3.1', 'DeepSeek-V4-Flash']
 
 # Global variable to track batch processing status
 batch_status = {
@@ -56,15 +56,35 @@ def _normalize_flag(value) -> bool:
         return value
     if isinstance(value, str):
         v = value.strip().lower()
-        if v in ('true', 'yes', 'y', '1'):
+        if v in ('true', 'yes', 'y', '1', 'high_sensitive', 'moderate_sensitive', 'severe_sensitive', 'sensitive', 'sensitive-pd', 'sensitive-non-pd', 'sensitive-pd-and-non-pd'):
             return True
-        if v in ('false', 'no', 'n', '0', ''):
+        if v in ('false', 'no', 'n', '0', '', 'non_sensitive', 'not-sensitive', 'none', 'undetermined'):
             return False
         # Unrecognized strings (e.g. "todo") are treated as False
         return False
     if isinstance(value, (int, float)):
         return bool(value)
     return False
+
+
+def _get_sheet_reports(data) -> List[dict]:
+    """Extract list of sheet reports from model result data, handling both list and dict formats."""
+    if isinstance(data, list):
+        return [s for s in data if isinstance(s, dict)]
+    if isinstance(data, dict):
+        if 'sdd_report' in data and isinstance(data['sdd_report'], list):
+            return [s for s in data['sdd_report'] if isinstance(s, dict)]
+        # If it's a single sheet report in dict format
+        if 'sheet_name' in data:
+            return [data]
+    return []
+
+
+def _normalize_sheet_name(name: str) -> str:
+    """Normalize sheet name for matching."""
+    if not name:
+        return 'unknown'
+    return str(name).strip().lower()
 
 
 def setup_pipeline(model_name: Optional[str] = None) -> ProcessDatasetUseCase:
@@ -397,18 +417,57 @@ async def get_performance_metrics():
                 if isinstance(groundtruth_data, list):
                     for sheet in groundtruth_data:
                         if isinstance(sheet, dict):
-                            # Normalize flags to booleans to guard against placeholder strings like "TODO"
-                            personal_flag = _normalize_flag(sheet.get('personal_data_sensitive', False))
-                            non_personal_flag = _normalize_flag(sheet.get('non_personal_data_sensitive', False))
+                            # Determine personal sensitivity with fallback
+                            raw_p_flag = sheet.get('personal_data_sensitive')
+                            if isinstance(raw_p_flag, bool):
+                                personal_flag = raw_p_flag
+                            elif raw_p_flag in ('true', 'false', 'True', 'False', '1', '0'):
+                                personal_flag = _normalize_flag(raw_p_flag)
+                            else:
+                                # Placeholder or missing, check columns
+                                personal_flag = False
+                                columns = sheet.get('columns', [])
+                                for col in columns:
+                                    if isinstance(col, dict) and col.get('personal_data', {}).get('sensitive', False):
+                                        personal_flag = True
+                                        break
+                            
+                            # Determine non-personal sensitivity with fallback
+                            raw_np_flag = sheet.get('non_personal_data_sensitive')
+                            if isinstance(raw_np_flag, bool):
+                                non_personal_flag = raw_np_flag
+                            elif raw_np_flag in ('true', 'false', 'True', 'False', '1', '0'):
+                                non_personal_flag = _normalize_flag(raw_np_flag)
+                            else:
+                                # Placeholder or missing, check nested non_personal_data
+                                non_personal_flag = False
+                                if isinstance(sheet.get('non_personal_data'), dict):
+                                    nested_sens = sheet['non_personal_data'].get('sensitivity')
+                                    if nested_sens and _normalize_flag(nested_sens):
+                                        non_personal_flag = True
+
                             if personal_flag:
                                 gt_personal = True
                             if non_personal_flag:
                                 gt_non_personal = True
-                            gt_sheets[sheet.get('sheet_name', 'unknown')] = {
+                            
+                            sheet_name_raw = sheet.get('sheet_name')
+                            gt_sheets[_normalize_sheet_name(sheet_name_raw)] = {
                                 'personal_data_sensitive': personal_flag,
                                 'non_personal_data_sensitive': non_personal_flag,
                             }
                 elif isinstance(groundtruth_data, dict):
+                    # Check for top-level sensitive flags first
+                    gt_personal = _normalize_flag(groundtruth_data.get('personal_data_sensitive', False))
+                    gt_non_personal = _normalize_flag(groundtruth_data.get('non_personal_data_sensitive', False))
+                    
+                    # If top-level 'sensitive' exists, it might be a combined flag
+                    top_sensitive = groundtruth_data.get('sensitive')
+                    if top_sensitive:
+                        norm_top = _normalize_flag(top_sensitive)
+                        # We don't know if it's PD or non-PD just from 'sensitive', but it counts for gt_overall
+                        # Actually _normalize_flag handles 'sensitive-pd' etc.
+                    
                     sheets = groundtruth_data.get('sheets')
                     if isinstance(sheets, list):
                         # Newer template format: dict with a "sheets" list of per-sheet ground truth
@@ -416,18 +475,32 @@ async def get_performance_metrics():
                             if isinstance(sheet, dict):
                                 personal_flag = _normalize_flag(sheet.get('personal_data_sensitive', False))
                                 non_personal_flag = _normalize_flag(sheet.get('non_personal_data_sensitive', False))
+
+                                # Fallback for personal sensitivity if top-level flag is false/missing but columns are sensitive
+                                if not personal_flag:
+                                    columns = sheet.get('columns', [])
+                                    for col in columns:
+                                        if isinstance(col, dict) and col.get('personal_data', {}).get('sensitive', False):
+                                            personal_flag = True
+                                            break
+
+                                # Fallback for non-personal sensitivity if top-level flag is false/missing but nested is sensitive
+                                if not non_personal_flag and isinstance(sheet.get('non_personal_data'), dict):
+                                    nested_sens = sheet['non_personal_data'].get('sensitivity')
+                                    if nested_sens and _normalize_flag(nested_sens):
+                                        non_personal_flag = True
+
                                 if personal_flag:
                                     gt_personal = True
                                 if non_personal_flag:
                                     gt_non_personal = True
-                                gt_sheets[sheet.get('sheet_name', 'unknown')] = {
+                                gt_sheets[_normalize_sheet_name(sheet.get('sheet_name'))] = {
                                     'personal_data_sensitive': personal_flag,
                                     'non_personal_data_sensitive': non_personal_flag,
                                 }
                     else:
                         # Legacy template format: flags at the top level, apply globally/one sheet
-                        gt_personal = _normalize_flag(groundtruth_data.get('personal_data_sensitive', False))
-                        gt_non_personal = _normalize_flag(groundtruth_data.get('non_personal_data_sensitive', False))
+                        # Already set gt_personal/gt_non_personal above
                         gt_sheets['unknown'] = {
                             'personal_data_sensitive': gt_personal,
                             'non_personal_data_sensitive': gt_non_personal,
@@ -440,15 +513,35 @@ async def get_performance_metrics():
                 model_non_personal = False
                 model_overall = False
 
-                if isinstance(model_data, list):
-                    for sheet in model_data:
-                        if isinstance(sheet, dict):
-                            if sheet.get('personal_data_sensitive', False):
+                # Check top-level sensitive flag first if it exists
+                if isinstance(model_data, dict):
+                    top_sensitive = model_data.get('sensitive')
+                    if top_sensitive:
+                        model_overall = _normalize_flag(top_sensitive)
+                        # Attempt to refine model_personal/model_non_personal if string indicates which one
+                        if isinstance(top_sensitive, str):
+                            v = top_sensitive.lower()
+                            if 'pd' in v and 'non-pd' not in v:
                                 model_personal = True
-                            if sheet.get('non_personal_data_sensitive', False):
+                            elif 'non-pd' in v:
                                 model_non_personal = True
+                            elif v == 'sensitive':
+                                # Could be both or either, rely on sheets for refinement but set overall True
+                                pass
 
+                sheet_reports = _get_sheet_reports(model_data)
+                for sheet in sheet_reports:
+                    if _normalize_flag(sheet.get('personal_data_sensitive', False)):
+                        model_personal = True
+                    if _normalize_flag(sheet.get('non_personal_data_sensitive', False)):
+                        model_non_personal = True
+
+                # Aggregated overall prediction
+                if not model_overall:
                     model_overall = model_personal or model_non_personal
+                
+                # If model_overall is True but neither specific flag is, it counts as overall True
+                # (handled by confusion matrix logic below)
 
                 # Update file-level confusion matrices
                 # Overall metrics
@@ -486,56 +579,52 @@ async def get_performance_metrics():
                 non_personal_metrics['files_tested'] += 1
 
                 # Sheet-level metrics
-                if isinstance(model_data, list):
-                    for sheet in model_data:
-                        if not isinstance(sheet, dict):
-                            continue
+                for sheet in sheet_reports:
+                    sheet_name = _normalize_sheet_name(sheet.get('sheet_name'))
 
-                        sheet_name = sheet.get('sheet_name', 'unknown')
+                    # For sheet-level, we need to compare with ground truth if available
+                    sheet_personal = _normalize_flag(sheet.get('personal_data_sensitive', False))
+                    sheet_non_personal = _normalize_flag(sheet.get('non_personal_data_sensitive', False))
 
-                        # For sheet-level, we need to compare with ground truth if available
-                        sheet_personal = sheet.get('personal_data_sensitive', False)
-                        sheet_non_personal = sheet.get('non_personal_data_sensitive', False)
+                    sheet_gt = gt_sheets.get(sheet_name, gt_sheets.get('unknown', {}))
+                    sheet_gt_personal = _normalize_flag(sheet_gt.get('personal_data_sensitive', False))
+                    sheet_gt_non_personal = _normalize_flag(sheet_gt.get('non_personal_data_sensitive', False))
+                    sheet_gt_overall = sheet_gt_personal or sheet_gt_non_personal
 
-                        sheet_gt = gt_sheets.get(sheet_name, gt_sheets.get('unknown', {}))
-                        sheet_gt_personal = sheet_gt.get('personal_data_sensitive', False)
-                        sheet_gt_non_personal = sheet_gt.get('non_personal_data_sensitive', False)
-                        sheet_gt_overall = sheet_gt_personal or sheet_gt_non_personal
+                    # Update sheet-level confusion matrices
+                    if sheet_personal and sheet_gt_personal:
+                        sheet_personal_metrics['true_positives'] += 1
+                    elif sheet_personal and not sheet_gt_personal:
+                        sheet_personal_metrics['false_positives'] += 1
+                    elif not sheet_personal and sheet_gt_personal:
+                        sheet_personal_metrics['false_negatives'] += 1
+                    else:
+                        sheet_personal_metrics['true_negatives'] += 1
 
-                        # Update sheet-level confusion matrices
-                        if sheet_personal and sheet_gt_personal:
-                            sheet_personal_metrics['true_positives'] += 1
-                        elif sheet_personal and not sheet_gt_personal:
-                            sheet_personal_metrics['false_positives'] += 1
-                        elif not sheet_personal and sheet_gt_personal:
-                            sheet_personal_metrics['false_negatives'] += 1
-                        else:
-                            sheet_personal_metrics['true_negatives'] += 1
+                    if sheet_non_personal and sheet_gt_non_personal:
+                        sheet_non_personal_metrics['true_positives'] += 1
+                    elif sheet_non_personal and not sheet_gt_non_personal:
+                        sheet_non_personal_metrics['false_positives'] += 1
+                    elif not sheet_non_personal and sheet_gt_non_personal:
+                        sheet_non_personal_metrics['false_negatives'] += 1
+                    else:
+                        sheet_non_personal_metrics['true_negatives'] += 1
 
-                        if sheet_non_personal and sheet_gt_non_personal:
-                            sheet_non_personal_metrics['true_positives'] += 1
-                        elif sheet_non_personal and not sheet_gt_non_personal:
-                            sheet_non_personal_metrics['false_positives'] += 1
-                        elif not sheet_non_personal and sheet_gt_non_personal:
-                            sheet_non_personal_metrics['false_negatives'] += 1
-                        else:
-                            sheet_non_personal_metrics['true_negatives'] += 1
+                    # Overall sheet-level binary classification
+                    # (sensitive if either personal OR non-personal is true)
+                    sheet_model_overall = sheet_personal or sheet_non_personal
+                    if sheet_model_overall and sheet_gt_overall:
+                        sheet_overall_metrics['true_positives'] += 1
+                    elif sheet_model_overall and not sheet_gt_overall:
+                        sheet_overall_metrics['false_positives'] += 1
+                    elif not sheet_model_overall and sheet_gt_overall:
+                        sheet_overall_metrics['false_negatives'] += 1
+                    else:
+                        sheet_overall_metrics['true_negatives'] += 1
 
-                        # Overall sheet-level binary classification
-                        # (sensitive if either personal OR non-personal is true)
-                        sheet_model_overall = sheet_personal or sheet_non_personal
-                        if sheet_model_overall and sheet_gt_overall:
-                            sheet_overall_metrics['true_positives'] += 1
-                        elif sheet_model_overall and not sheet_gt_overall:
-                            sheet_overall_metrics['false_positives'] += 1
-                        elif not sheet_model_overall and sheet_gt_overall:
-                            sheet_overall_metrics['false_negatives'] += 1
-                        else:
-                            sheet_overall_metrics['true_negatives'] += 1
-
-                        sheet_personal_metrics['sheets_tested'] += 1
-                        sheet_non_personal_metrics['sheets_tested'] += 1
-                        sheet_overall_metrics['sheets_tested'] += 1
+                    sheet_personal_metrics['sheets_tested'] += 1
+                    sheet_non_personal_metrics['sheets_tested'] += 1
+                    sheet_overall_metrics['sheets_tested'] += 1
 
             except Exception as e:
                 logger.warning(f'Could not process {dataset_name} for {model_name}: {e}')
@@ -586,14 +675,15 @@ async def get_cost_analysis():
     """Calculate cost analysis from token usage in results."""
     cost_data = []
 
-    # Pricing per 1M tokens (adjust as needed)
+    # Pricing per 1M tokens (input/output)
     pricing = {
-        'gpt-4.1-nano': 0.17,
-        'gpt-4.1-mini': 0.70,
-        'gpt-4.1': 3.50,
-        'gpt-5-nano': 0.15,
-        'gpt-5-mini': 0.69,
-        'DeepSeek-V3.1': 0.84,
+        'gpt-4.1-nano': {'input': 0.17, 'output': 0.17},
+        'gpt-4.1-mini': {'input': 0.70, 'output': 0.70},
+        'gpt-4.1': {'input': 3.50, 'output': 3.50},
+        'gpt-5-nano': {'input': 0.15, 'output': 0.15},
+        'gpt-5-mini': {'input': 0.69, 'output': 0.69},
+        'DeepSeek-V3.1': {'input': 1.23, 'output': 4.94},
+        'DeepSeek-V4-Flash': {'input': 0.25, 'output': 1.00},
     }
 
     for model_name in AVAILABLE_MODELS:
@@ -612,11 +702,10 @@ async def get_cost_analysis():
                     data = json.load(f)
 
                 # Extract token usage from the data structure
-                if isinstance(data, list):
-                    for sheet in data:
-                        if isinstance(sheet, dict):
-                            total_prompt_tokens += sheet.get('prompt_tokens', 0)
-                            total_completion_tokens += sheet.get('completion_tokens', 0)
+                sheet_reports = _get_sheet_reports(data)
+                for sheet in sheet_reports:
+                    total_prompt_tokens += sheet.get('prompt_tokens', 0)
+                    total_completion_tokens += sheet.get('completion_tokens', 0)
 
                 reports_count += 1
 
@@ -625,7 +714,11 @@ async def get_cost_analysis():
                 continue
 
         total_tokens = total_prompt_tokens + total_completion_tokens
-        total_cost = (total_tokens / 1000000) * pricing.get(model_name, 0)
+        model_pricing = pricing.get(model_name, {'input': 0, 'output': 0})
+        
+        total_cost = (total_prompt_tokens / 1000000) * model_pricing['input'] + \
+                     (total_completion_tokens / 1000000) * model_pricing['output']
+        
         cost_per_report = total_cost / reports_count if reports_count > 0 else 0
 
         cost_data.append(
@@ -635,7 +728,8 @@ async def get_cost_analysis():
                 'prompt_tokens': total_prompt_tokens,
                 'completion_tokens': total_completion_tokens,
                 'total_tokens': total_tokens,
-                'price_per_1m': pricing.get(model_name, 0),
+                'input_price_per_1m': model_pricing['input'],
+                'output_price_per_1m': model_pricing['output'],
                 'total_cost': total_cost,
                 'cost_per_report': cost_per_report,
             }
@@ -704,20 +798,22 @@ async def get_model_results(model_name: str):
             dataset_name = result_file.stem
             processed_at = 'Unknown'
 
-            if isinstance(data, list) and len(data) > 0:
+            sheet_reports = _get_sheet_reports(data)
+
+            if sheet_reports:
                 # Get the first sheet's timestamp
-                first_sheet = data[0]
+                first_sheet = sheet_reports[0]
                 processed_at = first_sheet.get('processing_timestamp', 'Unknown')
 
                 # Calculate totals from all sheets
-                total_pii = sum(1 for sheet in data if sheet.get('personal_data_sensitive', False))
-                total_rows = sum(sheet.get('n_records', 0) for sheet in data)
+                total_pii = sum(1 for sheet in sheet_reports if sheet.get('personal_data_sensitive', False))
+                total_rows = sum(sheet.get('n_records', 0) for sheet in sheet_reports)
 
                 # Determine sensitivity based on PII detection
                 sensitivity = 'Low'
-                if any(sheet.get('personal_data_sensitive', False) for sheet in data):
+                if any(sheet.get('personal_data_sensitive', False) for sheet in sheet_reports):
                     sensitivity = 'High'
-                elif any(sheet.get('non_personal_data_sensitive', False) for sheet in data):
+                elif any(sheet.get('non_personal_data_sensitive', False) for sheet in sheet_reports):
                     sensitivity = 'Medium'
 
                 results.append(
@@ -783,23 +879,114 @@ async def get_report_detail(model_name: str, dataset_name: str):
 
         # Format groundtruth data to file-level format for the frontend
         formatted_groundtruth = None
+        sheet_groundtruth = {}
         if groundtruth_data is not None:
             if isinstance(groundtruth_data, list):
-                has_personal = any(
-                    s.get('personal_data_sensitive', False) for s in groundtruth_data if isinstance(s, dict)
-                )
-                has_non_personal = any(
-                    s.get('non_personal_data_sensitive', False) for s in groundtruth_data if isinstance(s, dict)
-                )
+                has_personal = False
+                has_non_personal = False
+                for s in groundtruth_data:
+                    if isinstance(s, dict):
+                        # Personal data sensitivity with fallback
+                        raw_p_flag = s.get('personal_data_sensitive')
+                        if isinstance(raw_p_flag, bool):
+                            p_flag = raw_p_flag
+                        elif raw_p_flag in ('true', 'false', 'True', 'False', '1', '0'):
+                            p_flag = _normalize_flag(raw_p_flag)
+                        else:
+                            p_flag = False
+                            columns = s.get('columns', [])
+                            for col in columns:
+                                if isinstance(col, dict) and col.get('personal_data', {}).get('sensitive', False):
+                                    p_flag = True
+                                    break
+                        
+                        # Non-personal data sensitivity with fallback
+                        raw_np_flag = s.get('non_personal_data_sensitive')
+                        if isinstance(raw_np_flag, bool):
+                            np_flag = raw_np_flag
+                        elif raw_np_flag in ('true', 'false', 'True', 'False', '1', '0'):
+                            np_flag = _normalize_flag(raw_np_flag)
+                        else:
+                            np_flag = False
+                            if isinstance(s.get('non_personal_data'), dict):
+                                n_sens = s['non_personal_data'].get('sensitivity')
+                                if n_sens and _normalize_flag(n_sens):
+                                    np_flag = True
+
+                        if p_flag:
+                            has_personal = True
+                        if np_flag:
+                            has_non_personal = True
+                        
+                        sheet_name_norm = _normalize_sheet_name(s.get('sheet_name'))
+                        sheet_groundtruth[sheet_name_norm] = {
+                            'personal_data_sensitive': p_flag,
+                            'non_personal_data_sensitive': np_flag,
+                        }
+                
                 formatted_groundtruth = {
                     'personal_data_sensitive': has_personal,
                     'non_personal_data_sensitive': has_non_personal,
+                    'sensitive': 'sensitive-pd' if has_personal else ('sensitive-non-pd' if has_non_personal else 'not-sensitive')
                 }
             elif isinstance(groundtruth_data, dict):
-                formatted_groundtruth = {
-                    'personal_data_sensitive': groundtruth_data.get('personal_data_sensitive', False),
-                    'non_personal_data_sensitive': groundtruth_data.get('non_personal_data_sensitive', False),
-                }
+                sheets = groundtruth_data.get('sheets')
+                if isinstance(sheets, list):
+                    has_personal = False
+                    has_non_personal = False
+                    for s in sheets:
+                        if isinstance(s, dict):
+                            # Personal data sensitivity with fallback
+                            raw_p_flag = s.get('personal_data_sensitive')
+                            if isinstance(raw_p_flag, bool):
+                                p_flag = raw_p_flag
+                            elif raw_p_flag in ('true', 'false', 'True', 'False', '1', '0'):
+                                p_flag = _normalize_flag(raw_p_flag)
+                            else:
+                                p_flag = False
+                                columns = s.get('columns', [])
+                                for col in columns:
+                                    if isinstance(col, dict) and col.get('personal_data', {}).get('sensitive', False):
+                                        p_flag = True
+                                        break
+                            
+                            # Non-personal data sensitivity with fallback
+                            raw_np_flag = s.get('non_personal_data_sensitive')
+                            if isinstance(raw_np_flag, bool):
+                                np_flag = raw_np_flag
+                            elif raw_np_flag in ('true', 'false', 'True', 'False', '1', '0'):
+                                np_flag = _normalize_flag(raw_np_flag)
+                            else:
+                                np_flag = False
+                                if isinstance(s.get('non_personal_data'), dict):
+                                    n_sens = s['non_personal_data'].get('sensitivity')
+                                    if n_sens and _normalize_flag(n_sens):
+                                        np_flag = True
+
+                            if p_flag:
+                                has_personal = True
+                            if np_flag:
+                                has_non_personal = True
+                            
+                            sheet_name_norm = _normalize_sheet_name(s.get('sheet_name'))
+                            sheet_groundtruth[sheet_name_norm] = {
+                                'personal_data_sensitive': p_flag,
+                                'non_personal_data_sensitive': np_flag,
+                            }
+                    
+                    formatted_groundtruth = {
+                        'personal_data_sensitive': has_personal,
+                        'non_personal_data_sensitive': has_non_personal,
+                        'sensitive': 'sensitive-pd' if has_personal else ('sensitive-non-pd' if has_non_personal else 'not-sensitive')
+                    }
+                else:
+                    gp = _normalize_flag(groundtruth_data.get('personal_data_sensitive', False))
+                    gnp = _normalize_flag(groundtruth_data.get('non_personal_data_sensitive', False))
+                    formatted_groundtruth = {
+                        'personal_data_sensitive': gp,
+                        'non_personal_data_sensitive': gnp,
+                        'sensitive': groundtruth_data.get('sensitive', 'sensitive-pd' if gp else ('sensitive-non-pd' if gnp else 'not-sensitive'))
+                    }
 
         # Handle the actual data structure (array of sheet results)
         formatted_data = {
@@ -810,76 +997,78 @@ async def get_report_detail(model_name: str, dataset_name: str):
             'groundtruth': formatted_groundtruth,
         }
 
-        if isinstance(data, list) and len(data) > 0:
+        sheet_reports = _get_sheet_reports(data)
+
+        if sheet_reports:
             # Get processing timestamp from first sheet
-            formatted_data['processed_at'] = data[0].get('processing_timestamp', 'Unknown')
+            formatted_data['processed_at'] = sheet_reports[0].get('processing_timestamp', 'Unknown')
 
             # Process each sheet
-            for sheet_data in data:
-                if isinstance(sheet_data, dict):
-                    sheet_name = sheet_data.get('sheet_name', 'unknown')
+            for sheet_data in sheet_reports:
+                sheet_name = sheet_data.get('sheet_name', 'unknown')
 
-                    # Debug logging to see what we're working with
-                    logger.info(f'Processing sheet: {sheet_name}')
-                    logger.info(f'Non-personal data: {sheet_data.get("non_personal_data", "NOT FOUND")}')
+                # Debug logging to see what we're working with
+                logger.info(f'Processing sheet: {sheet_name}')
+                logger.info(f'Non-personal data: {sheet_data.get("non_personal_data", "NOT FOUND")}')
 
-                    # Extract column predictions
-                    predictions = {}
-                    columns = sheet_data.get('columns', [])
+                # Extract column predictions
+                predictions = {}
+                columns = sheet_data.get('columns', [])
 
-                    # Create predictions for each column
-                    for col in columns:
-                        if isinstance(col, dict):
-                            col_name = col.get('column_name', 'unknown')
-                            sample_values = col.get('sample_values', [])
+                # Create predictions for each column
+                for col in columns:
+                    if isinstance(col, dict):
+                        col_name = col.get('column_name', 'unknown')
+                        sample_values = col.get('sample_values', [])
 
-                            predictions[col_name] = {
-                                'prediction': (
-                                    'personal_data_sensitive'
-                                    if sheet_data.get('personal_data_sensitive', False)
-                                    else 'non_personal_data_sensitive'
-                                ),
-                                'confidence': None,  # Not available in current format
-                                'reasoning': (
-                                    f'Processed by {model_name} on {sheet_data.get("processing_timestamp", "Unknown")}'
-                                ),
-                                'sample_values': sample_values,
-                                'explanation': sheet_data.get('explanation', ''),
-                                'isp_used': sheet_data.get('isp_used', 'Unknown'),
-                            }
-
-                    # Calculate metadata
-                    total_rows = sheet_data.get('n_records', 0)
-                    pii_detected = 1 if sheet_data.get('personal_data_sensitive', False) else 0
-                    sensitivity_level = 'High' if sheet_data.get('personal_data_sensitive', False) else 'Low'
-
-                    formatted_data['sheets'][sheet_name] = {
-                        'columns': [
-                            col.get('column_name', 'unknown') if isinstance(col, dict) else str(col) for col in columns
-                        ],
-                        'predictions': predictions,
-                        'metadata': {
-                            'total_rows': total_rows,
-                            'pii_detected': pii_detected,
-                            'sensitivity_level': sensitivity_level,
-                            'personal_data_sensitive': sheet_data.get('personal_data_sensitive', False),
-                            'non_personal_data_sensitive': sheet_data.get('non_personal_data_sensitive', False),
+                        predictions[col_name] = {
+                            'prediction': (
+                                'personal_data_sensitive'
+                                if sheet_data.get('personal_data_sensitive', False)
+                                else 'non_personal_data_sensitive'
+                            ),
+                            'confidence': None,  # Not available in current format
+                            'reasoning': (
+                                f'Processed by {model_name} on {sheet_data.get("processing_timestamp", "Unknown")}'
+                            ),
+                            'sample_values': sample_values,
                             'explanation': sheet_data.get('explanation', ''),
-                            'non_personal_explanation': sheet_data.get('non_personal_data', {}).get('explanation', ''),
-                            'non_personal_sensitivity': sheet_data.get('non_personal_data', {}).get('sensitivity', ''),
                             'isp_used': sheet_data.get('isp_used', 'Unknown'),
-                        },
-                    }
+                        }
 
-                    # Debug logging to see what we extracted
-                    logger.info(
-                        'Extracted non_personal_explanation: '
-                        f'{sheet_data.get("non_personal_data", {}).get("explanation", "NOT FOUND")}'
-                    )
-                    logger.info(
-                        'Extracted non_personal_sensitivity: '
-                        f'{sheet_data.get("non_personal_data", {}).get("sensitivity", "NOT FOUND")}'
-                    )
+                # Calculate metadata
+                total_rows = sheet_data.get('n_records', 0)
+                pii_detected = 1 if sheet_data.get('personal_data_sensitive', False) else 0
+                sensitivity_level = 'High' if sheet_data.get('personal_data_sensitive', False) else 'Low'
+
+                formatted_data['sheets'][sheet_name] = {
+                    'columns': [
+                        col.get('column_name', 'unknown') if isinstance(col, dict) else str(col) for col in columns
+                    ],
+                    'predictions': predictions,
+                    'groundtruth': sheet_groundtruth.get(_normalize_sheet_name(sheet_name)),
+                    'metadata': {
+                        'total_rows': total_rows,
+                        'pii_detected': pii_detected,
+                        'sensitivity_level': sensitivity_level,
+                        'personal_data_sensitive': _normalize_flag(sheet_data.get('personal_data_sensitive', False)),
+                        'non_personal_data_sensitive': _normalize_flag(sheet_data.get('non_personal_data_sensitive', False)),
+                        'explanation': sheet_data.get('explanation', ''),
+                        'non_personal_explanation': sheet_data.get('non_personal_data', {}).get('explanation', ''),
+                        'non_personal_sensitivity': sheet_data.get('non_personal_data', {}).get('sensitivity', ''),
+                        'isp_used': sheet_data.get('isp_used', 'Unknown'),
+                    },
+                }
+
+                # Debug logging to see what we extracted
+                logger.info(
+                    'Extracted non_personal_explanation: '
+                    f'{sheet_data.get("non_personal_data", {}).get("explanation", "NOT FOUND")}'
+                )
+                logger.info(
+                    f'Extracted non_personal_sensitivity: '
+                    f'{sheet_data.get("non_personal_data", {}).get("sensitivity", "NOT FOUND")}'
+                )
 
         return formatted_data
 

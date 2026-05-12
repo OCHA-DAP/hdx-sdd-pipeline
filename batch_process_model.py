@@ -56,8 +56,8 @@ def setup_event_processor(model_name: str, output_dir: Path) -> EventProcessor:
     # Disable CKAN updates for batch processing
     config.CKAN_UPDATE = False
 
-    # Create EventProcessor with custom output directory
-    event_processor = EventProcessor(custom_output_path=str(output_dir))
+    # Create EventProcessor with custom output directory and the modified config
+    event_processor = EventProcessor(custom_output_path=str(output_dir), config=config)
 
     print('EventProcessor setup complete!')
     return event_processor
