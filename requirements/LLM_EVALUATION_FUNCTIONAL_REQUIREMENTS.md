@@ -62,6 +62,9 @@ Any new feature request for this project must follow this order:
 - [x] FR-EVAL-024: Scripted batch execution must support single-model override for all pipeline stages.
   - Implemented behavior: CLI batch script sets one model for PII detection, PII reflection, and non-PII detection while disabling CKAN update.
 
+- [x] FR-EVAL-025: Batch processing must support processing by a list of HDX resource IDs.
+  - Implemented behavior: Scripted batch execution can accept a list of resource IDs, fetch their metadata from CKAN, and save reports to a specific research directory (e.g., research/results/false_positives_prod).
+
 ### Results and analytics
 
 - [x] FR-EVAL-030: Results must be persisted in model-scoped directories using JSON per dataset.

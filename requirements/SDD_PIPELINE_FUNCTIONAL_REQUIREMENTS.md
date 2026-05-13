@@ -56,8 +56,8 @@ Any new feature request for this project must follow this order:
 - [x] FR-SDD-020: Every incoming event must include resource identity before processing.
   - Implemented behavior: Missing resource ID is treated as invalid event and processing exits with failure status.
 
-- [x] FR-SDD-021: Source retrieval must support both CKAN and non-CKAN execution paths.
-  - Implemented behavior: With CKAN enabled, resource metadata is resolved through CKAN API. With CKAN disabled, event payload must provide source URL/file context.
+- [x] FR-SDD-021: Source retrieval must support both CKAN and non-CKAN execution paths and correctly identify source types.
+  - Implemented behavior: With CKAN enabled, resource metadata is resolved through CKAN API. With CKAN disabled, event payload must provide source URL/file context. The system correctly identifies whether a source is a URL or a local file based on the source string itself, independent of output configuration.
 
 - [x] FR-SDD-022: Existing reports should not be recomputed when report presence indicates prior processing.
   - Implemented behavior: When CKAN is enabled and report already exists, event returns successful no-op outcome.

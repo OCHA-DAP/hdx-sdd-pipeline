@@ -30,7 +30,7 @@ process_model() {
 export -f process_model
 
 # Run all models in parallel (limit to 3 concurrent jobs to avoid overwhelming system)
-printf '%s\n' "${models[@]}" | xargs -P 3 -I {} bash -c 'process_model "$@"' _ {}
+printf '%s\n' "${models[@]}" | xargs -P 6 -I {} bash -c 'process_model "$@"' _ {}
 
 echo ""
 echo "===================================================="
