@@ -67,7 +67,7 @@ Any new feature request for this project must follow this order:
 
 ### Classification and sensitivity
 
-- [x] FR-SDD-030: The dataset pipeline must execute the implemented multi-stage classification flow.
+- [x] FR-SDD-030: The dataset pipeline execute the implemented multi-stage classification flow.
   - Implemented behavior: Data loading and sheet creation, column-level personal-data entity detection, table-level personal-data sensitivity reflection, table-level non-personal sensitivity classification, and final sensitivity flags.
 
 - [x] FR-SDD-031: README/metadata sheets must be identified and handled as non-standard data sheets.
@@ -97,6 +97,12 @@ Any new feature request for this project must follow this order:
 
 - [x] FR-SDD-052: Processing failures must be logged with diagnostic context and returned as failure status.
   - Implemented behavior: Exceptions are logged with stack details and caller receives structured failure result.
+
+- [ ] FR-SDD-053: LLM providers must handle missing usage metadata gracefully.
+  - Expected behavior: If an LLM response does not include token usage information (e.g. from serverless endpoints), the provider defaults to zero instead of raising an AttributeError.
+
+- [ ] FR-SDD-054: LLM providers must ensure runtime stability by avoiding terminal process calls.
+  - Expected behavior: Remove any `exit()` or similar calls from provider logic that could terminate the pipeline process during normal operation.
 
 ## Notes for implementers
 
