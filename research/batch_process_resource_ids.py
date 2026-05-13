@@ -5,9 +5,30 @@ This script processes a specific list of HDX resource IDs and saves the reports
 to research/results/false_positives_prod/.
 
 Usage:
-    uv run python research/batch_process_resource_ids.py --model DeepSeek-V3.1 --ids 
-"""
-
+    uv run python research/batch_process_resource_ids.py --ids 1a13db39-bce9-4565-845c-ad3299206dfd \
+    68b7d855-add3-4705-8afb-1df65b4a2d65 \
+    13899e52-5d6e-4b05-b8a1-2b378b5b2cda \
+    7b7331a2-304a-42ff-ac46-8e72e7434c1d \
+    1e10fb4e-0670-435e-b788-9edd633f9d1a \
+    ba40c81d-ad3a-465e-9851-c916d9a2e38f \
+    daf46c0a-a7a3-4e05-b057-72d78fa4226f \
+    fbca2eaa-3a87-48c3-a1c1-4932814de642 \
+    e1c0902c-0c6c-4d08-8db4-388e68b5a3d6 \
+    f1a0e86a-5615-4c07-9595-1b413e0089eb \
+    87b89f79-d096-4b8a-b142-d27041202d8b \
+    58451add-37e2-4228-8e78-677a65407169 \
+    8ec923c2-1287-490f-954f-ccf0057714b7 \
+    600bc14a-bf1d-4c90-bd5c-55f46e476dee \
+    0ae0101c-dcf2-4228-80f4-4d9c9cc2f448 \
+    83cfb940-b848-4e26-a9e3-7f318de51b39 \
+    d669fd25-9e1b-4d37-aab7-9049970cc207 \
+    5e812b48-eef4-4600-890c-0a3e47a44b4c \
+    1e544ee4-22c5-45db-84b7-a7f891c49aab \
+    d6629f7a-4417-4b47-8e50-439b49547d24 \
+    bcf66afc-b2c2-43ce-b355-5424898548aa \
+    59ae2ec0-0f33-4654-ac5f-ff10061da8d5 \
+    5f489493-363c-4516-ac85-bd87de860117
+""" 
 import json
 import logging
 import argparse

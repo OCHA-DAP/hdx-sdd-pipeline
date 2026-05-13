@@ -65,6 +65,9 @@ Any new feature request for this project must follow this order:
 - [x] FR-EVAL-025: Batch processing must support processing by a list of HDX resource IDs.
   - Implemented behavior: Scripted batch execution can accept a list of resource IDs, fetch their metadata from CKAN, and save reports to a specific research directory (e.g., research/results/false_positives_prod).
 
+- [x] FR-EVAL-026: Batch processing of HDX resource IDs must support parallel execution.
+  - Implemented behavior: A shell script `research/run_batch_parallel.sh` allows running multiple resource ID processes in parallel using `xargs -P` with configurable concurrency.
+
 ### Results and analytics
 
 - [x] FR-EVAL-030: Results must be persisted in model-scoped directories using JSON per dataset.

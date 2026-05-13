@@ -13,8 +13,8 @@ logger = logging.getLogger(__name__)
 
 DETERMINISTIC_SEED = 42
 
-# Models served via Azure AI Foundry (serverless/inference endpoints),
-# as opposed to Azure OpenAI Service deployments.
+# Models served via Azure AI Foundry (serverless/inference endpoints).
+# These do not support all Azure OpenAI parameters (e.g. seed).
 _FOUNDRY_MODELS = {'deepseek-v4-flash'}
 
 
@@ -68,18 +68,15 @@ class AzureOpenAIProvider(ILLMProvider):
         )
 
         try:
-            # Standard Azure OpenAI Service client (GPT models)
             self.client = AzureOpenAI(
                 api_key=api_key,
                 api_version=api_version,
                 azure_endpoint=azure_endpoint,
             )
 
-            # Foundry client for serverless models (DeepSeek, etc.)
-            # Uses a plain OpenAI client pointed at the Foundry endpoint.
             if foundry_endpoint:
                 self.foundry_client = OpenAI(
-                    base_url=foundry_endpoint,
+                    base_url=foundry_endpoint.rstrip('/') + '/',
                     api_key=foundry_api_key or api_key,
                 )
                 logger.info("Initialized Foundry client for endpoint '%s'", foundry_endpoint)
@@ -99,6 +96,11 @@ class AzureOpenAIProvider(ILLMProvider):
                     f"Model '{self._model_name}' requires a Foundry client. "
                     "Pass foundry_endpoint (and optionally foundry_api_key) to the constructor."
                 )
+            logger.debug(
+                'Using Foundry client: base_url=%s, model=%s (seed param disabled)',
+                self.foundry_client.base_url,
+                self._model_name,
+            )
             return self.foundry_client
         return self.client
 
@@ -118,8 +120,18 @@ class AzureOpenAIProvider(ILLMProvider):
         """
         Generate text completion from prompt.
 
+        Args:
+            prompt: Input prompt
+            max_tokens: Maximum tokens to generate
+            temperature: Sampling temperature
+            seed: Random seed (ignored for Foundry models)
+            **kwargs: Additional provider-specific parameters
+
         Returns:
             Tuple of (generated_text, completion_tokens, prompt_tokens)
+
+        Raises:
+            LLMProviderError: If API call fails
         """
         logger.debug(
             'Generating text: model=%s, max_tokens=%s, temperature=%s, prompt_length=%s',
@@ -128,6 +140,7 @@ class AzureOpenAIProvider(ILLMProvider):
 
         try:
             client = self._get_client()
+            is_foundry = _is_foundry_model(self._model_name)
 
             if _is_reasoning_model(self._model_name):
                 response = client.chat.completions.create(
@@ -143,36 +156,33 @@ class AzureOpenAIProvider(ILLMProvider):
                     messages=[{'role': 'user', 'content': prompt}],
                     max_tokens=max_tokens,
                     temperature=temperature,
-                    seed=seed,
+                    **({} if is_foundry else {'seed': seed}),
                     **kwargs,
                 )
-            generated_text = response.choices[0].message.content or ""
-            
-            # Safe access to usage tokens (some providers/models may not return them)
-            if response.usage:
-                completion_tokens = getattr(response.usage, 'completion_tokens', 0)
-                prompt_tokens = getattr(response.usage, 'prompt_tokens', 0)
-            else:
-                completion_tokens = 0
-                prompt_tokens = 0
 
+            # in generate
+            generated_text = response.choices[0].message.content
+            completion_tokens = response.usage.completion_tokens if response.usage else 0
+            prompt_tokens = response.usage.prompt_tokens if response.usage else 0
             total_tokens = completion_tokens + prompt_tokens
 
             logger.debug(
                 'Generation successful: completion_tokens=%s, prompt_tokens=%s, total_tokens=%s',
                 completion_tokens, prompt_tokens, total_tokens,
             )
-
             if total_tokens > 1000:
                 logger.warning('High token usage: %s tokens (model=%s)', total_tokens, self._model_name)
+
 
             return generated_text, completion_tokens, prompt_tokens
 
         except LLMProviderError:
             raise
         except Exception as e:
-            logger.error('Azure OpenAI generation failed: %s', e, exc_info=True,
-                         extra={'model': self._model_name, 'prompt_length': len(prompt)})
+            logger.error(
+                'Azure OpenAI generation failed: %s', e, exc_info=True,
+                extra={'model': self._model_name, 'prompt_length': len(prompt)},
+            )
             raise LLMProviderError(f'LLM generation failed: {e}') from e
 
     def generate_json(
@@ -186,8 +196,18 @@ class AzureOpenAIProvider(ILLMProvider):
         """
         Generate JSON response from prompt.
 
+        Args:
+            prompt: Input prompt
+            max_tokens: Maximum tokens to generate
+            temperature: Sampling temperature
+            seed: Random seed (ignored for Foundry models)
+            **kwargs: Additional provider-specific parameters
+
         Returns:
             Tuple of (json_response, completion_tokens, prompt_tokens)
+
+        Raises:
+            LLMProviderError: If API call fails or response is not valid JSON dictionary
         """
         logger.debug(
             'Generating JSON: model=%s, max_tokens=%s, temperature=%s, prompt_length=%s',
@@ -196,6 +216,7 @@ class AzureOpenAIProvider(ILLMProvider):
 
         try:
             client = self._get_client()
+            is_foundry = _is_foundry_model(self._model_name)
 
             if _is_reasoning_model(self._model_name):
                 response = client.chat.completions.create(
@@ -213,29 +234,37 @@ class AzureOpenAIProvider(ILLMProvider):
                     max_tokens=max_tokens,
                     temperature=temperature,
                     response_format={'type': 'json_object'},
-                    seed=seed,
+                    **({} if is_foundry else {'seed': seed}),
                     **kwargs,
                 )
-            logger.info('Response: %s', response)
-            exit()
 
             generated_text = response.choices[0].message.content
-            completion_tokens = response.usage.completion_tokens
-            prompt_tokens = response.usage.prompt_tokens
+            completion_tokens = response.usage.completion_tokens if response.usage else 0
+            prompt_tokens = response.usage.prompt_tokens if response.usage else 0
 
             try:
                 json_response = json.loads(generated_text)
+
                 if not isinstance(json_response, dict):
+                    logger.error(
+                        'JSON response is not a dictionary: got %s',
+                        type(json_response).__name__,
+                        extra={'response_text': generated_text[:200]},
+                    )
                     raise LLMProviderError(
                         f'Expected JSON object/dictionary, got {type(json_response).__name__}'
                     )
+
                 logger.debug(
                     'JSON generation successful: completion_tokens=%s, prompt_tokens=%s, keys=%s',
                     completion_tokens, prompt_tokens, list(json_response.keys()),
                 )
+
             except json.JSONDecodeError as e:
-                logger.error('Failed to parse JSON response: %s', e,
-                             extra={'response_text': generated_text[:200]})
+                logger.error(
+                    'Failed to parse JSON response: %s', e,
+                    extra={'response_text': generated_text[:200]},
+                )
                 raise LLMProviderError(f'Invalid JSON response: {e}') from e
 
             return json_response, completion_tokens, prompt_tokens
@@ -243,6 +272,8 @@ class AzureOpenAIProvider(ILLMProvider):
         except LLMProviderError:
             raise
         except Exception as e:
-            logger.error('Azure OpenAI JSON generation failed: %s', e, exc_info=True,
-                         extra={'model': self._model_name, 'prompt_length': len(prompt)})
+            logger.error(
+                'Azure OpenAI JSON generation failed: %s', e, exc_info=True,
+                extra={'model': self._model_name, 'prompt_length': len(prompt)},
+            )
             raise LLMProviderError(f'LLM JSON generation failed: {e}') from e
