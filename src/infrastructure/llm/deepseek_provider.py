@@ -16,8 +16,8 @@ class DeepSeekProvider(ILLMProvider):
 
     _MODEL = 'DeepSeek-V4-Flash'
 
-    def __init__(self, endpoint: str, api_key: str):
-        self._model = self._MODEL
+    def __init__(self, endpoint: str, api_key: str, model_name: str = _MODEL):
+        self._model = model_name
         self.client = OpenAI(base_url=endpoint, api_key=api_key)
         logger.info('Initialized DeepSeekProvider: model=%s, endpoint=%s', self._model, endpoint)
 
@@ -59,7 +59,7 @@ class DeepSeekProvider(ILLMProvider):
         prompt: str,
         system: str | None = None,
         temperature: float = 0.7,
-        max_tokens: int = 2048,
+        max_tokens: int = 24,
         **kwargs,
     ) -> Tuple[str, int, int]:
         messages = []

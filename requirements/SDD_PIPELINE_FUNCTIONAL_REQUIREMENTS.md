@@ -65,6 +65,9 @@ Any new feature request for this project must follow this order:
 - [x] FR-SDD-023: ISP rules must be retrieved and applied during sensitivity analysis.
   - Implemented behavior: Event processor resolves ISP rules from package/resource context before executing classification pipeline.
 
+- [x] FR-SDD-024: ISP matching from resource name must search the entire filename for a match.
+  - Implemented behavior: The system iterates through all configured ISPs and checks if their country ISO3 code is present as a substring (case-insensitive) within the entire resource name string.
+
 ### Classification and sensitivity
 
 - [x] FR-SDD-030: The dataset pipeline must execute the implemented multi-stage classification flow.

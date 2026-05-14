@@ -70,6 +70,8 @@ class AzureOpenAIProvider(ILLMProvider):
 
     @staticmethod
     def _token_counts(response) -> Tuple[int, int]:
+        if not hasattr(response, 'usage') or response.usage is None:
+            return 0, 0
         return response.usage.completion_tokens, response.usage.prompt_tokens
 
     # ------------------------------------------------------------------

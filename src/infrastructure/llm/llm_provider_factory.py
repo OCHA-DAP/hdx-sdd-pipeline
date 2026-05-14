@@ -53,8 +53,9 @@ class LLMProviderFactory:
 
         if key == LLMProviderType.DEEPSEEK:
             return DeepSeekProvider(
-                endpoint=config.DEEPSEEK_ENDPOINT if model is None else model,
-                api_key=config.AZURE_OPENAI_API_KEY,
+                endpoint=config.DEEPSEEK_ENDPOINT,
+                api_key=getattr(config, 'DEEPSEEK_API_KEY', config.AZURE_OPENAI_API_KEY),
+                model_name=model if model else getattr(config, 'DEEPSEEK_MODEL', 'DeepSeek-V4-Flash'),
             )
 
         raise ValueError(f'Unknown LLM provider type: {provider_type!r}')
