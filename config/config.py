@@ -53,6 +53,9 @@ class Config:
     AZURE_OPENAI_ENDPOINT: str = os.getenv('AZURE_OPENAI_ENDPOINT', '')
     AZURE_OPENAI_API_KEY: str = os.getenv('AZURE_OPENAI_API_KEY', '')
 
+    # Deepseek
+    DEEPSEEK_ENDPOINT: str = os.getenv('DEEPSEEK_ENDPOINT', '')
+
     # Slack
     HDX_SDD_SLACK_CHANNEL: str = os.getenv('HDX_SDD_SLACK_CHANNEL', 'topic-sensitive-data-alerts')
     HDX_SDD_SLACK_ACCESS_TOKEN: str = os.getenv('HDX_SDD_SLACK_ACCESS_TOKEN')
