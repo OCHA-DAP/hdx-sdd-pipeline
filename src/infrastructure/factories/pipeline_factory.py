@@ -15,13 +15,23 @@ logger = logging.getLogger(__name__)
 class PipelineFactory:
     """
     Factory for creating processing pipelines with configuration-based dependencies.
+
+    This centralizes all the conditional logic for enabling/disabling pipeline steps,
+    making the main event processor cleaner and more maintainable.
     """
 
     def __init__(self, config: Config):
+        """
+        Initialize factory with configuration.
+
+        Args:
+            config: Configuration object with feature flags
+        """
         self.config = config
         self._log_configuration()
 
     def _log_configuration(self):
+        """Log the current pipeline configuration."""
         logger.info('===========================================')
         logger.info('Pipeline Configuration:')
         logger.info(f'  Personal data detection: {self.config.PERSONAL_DATA_DETECTION}')
@@ -32,21 +42,34 @@ class PipelineFactory:
         logger.info('===========================================')
 
     def create_pipeline(self, sample_size: int = 5) -> ProcessDatasetUseCase:
+        """
+        Create a configured processing pipeline.
+
+        Args:
+            sample_size: Number of samples per column
+
+        Returns:
+            Configured ProcessDatasetUseCase instance
+        """
         logger.info('Creating processing pipeline...')
 
+        # Always create data loader
         data_loader = SmartDataLoader(
             max_rows=1000,
             user_agent=self.config.SDD_USER_AGENT,
             hdx_base_url=self.config.HDX_URL,
         )
 
-        pii_llm            = self._create_pii_llm()            if self.config.PERSONAL_DATA_DETECTION    else None
-        pii_reflection_llm = self._create_pii_reflection_llm() if self.config.PERSONAL_DATA_REFLECTION   else None
-        non_pii_llm        = self._create_non_pii_llm()        if self.config.NON_PERSONAL_DATA_DETECTION else None
-        readme_llm         = self._create_readme_llm()         if self.config.README_SCAN                 else None
+        # Create LLM providers based on config
+        pii_llm = self._create_pii_llm() if self.config.PERSONAL_DATA_DETECTION else None
+        pii_reflection_llm = self._create_pii_reflection_llm() if self.config.PERSONAL_DATA_REFLECTION else None
+        non_pii_llm = self._create_non_pii_llm() if self.config.NON_PERSONAL_DATA_DETECTION else None
+        readme_llm = self._create_readme_llm() if self.config.README_SCAN else None
 
+        # Create prompt manager
         prompt_manager = PromptManager(prompts_dir='src/prompts')
 
+        # Create and return use case
         pipeline = ProcessDatasetUseCase(
             data_loader=data_loader,
             pii_llm_provider=pii_llm,
@@ -60,32 +83,38 @@ class PipelineFactory:
         logger.info('Pipeline created successfully')
         return pipeline
 
-    # ------------------------------------------------------------------
-    # Private helpers — all share the same _make_provider call
-    # ------------------------------------------------------------------
-
-    def _make_provider(self, model_name: str) -> AzureOpenAIProvider:
-        """Construct a provider, injecting Foundry credentials when available."""
+    def _create_pii_llm(self) -> Optional[AzureOpenAIProvider]:
+        """Create PII detection LLM provider."""
+        logger.debug(f'Creating PII detection LLM: {self.config.PII_DETECT_MODEL}')
         return AzureOpenAIProvider(
-            model_name=model_name,
+            model_name=self.config.PII_DETECT_MODEL,
             azure_endpoint=self.config.AZURE_OPENAI_ENDPOINT,
             api_key=self.config.AZURE_OPENAI_API_KEY,
-            foundry_endpoint=getattr(self.config, 'AZURE_FOUNDRY_ENDPOINT', None),
-            foundry_api_key=getattr(self.config, 'AZURE_FOUNDRY_API_KEY', None),
         )
 
-    def _create_pii_llm(self) -> Optional[AzureOpenAIProvider]:
-        logger.debug(f'Creating PII detection LLM: {self.config.PII_DETECT_MODEL}')
-        return self._make_provider(self.config.PII_DETECT_MODEL)
-
     def _create_pii_reflection_llm(self) -> Optional[AzureOpenAIProvider]:
+        """Create PII reflection LLM provider."""
         logger.debug(f'Creating PII reflection LLM: {self.config.PII_REFLECT_MODEL}')
-        return self._make_provider(self.config.PII_REFLECT_MODEL)
+        return AzureOpenAIProvider(
+            model_name=self.config.PII_REFLECT_MODEL,
+            azure_endpoint=self.config.AZURE_OPENAI_ENDPOINT,
+            api_key=self.config.AZURE_OPENAI_API_KEY,
+        )
 
     def _create_non_pii_llm(self) -> Optional[AzureOpenAIProvider]:
+        """Create non-PII detection LLM provider."""
         logger.debug(f'Creating non-PII detection LLM: {self.config.NON_PII_DETECT_MODEL}')
-        return self._make_provider(self.config.NON_PII_DETECT_MODEL)
+        return AzureOpenAIProvider(
+            model_name=self.config.NON_PII_DETECT_MODEL,
+            azure_endpoint=self.config.AZURE_OPENAI_ENDPOINT,
+            api_key=self.config.AZURE_OPENAI_API_KEY,
+        )
 
     def _create_readme_llm(self) -> Optional[AzureOpenAIProvider]:
+        """Create README scan LLM provider."""
         logger.debug(f'Creating README scan LLM: {self.config.README_SCAN_MODEL}')
-        return self._make_provider(self.config.README_SCAN_MODEL)
+        return AzureOpenAIProvider(
+            model_name=self.config.README_SCAN_MODEL,
+            azure_endpoint=self.config.AZURE_OPENAI_ENDPOINT,
+            api_key=self.config.AZURE_OPENAI_API_KEY,
+        )
