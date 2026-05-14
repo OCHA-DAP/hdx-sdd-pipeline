@@ -109,8 +109,3 @@ Any new feature request for this project must follow this order:
 - Do not change startup logging order without explicit requirement update.
 - Do not remove Slack error reporting on important processing failures without approved requirement change.
 - Prefer extending existing pipeline factory/use-case flow rather than creating a parallel processing path.
-
-### Performance and optimization
-
-- [ ] FR-SDD-060: Column PII classification should be batched to improve performance.
-  - Expected behavior: Instead of making sequential API calls per column, the system should batch multiple columns into a single LLM request (with a configurable batch size) to reduce processing time.
