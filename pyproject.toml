@@ -59,7 +59,7 @@ hdx-redis-lib = { git = "https://github.com/OCHA-DAP/hdx-redis-lib.git" }
 
 [project]
 name = "hdx-ssd-pipeline"
-version = "0.2.0"
+version = "0.2.1"
 description = "HDX SSD pipeline"
 requires-python = ">=3.10"
 

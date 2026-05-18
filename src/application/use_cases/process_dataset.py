@@ -419,13 +419,17 @@ class ProcessDatasetUseCase:
             # Prepare table summary
             table_summary = self._generate_table_markdown(report)
 
-            # Render prompt (use latest version)
+            # Determine prompt version based on ISP
+            version = None
+            if isp_rules and isp_rules.get('country') == 'default':
+                version = 'v2'
+
+            # Render prompt
             prompt = self.prompt_manager.get_prompt(
                 'non_pii_classification',
-                version=None,  # Auto-detect latest version
+                version=version,  # Auto-detect latest version unless default ISP
                 context={'table_name': report.sheet_name, 'table_markdown': table_summary, 'isp': isp_rules or {}},
             )
-
             # Log prompt for debugging
             logger.debug(f"[Non-PII Classification] Prompt for table '{report.sheet_name}':\n{prompt}\n")
 

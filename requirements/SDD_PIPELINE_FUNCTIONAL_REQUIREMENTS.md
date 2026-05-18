@@ -76,6 +76,9 @@ Any new feature request for this project must follow this order:
 - [x] FR-SDD-032: Final resource sensitivity must aggregate sheet-level outcomes.
   - Implemented behavior: Resource result is categorized as one of: not-sensitive, sensitive-pd, sensitive-non-pd, sensitive-pd-and-non-pd.
 
+- [x] FR-SDD-033: The non-PII classification prompt must be specialized when using the default ISP rules.
+  - Expected behavior: When the ISP country is 'default', use a simplified 2-level classification prompt (NON_SENSITIVE/SEVERE_SENSITIVE) with hardcoded humanitarian data sensitivity rules instead of the standard multi-level ISP-based prompt.
+
 ### Persistence and outputs
 
 - [x] FR-SDD-040: Results must be persisted either to CKAN or local output depending on runtime mode.
