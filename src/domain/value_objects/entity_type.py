@@ -18,6 +18,7 @@ class PIIEntityType(str, Enum):
     ADDRESS = 'ADDRESS'
     HOME_ADDRESS = 'HOME_ADDRESS'
     DISABILITY = 'DISABILITY'
+    GEO_COORDINATES = 'GEO_COORDINATES'
 
     # Identification numbers
     ID_NUMBER = 'ID_NUMBER'

@@ -106,8 +106,12 @@ class PipelineFactory:
 
         # Determine provider type based on model name and available config
         provider_type = LLMProviderType.AZURE_OPENAI
-        if 'deepseek' in model_name.lower() and getattr(self.config, 'DEEPSEEK_ENDPOINT', None):
+        is_deepseek = 'deepseek' in model_name.lower()
+        is_v3_1 = 'v3.1' in model_name.lower()
+
+        if is_deepseek and not is_v3_1 and getattr(self.config, 'DEEPSEEK_ENDPOINT', None):
             provider_type = LLMProviderType.DEEPSEEK
+
 
         logger.debug(f'Creating LLM provider for model {model_name} using {provider_type}')
         return LLMProviderFactory.create(

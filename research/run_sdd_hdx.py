@@ -2,7 +2,7 @@
 Batch Process HDX Resource IDs
 
 Usage:
-    uv run python research/run_sdd_hdx.py --model DeepSeek-V4-Flash --ids \
+    uv run python research/run_sdd_hdx.py --skip-existing --model DeepSeek-V3.1 --ids \
 0ae0101c-dcf2-4228-80f4-4d9c9cc2f448 \
 13899e52-5d6e-4b05-b8a1-2b378b5b2cda \
 1a13db39-bce9-4565-845c-ad3299206dfd \

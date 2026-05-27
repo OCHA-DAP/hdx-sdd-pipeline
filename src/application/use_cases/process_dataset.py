@@ -273,6 +273,14 @@ class ProcessDatasetUseCase:
                 column.pii_classification.entity_type = PIIEntityType.NONE
                 continue
 
+            # Heuristic: Latitude/Longitude columns are Geo Coordinates
+            normalized_name = column.name.lower().strip()
+            if normalized_name in ('latitude', 'longitude'):
+                column.pii_classification.entity_type = PIIEntityType.GEO_COORDINATES
+                logger.info(f"Heuristic: Column '{column.name}' classified as GEO_COORDINATES")
+                continue
+
+
             try:
                 # Render prompt (use latest version)
                 prompt = self.prompt_manager.get_prompt(
@@ -296,6 +304,7 @@ class ProcessDatasetUseCase:
             except Exception as e:
                 logger.error(f"PII classification failed for column '{column.name}': {e}")
                 column.pii_classification.entity_type = PIIEntityType.UNDETERMINED
+
 
         report.pii_classifier_model = self.pii_llm.model_name
         return report
@@ -336,6 +345,7 @@ class ProcessDatasetUseCase:
             PIIEntityType.EMAIL_ADDRESS,
             PIIEntityType.PHONE_NUMBER,
             PIIEntityType.PERSON_NAME,
+            PIIEntityType.GEO_COORDINATES,
         }
 
         if any(entity_type in sensitive_pii_entities for entity_type in pii_entity_types):
@@ -445,6 +455,15 @@ class ProcessDatasetUseCase:
 
             report.non_pii_classification = NonPIIClassification.from_dict(result)
 
+            # Promoted UNDETERMINED sensitivity to SEVERE_SENSITIVE as a safe default
+            if report.non_pii_classification.sensitivity == SensitivityLevel.UNDETERMINED:
+                report.non_pii_classification.sensitivity = SensitivityLevel.SEVERE_SENSITIVE
+                msg = "Classification returned UNDETERMINED. Promoted to SEVERE_SENSITIVE as a safe default."
+                if report.non_pii_classification.explanation:
+                    report.non_pii_classification.explanation = f"{msg} Original explanation: {report.non_pii_classification.explanation}"
+                else:
+                    report.non_pii_classification.explanation = msg
+
             # Store ISP name if provided
             if isp_rules:
                 # Extract ISP name - could be from 'country' field or use a default
@@ -459,7 +478,8 @@ class ProcessDatasetUseCase:
 
         except Exception as e:
             logger.error(f'Non-PII classification failed: {e}')
-            report.non_pii_classification.sensitivity = SensitivityLevel.UNDETERMINED
+            report.non_pii_classification.sensitivity = SensitivityLevel.SEVERE_SENSITIVE
+            report.non_pii_classification.explanation = f"Classification failed due to an error: {e}. Sensitivity set to SEVERE_SENSITIVE as a safe default."
 
         report.non_pii_model = self.non_pii_llm.model_name
         return report
@@ -627,7 +647,7 @@ class ProcessDatasetUseCase:
 
             # Call LLM for JSON response
             result, comp_tokens, prompt_tokens = self.readme_llm.generate_json(prompt, max_tokens=512)
-
+            print(f'result: {result}')
             # Validate result structure
             if not isinstance(result, dict):
                 logger.error(f'README PII detection returned non-dict result: {result}')
@@ -640,12 +660,13 @@ class ProcessDatasetUseCase:
 
             # Ensure required fields exist
             validated_result = {
-                'personal_data_sensitive': result.get('personal_data_sensitive', False),
-                'personal_data_entities': result.get('personal_data_entities', []),
+                'personal_data_sensitive': result.get('personal_data_sensitive', result.get('contains_personal_data', False)),
+                'personal_data_entities': result.get('personal_data_entities', result.get('personal_data_types', [])),
                 'evidence': result.get('evidence', []),
                 'completion_tokens': comp_tokens,
                 'prompt_tokens': prompt_tokens,
             }
+
 
             logger.info(
                 f'README PII analysis completed: personal_data_sensitive={validated_result["personal_data_sensitive"]}'

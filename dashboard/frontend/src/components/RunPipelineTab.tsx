@@ -10,6 +10,7 @@ const MODEL_OPTIONS = [
   "gpt-4.1-mini",
   "gpt-4.1",
   "DeepSeek-V3.1",
+  "DeepSeek-V4-Flash"
 ];
 
 interface UploadedFile {

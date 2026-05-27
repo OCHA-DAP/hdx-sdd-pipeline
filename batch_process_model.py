@@ -5,7 +5,7 @@ This script processes all datasets that exist in groundtruth2 with a specified m
 Useful for running a new model on your test set.
 
 Usage:
-    uv run python batch_process_model.py --model gpt-4.1-nano
+    uv run python batch_process_model.py --model DeepSeek-V4-Flash --skip-existing
     uv run python batch_process_model.py --model gpt-4.1-nano --skip-existing
 """
 
@@ -21,6 +21,7 @@ from config import get_config
 from src.event_processor import EventProcessor
 
 # Setup logging
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
 # Load environment variables
