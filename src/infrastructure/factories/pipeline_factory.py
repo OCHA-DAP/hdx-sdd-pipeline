@@ -112,10 +112,5 @@ class PipelineFactory:
         if is_deepseek and not is_v3_1 and getattr(self.config, 'DEEPSEEK_ENDPOINT', None):
             provider_type = LLMProviderType.DEEPSEEK
 
-
         logger.debug(f'Creating LLM provider for model {model_name} using {provider_type}')
-        return LLMProviderFactory.create(
-            provider_type=provider_type,
-            config=self.config,
-            model=model_name
-        )
+        return LLMProviderFactory.create(provider_type=provider_type, config=self.config, model=model_name)

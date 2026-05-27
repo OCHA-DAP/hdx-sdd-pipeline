@@ -8,6 +8,18 @@ import pytest
 
 hdx_redis_lib = pytest.importorskip('hdx_redis_lib')
 
+# Check if a local Redis server is actually running
+def _is_redis_running():
+    try:
+        import redis
+        port = int(os.getenv('REDIS_STREAM_PORT', 6379))
+        r = redis.Redis(host='localhost', port=port)
+        r.ping()
+        return True
+    except Exception:
+        return False
+
+pytestmark = pytest.mark.skipif(not _is_redis_running(), reason='Redis connection not available')
 
 logger = logging.getLogger(__name__)
 

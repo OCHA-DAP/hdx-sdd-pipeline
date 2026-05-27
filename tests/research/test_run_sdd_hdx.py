@@ -157,7 +157,7 @@ class TestBuildEventProcessor:
 
         sut.build_event_processor('m', Path('/my/output'))
 
-        fake_ep_cls.assert_called_once_with(custom_output_path='/my/output')
+        fake_ep_cls.assert_called_once_with(custom_output_path='/my/output', config=fake_config)
 
     def test_returns_event_processor_instance(self, sut, stub_local_modules):
         stub_local_modules['config'].get_config.return_value = MagicMock()

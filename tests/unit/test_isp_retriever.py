@@ -161,7 +161,7 @@ def test_isp_retriever_non_iso3_resource_name_falls_back_to_default():
     mock_isps = {'default': {'rule': 'default'}, 'some_isp': {'country': 'afg', 'rule': 'custom'}}
 
     with patch('builtins.open', mock_open(read_data=json.dumps(mock_isps))):
-        rules = retriever.get_isp_rules(None, 'dataset_afg_data.csv')
+        rules = retriever.get_isp_rules(None, 'dataset_xyz_data.csv')
 
     assert rules == {'rule': 'default'}
 

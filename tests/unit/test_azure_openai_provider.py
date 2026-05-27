@@ -38,8 +38,11 @@ class TestAzureOpenAIProvider:
             )
 
             assert provider.model_name == 'gpt-4.1-nano'
-            assert provider.azure_endpoint == 'https://test.openai.azure.com/'
-            mock_azure.assert_called_once()
+            mock_azure.assert_called_once_with(
+                api_key='test-key',
+                api_version='2024-02-15-preview',
+                azure_endpoint='https://test.openai.azure.com/',
+            )
 
     def test_initialization_with_api_version(self):
         """Test initialization with custom API version."""

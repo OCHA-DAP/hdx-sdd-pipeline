@@ -123,7 +123,7 @@ class TestProcessDatasetUseCase:
         """Test heuristic classification for latitude and longitude."""
         report = SheetReport(file_name='test.csv', sheet_name='Sheet1')
         lat_col = Column(name='Latitude', sample_values=['40.7128'])
-        lon_col = Column(name='longitude ', sample_values=['-74.0060']) # test strip and case
+        lon_col = Column(name='longitude ', sample_values=['-74.0060'])  # test strip and case
         report.add_column(lat_col)
         report.add_column(lon_col)
 
@@ -134,7 +134,6 @@ class TestProcessDatasetUseCase:
         assert result.columns[1].pii_classification.entity_type == PIIEntityType.GEO_COORDINATES
         assert result.completion_tokens == 0
         assert result.prompt_tokens == 0
-
 
     def test_classify_pii_error_handling(self, use_case, mock_llm_provider):
         """Test PII classification handles errors."""
@@ -179,10 +178,7 @@ class TestProcessDatasetUseCase:
 
         assert result.columns[0].pii_classification.sensitive is True
         assert result.personal_data_sensitive is True
-        assert (
-            'sensitive PII entities detected' in result.pii_reflection_model
-        )
-
+        assert 'sensitive PII entities detected' in result.pii_reflection_model
 
     def test_classify_pii_sensitivity_non_sensitive(self, use_case, mock_llm_provider):
         """Test PII sensitivity classification for non-sensitive."""
@@ -248,14 +244,14 @@ class TestProcessDatasetUseCase:
     def test_classify_non_pii_error_handling(self, use_case, mock_llm_provider):
         """Test non-PII classification handles errors."""
         report = SheetReport(file_name='test.csv', sheet_name='Sheet1')
-    
+
         mock_llm_provider.generate_json.side_effect = Exception('API error')
-    
+
         result = use_case._classify_non_pii(report, isp_rules=None)
-    
+
         # Should mark as SEVERE_SENSITIVE on error and include exception details in explanation
         assert result.non_pii_classification.sensitivity == SensitivityLevel.SEVERE_SENSITIVE
-        assert "Classification failed due to an error: API error" in result.non_pii_classification.explanation
+        assert 'Classification failed due to an error: API error' in result.non_pii_classification.explanation
 
     def test_create_table_summary(self, use_case):
         """Test table summary creation."""

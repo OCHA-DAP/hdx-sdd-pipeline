@@ -44,43 +44,31 @@ class DeepSeekProvider(ILLMProvider):
                 max_tokens=max_tokens,
                 **kwargs,
             )
-            
-            status_code = raw_response.http_response.status_code
             headers = dict(raw_response.http_response.headers)
-            try:
-                json_data = raw_response.http_response.json()
-            except Exception:
-                json_data = {"error": "Could not parse JSON body", "raw_text": raw_response.http_response.text}
 
             completion = raw_response.parse()
-            
+
             choices_data = []
-            if hasattr(completion, "choices") and completion.choices:
+            if hasattr(completion, 'choices') and completion.choices:
                 for c in completion.choices:
-                    msg = getattr(c, "message", None)
-                    choices_data.append({
-                        "finish_reason": getattr(c, "finish_reason", None),
-                        "message_role": getattr(msg, "role", None) if msg else None,
-                        "message_content": getattr(msg, "content", None) if msg else None,
-                    })
-            
-            usage_data = None
-            if hasattr(completion, "usage") and completion.usage:
-                usage_data = {
-                    "prompt_tokens": getattr(completion.usage, "prompt_tokens", 0),
-                    "completion_tokens": getattr(completion.usage, "completion_tokens", 0),
-                    "total_tokens": getattr(completion.usage, "total_tokens", 0),
-                }
+                    msg = getattr(c, 'message', None)
+                    choices_data.append(
+                        {
+                            'finish_reason': getattr(c, 'finish_reason', None),
+                            'message_role': getattr(msg, 'role', None) if msg else None,
+                            'message_content': getattr(msg, 'content', None) if msg else None,
+                        }
+                    )
 
             return completion
 
         except Exception as e:
-            logger.error("DeepSeek API call failed: %s", str(e), exc_info=True)
-            if hasattr(e, "response"):
-                status = getattr(e.response, "status_code", None)
-                body = getattr(e.response, "text", None)
-                headers = getattr(e.response, "headers", None)
-                
+            logger.error('DeepSeek API call failed: %s', str(e), exc_info=True)
+            if hasattr(e, 'response'):
+                status = getattr(e.response, 'status_code', None)
+                body = getattr(e.response, 'text', None)
+                headers = getattr(e.response, 'headers', None)
+
                 # Detect Azure Responsible AI filter trigger
                 rai_invoked = False
                 if headers:
@@ -88,21 +76,23 @@ class DeepSeekProvider(ILLMProvider):
                     rai_header = next((v for k, v in headers.items() if k.lower() == 'x-ms-rai-invoked'), None)
                     if rai_header == 'true':
                         rai_invoked = True
-                
-                if rai_invoked or (status == 404 and body and "Not Found" in body):
+
+                if rai_invoked or (status == 404 and body and 'Not Found' in body):
                     logger.error(
-                        "⚠️ [AZURE CONTENT SAFETY TRIGGERED] The request triggered Azure's Responsible AI (RAI) safety filters. "
-                        "Azure MaaS endpoints bizarrely return 404 Not Found (or filter responses) when RAI is invoked. "
-                        "Status: %s, x-ms-rai-invoked: %s", status, rai_header
+                        '⚠️ [AZURE CONTENT SAFETY TRIGGERED] The request triggered Azure\'s Responsible AI (RAI) safety '  # noqa: S106
+                        'filters. Azure MaaS endpoints bizarrely return 404 Not Found (or filter responses) when RAI '  # noqa: S106
+                        'is invoked. Status: %s, x-ms-rai-invoked: %s',
+                        status,
+                        rai_header,
                     )
-                
-                logger.error("Error response: status=%s, body=%s, headers=%s", status, body, headers)
+
+                logger.error('Error response: status=%s, body=%s, headers=%s', status, body, headers)
             raise
 
     @staticmethod
     def _token_counts(completion) -> Tuple[int, int]:
-        if hasattr(completion, "usage") and completion.usage:
-            return getattr(completion.usage, "completion_tokens", 0), getattr(completion.usage, "prompt_tokens", 0)
+        if hasattr(completion, 'usage') and completion.usage:
+            return getattr(completion.usage, 'completion_tokens', 0), getattr(completion.usage, 'prompt_tokens', 0)
         return 0, 0
 
     # ------------------------------------------------------------------
@@ -125,31 +115,31 @@ class DeepSeekProvider(ILLMProvider):
         try:
             completion = self._call(messages, temperature, max_tokens, **kwargs)
         except Exception as e:
-            logger.error("DeepSeek generate failed: %s", str(e))
-            return "UNDETERMINED", 0, 0
-            
-        if not hasattr(completion, "choices") or not completion.choices:
-            logger.error("DeepSeek generate returned no choices. completion=%s", completion)
-            return "UNDETERMINED", 0, 0
-            
+            logger.error('DeepSeek generate failed: %s', str(e))
+            return 'UNDETERMINED', 0, 0
+
+        if not hasattr(completion, 'choices') or not completion.choices:
+            logger.error('DeepSeek generate returned no choices. completion=%s', completion)
+            return 'UNDETERMINED', 0, 0
+
         choice = completion.choices[0]
-        if not hasattr(choice, "message") or not choice.message:
-            logger.error("DeepSeek generate choice has no message. choice=%s", choice)
-            return "UNDETERMINED", 0, 0
-            
+        if not hasattr(choice, 'message') or not choice.message:
+            logger.error('DeepSeek generate choice has no message. choice=%s', choice)
+            return 'UNDETERMINED', 0, 0
+
         text = choice.message.content
         if text is None:
-            logger.error("DeepSeek generate message content is None. message=%s", choice.message)
+            logger.error('DeepSeek generate message content is None. message=%s', choice.message)
             # Sometimes models return content in other fields or it's just empty
-            text = "UNDETERMINED"
-            
+            text = 'UNDETERMINED'
+
         completion_tokens, prompt_tokens = self._token_counts(completion)
 
         logger.debug(
             'generate: completion_tokens=%s, prompt_tokens=%s, text_preview=%s...',
             completion_tokens,
             prompt_tokens,
-            text[:50] if text else "None"
+            text[:50] if text else 'None',
         )
         return text, completion_tokens, prompt_tokens
 
@@ -176,13 +166,13 @@ class DeepSeekProvider(ILLMProvider):
                 **kwargs,
             )
         except Exception as e:
-            logger.error("DeepSeek generate_json failed: %s", str(e))
-            return {"error": "UNDETERMINED"}, 0, 0
-            
+            logger.error('DeepSeek generate_json failed: %s', str(e))
+            return {'error': 'UNDETERMINED'}, 0, 0
+
         logger.info('DeepSeekProvider.generate_json: raw=%s', raw)
 
-        if raw == "UNDETERMINED":
-            return {"error": "UNDETERMINED"}, completion_tokens, prompt_tokens
+        if raw == 'UNDETERMINED':
+            return {'error': 'UNDETERMINED'}, completion_tokens, prompt_tokens
 
         cleaned = raw.strip()
         if cleaned.startswith('```'):
@@ -192,5 +182,5 @@ class DeepSeekProvider(ILLMProvider):
         try:
             return json.loads(cleaned), completion_tokens, prompt_tokens
         except json.JSONDecodeError as e:
-            logger.error("DeepSeek JSON decode error: %s on content: %s", e, cleaned)
-            return {"error": "UNDETERMINED"}, completion_tokens, prompt_tokens
+            logger.error('DeepSeek JSON decode error: %s on content: %s', e, cleaned)
+            return {'error': 'UNDETERMINED'}, completion_tokens, prompt_tokens

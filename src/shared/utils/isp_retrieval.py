@@ -7,7 +7,6 @@ based on ISO3 codes from package metadata and resource names.
 
 import json
 import logging
-from pathlib import Path
 from typing import Dict, Any, Optional
 
 logger = logging.getLogger(__name__)
@@ -159,7 +158,9 @@ class ISPRetriever:
 
             normalized_iso3 = country_iso3.strip().lower()
             if normalized_iso3 and normalized_iso3 in resource_name_lower:
-                logger.info(f'Using ISP: {isp_name} (matched ISO3: {normalized_iso3} in resource name: {resource_name})')
+                logger.info(
+                    f'Using ISP: {isp_name} (matched ISO3: {normalized_iso3} in resource name: {resource_name})'
+                )
                 return isp_data
 
         return None

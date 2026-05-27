@@ -7,7 +7,6 @@ echo "===================================================="
 models=(
     "gpt-4.1-nano"
     "gpt-4.1-mini" 
-    "gpt-4.1"
     "gpt-5-nano"
     "gpt-5-mini"
     "DeepSeek-V3.1"
