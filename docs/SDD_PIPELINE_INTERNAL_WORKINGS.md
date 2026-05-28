@@ -650,7 +650,6 @@ class SheetReport:
 - `add_column(column)` - Add a column to the report
 - `has_pii_columns()` - Check if any column contains PII
 - `has_sensitive_pii()` - Check if any column has sensitive PII
-- `update_pii_sensitivity()` - Update personal_data_sensitive flag
 - `update_non_pii_sensitivity()` - Update non_personal_data_sensitive flag
 - `is_sensitive()` - Check if sheet is sensitive (PII or non-PII)
 - `total_tokens()` - Calculate total tokens used

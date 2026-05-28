@@ -4,7 +4,7 @@ import logging
 from typing import Optional
 
 from src.application.use_cases.process_dataset import ProcessDatasetUseCase
-from src.infrastructure.llm import ILLMProvider, LLMProviderFactory, LLMProviderType
+from src.infrastructure.llm import OpenAIProvider
 from src.infrastructure.storage.data_loader import SmartDataLoader
 from src.shared.utils.prompt_manager import PromptManager
 from config.config import Config
@@ -83,34 +83,28 @@ class PipelineFactory:
         logger.info('Pipeline created successfully')
         return pipeline
 
-    def _create_pii_llm(self) -> Optional[ILLMProvider]:
+    def _create_pii_llm(self) -> Optional[OpenAIProvider]:
         """Create PII detection LLM provider."""
         return self._get_llm_provider(self.config.PII_DETECT_MODEL)
 
-    def _create_pii_reflection_llm(self) -> Optional[ILLMProvider]:
+    def _create_pii_reflection_llm(self) -> Optional[OpenAIProvider]:
         """Create PII reflection LLM provider."""
         return self._get_llm_provider(self.config.PII_REFLECT_MODEL)
 
-    def _create_non_pii_llm(self) -> Optional[ILLMProvider]:
+    def _create_non_pii_llm(self) -> Optional[OpenAIProvider]:
         """Create non-PII detection LLM provider."""
         return self._get_llm_provider(self.config.NON_PII_DETECT_MODEL)
 
-    def _create_readme_llm(self) -> Optional[ILLMProvider]:
+    def _create_readme_llm(self) -> Optional[OpenAIProvider]:
         """Create README scan LLM provider."""
         return self._get_llm_provider(self.config.README_SCAN_MODEL)
 
-    def _get_llm_provider(self, model_name: str) -> Optional[ILLMProvider]:
+    def _get_llm_provider(self, model_name: str) -> OpenAIProvider:
         """Resolve and create the appropriate LLM provider."""
-        if not model_name:
-            return None
 
-        # Determine provider type based on model name and available config
-        provider_type = LLMProviderType.AZURE_OPENAI
-        is_deepseek = 'deepseek' in model_name.lower()
-        is_v3_1 = 'v3.1' in model_name.lower()
-
-        if is_deepseek and not is_v3_1 and getattr(self.config, 'DEEPSEEK_ENDPOINT', None):
-            provider_type = LLMProviderType.DEEPSEEK
-
-        logger.debug(f'Creating LLM provider for model {model_name} using {provider_type}')
-        return LLMProviderFactory.create(provider_type=provider_type, config=self.config, model=model_name)
+        logger.info(f'Creating OpenAIProvider for model {model_name}')
+        return OpenAIProvider(
+            model_name=model_name,
+            endpoint=self.config.OPENAI_ENDPOINT,
+            api_key=self.config.OPENAI_API_KEY,
+        )

@@ -184,26 +184,6 @@ def test_isp_retriever_caching():
         assert rules1 == rules2 == {'rule': 'default_rule'}
 
 
-def test_isp_retriever_clear_cache():
-    """Test ISP retriever cache clearing functionality."""
-    retriever = ISPRetriever()
-    mock_isps = {'default': {'rule': 'default_rule'}}
-
-    mock_file = mock_open(read_data=json.dumps(mock_isps))
-    with patch('builtins.open', mock_file) as mock_file_obj:
-        # First call
-        retriever.get_isp_rules(None)
-
-        # Clear cache
-        retriever.clear_cache()
-
-        # Second call should open file again
-        retriever.get_isp_rules(None)
-
-        # File should be opened twice
-        assert mock_file_obj.call_count == 2
-
-
 def test_match_country_direct():
     """Test direct ISO3 matching in match_country method."""
     retriever = ISPRetriever()

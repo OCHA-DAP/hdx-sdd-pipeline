@@ -76,14 +76,6 @@ class SheetReport:
         """Check if any column contains PII."""
         return any(col.has_pii() for col in self.columns)
 
-    def has_sensitive_pii(self) -> bool:
-        """Check if any column contains sensitive PII."""
-        return any(col.is_sensitive() for col in self.columns)
-
-    def update_pii_sensitivity(self) -> None:
-        """Update the personal_data_sensitive flag based on column classifications."""
-        self.personal_data_sensitive = self.has_sensitive_pii()
-
     def update_non_pii_sensitivity(self) -> None:
         """Update the non_personal_data_sensitive flag based on non-PII classification."""
         self.non_personal_data_sensitive = self.non_pii_classification.is_sensitive()
@@ -95,10 +87,6 @@ class SheetReport:
     def total_tokens(self) -> int:
         """Calculate total tokens used."""
         return self.completion_tokens + self.prompt_tokens
-
-    def has_error(self) -> bool:
-        """Check if processing encountered an error."""
-        return self.error_source is not None
 
     def to_dict(self) -> Dict[str, Any]:
         """Convert report to dictionary representation."""

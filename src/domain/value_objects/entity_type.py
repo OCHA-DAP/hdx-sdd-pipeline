@@ -40,6 +40,7 @@ class PIIEntityType(str, Enum):
     # Special values
     NONE = 'None'
     UNDETERMINED = 'UNDETERMINED'
+    UNKNOWN = 'UNKNOWN'
 
     @classmethod
     def from_string(cls, value: str) -> 'PIIEntityType':

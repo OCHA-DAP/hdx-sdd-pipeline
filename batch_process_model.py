@@ -48,6 +48,7 @@ def setup_event_processor(model_name: str, output_dir: Path) -> EventProcessor:
     config.PII_DETECT_MODEL = model_name
     config.PII_REFLECT_MODEL = model_name
     config.NON_PII_DETECT_MODEL = model_name
+    config.README_SCAN_MODEL = model_name
 
     # Ensure all detection steps are enabled
     config.PERSONAL_DATA_DETECTION = True
@@ -58,7 +59,7 @@ def setup_event_processor(model_name: str, output_dir: Path) -> EventProcessor:
     config.CKAN_UPDATE = False
 
     # Create EventProcessor with custom output directory
-    event_processor = EventProcessor(custom_output_path=str(output_dir))
+    event_processor = EventProcessor(custom_output_path=str(output_dir), config=config)
 
     print('EventProcessor setup complete!')
     return event_processor

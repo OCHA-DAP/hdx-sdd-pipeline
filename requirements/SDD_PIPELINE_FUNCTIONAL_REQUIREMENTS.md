@@ -88,6 +88,21 @@ Any new feature request for this project must follow this order:
 - [x] FR-SDD-035: If non-personal data sensitivity classification fails or returns UNDETERMINED, the pipeline must promote the sensitivity to SEVERE_SENSITIVE as a safe default, and record the error details in the explanation field.
   - Expected behavior: Any decoding, connectivity, safety filter, or parse errors in non-personal classification, or an explicitly returned UNDETERMINED sensitivity, must trigger a fallback to SEVERE_SENSITIVE with diagnostic details.
 
+- [x] FR-SDD-036: Unified OpenAI SDK usage.
+  - Expected behavior: All LLM models (Azure OpenAI, DeepSeek, etc.) must be queried using the standard openai SDK through a unified OpenAIProvider class, completely removing the abstract ILLMProvider interface and factories, throwing LLMProviderError on failure rather than returning placeholder values like 'UNDETERMINED'.
+
+- [x] FR-SDD-037: PII entity prediction failure fallback.
+  - Expected behavior: If PII entity classification fails (raises an exception or returns UNDETERMINED/UNKNOWN), the column's entity type must be set to UNKNOWN and classified as sensitive.
+
+- [x] FR-SDD-038: PII reflection failure fallback.
+  - Expected behavior: If PII reflection classification fails (raises an exception), the sheet-level personal data classification must be set to sensitive (personal_data_sensitive = True), and the reason/exception details must be recorded in the explanation field.
+
+- [x] FR-SDD-039: Non-PII classification failure fallback.
+  - Expected behavior: If non-PII classification fails (raises an exception), the sheet-level non-personal data classification must be set to sensitive (SensitivityLevel.SEVERE_SENSITIVE), and the reason/exception details must be recorded in the explanation field.
+
+- [x] FR-SDD-042: Logging raw response for UNDETERMINED generation outcomes.
+  - Expected behavior: Whenever PII entity detection, PII reflection, or non-PII classification yields an UNDETERMINED result, the system must clearly log the issue in generation, including the raw response back.
+
 
 ### Persistence and outputs
 

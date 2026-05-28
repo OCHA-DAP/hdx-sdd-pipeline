@@ -1,11 +1,10 @@
 """Unit tests for application interfaces."""
 
 import pytest
-from typing import Dict, List, Optional, Tuple, Any
+from typing import Dict, List, Optional
 import pandas as pd
 
 from src.application.interfaces.data_loader import IDataLoader
-from src.application.interfaces.llm_provider import ILLMProvider
 from src.application.interfaces.report_repository import IReportRepository
 from src.domain.entities.sheet_report import SheetReport
 
@@ -45,49 +44,6 @@ class TestIDataLoader:
         loader = ValidLoader()
         assert isinstance(loader, IDataLoader)
         assert loader.validate_url('test.csv') is True
-
-
-class TestILLMProvider:
-    """Test suite for ILLMProvider interface."""
-
-    def test_interface_cannot_be_instantiated(self):
-        """Test that abstract interface cannot be instantiated directly."""
-        with pytest.raises(TypeError):
-            ILLMProvider()
-
-    def test_concrete_implementation_must_implement_methods(self):
-        """Test that concrete implementations must implement all abstract methods."""
-
-        class IncompleteLLM(ILLMProvider):
-            pass
-
-        with pytest.raises(TypeError):
-            IncompleteLLM()
-
-    def test_valid_concrete_implementation(self):
-        """Test that valid concrete implementation works."""
-
-        class ValidLLM(ILLMProvider):
-            def generate(
-                self, prompt: str, max_tokens: int = 256, temperature: float = 0.0, **kwargs
-            ) -> Tuple[str, int, int]:
-                return ('response', 10, 20)
-
-            def generate_json(
-                self, prompt: str, max_tokens: int = 256, temperature: float = 0.0, **kwargs
-            ) -> Tuple[Dict[str, Any], int, int]:
-                return ({'key': 'value'}, 10, 20)
-
-            @property
-            def model_name(self) -> str:
-                return 'test-model'
-
-        # Should be able to instantiate
-        llm = ValidLLM()
-        assert isinstance(llm, ILLMProvider)
-        assert llm.model_name == 'test-model'
-        result, comp, prompt = llm.generate('test')
-        assert result == 'response'
 
 
 class TestIReportRepository:

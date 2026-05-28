@@ -15,20 +15,6 @@ class IReportRepository(ABC):
     """
 
     @abstractmethod
-    def save(self, reports: List[SheetReport], resource_id: str) -> bool:
-        """
-        Save reports for a resource.
-
-        Args:
-            reports: List of sheet reports to save
-            resource_id: Resource identifier
-
-        Returns:
-            True if save was successful
-        """
-        pass
-
-    @abstractmethod
     def exists(self, resource_id: str) -> bool:
         """
         Check if report exists for a resource.
@@ -51,18 +37,5 @@ class IReportRepository(ABC):
 
         Returns:
             List of sheet reports if found, None otherwise
-        """
-        pass
-
-    @abstractmethod
-    def delete(self, resource_id: str) -> bool:
-        """
-        Delete reports for a resource.
-
-        Args:
-            resource_id: Resource identifier
-
-        Returns:
-            True if deletion was successful
         """
         pass

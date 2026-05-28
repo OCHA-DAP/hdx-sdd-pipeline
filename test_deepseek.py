@@ -1,14 +1,18 @@
 import logging
 import time
 from config.config import get_config
-from src.infrastructure.llm.llm_provider_factory import LLMProviderFactory, LLMProviderType
+from src.infrastructure.llm.openai_provider import OpenAIProvider
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 
 
 def test_deepseek():
     config = get_config()
-    provider = LLMProviderFactory.create(LLMProviderType.DEEPSEEK, config)
+    provider = OpenAIProvider(
+        endpoint=config.DEEPSEEK_ENDPOINT,
+        api_key=getattr(config, 'DEEPSEEK_API_KEY', config.AZURE_OPENAI_API_KEY),
+        model_name=getattr(config, 'DEEPSEEK_MODEL', 'DeepSeek-V4-Flash'),
+    )
 
     successes = 0
     failures = 0

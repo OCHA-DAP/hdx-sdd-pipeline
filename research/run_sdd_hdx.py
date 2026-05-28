@@ -91,6 +91,7 @@ def build_event_processor(model_name: str, output_dir: Path):
     config.PII_DETECT_MODEL = model_name
     config.PII_REFLECT_MODEL = model_name
     config.NON_PII_DETECT_MODEL = model_name
+    config.README_SCAN_MODEL = model_name
     config.PERSONAL_DATA_DETECTION = True
     config.PERSONAL_DATA_REFLECTION = True
     config.NON_PERSONAL_DATA_DETECTION = True

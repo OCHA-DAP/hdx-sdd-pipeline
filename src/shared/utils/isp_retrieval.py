@@ -164,7 +164,3 @@ class ISPRetriever:
                 return isp_data
 
         return None
-
-    def clear_cache(self):
-        """Clear cached ISP data."""
-        self._isps_cache = None

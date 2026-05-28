@@ -52,38 +52,6 @@ class TestSheetReport:
 
         assert report.has_pii_columns() is False
 
-    def test_has_sensitive_pii_true(self):
-        """Test has_sensitive_pii returns True for sensitive PII."""
-        report = SheetReport(file_name='test.csv', sheet_name='Sheet1')
-        column = Column(name='email', sample_values=['test@example.com'])
-        column.pii_classification.entity_type = PIIEntityType.EMAIL_ADDRESS
-        column.pii_classification.sensitive = True
-        report.add_column(column)
-
-        assert report.has_sensitive_pii() is True
-
-    def test_has_sensitive_pii_false(self):
-        """Test has_sensitive_pii returns False for non-sensitive."""
-        report = SheetReport(file_name='test.csv', sheet_name='Sheet1')
-        column = Column(name='age', sample_values=['25'])
-        column.pii_classification.entity_type = PIIEntityType.AGE
-        column.pii_classification.sensitive = False
-        report.add_column(column)
-
-        assert report.has_sensitive_pii() is False
-
-    def test_update_pii_sensitivity(self):
-        """Test updating PII sensitivity flag."""
-        report = SheetReport(file_name='test.csv', sheet_name='Sheet1')
-        column = Column(name='email', sample_values=['test@example.com'])
-        column.pii_classification.entity_type = PIIEntityType.EMAIL_ADDRESS
-        column.pii_classification.sensitive = True
-        report.add_column(column)
-
-        report.update_pii_sensitivity()
-
-        assert report.personal_data_sensitive is True
-
     def test_update_non_pii_sensitivity(self):
         """Test updating non-PII sensitivity flag."""
         report = SheetReport(file_name='test.csv', sheet_name='Sheet1')
@@ -132,20 +100,6 @@ class TestSheetReport:
         report.prompt_tokens = 200
 
         assert report.total_tokens() == 300
-
-    def test_has_error_true(self):
-        """Test has_error returns True when error exists."""
-        report = SheetReport(file_name='test.csv', sheet_name='Sheet1')
-        report.error_source = 'PII_CLASSIFICATION'
-        report.error_message = 'API error'
-
-        assert report.has_error() is True
-
-    def test_has_error_false(self):
-        """Test has_error returns False when no error."""
-        report = SheetReport(file_name='test.csv', sheet_name='Sheet1')
-
-        assert report.has_error() is False
 
     def test_to_dict_basic(self):
         """Test converting report to dictionary."""

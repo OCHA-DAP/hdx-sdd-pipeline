@@ -49,12 +49,9 @@ class Config:
     OUTPUT_DIR: str = os.getenv('OUTPUT_DIR', '/tmp/reports')
     DOWNLOAD_DIR: str = os.getenv('DOWNLOAD_DIR', '/tmp/download')
 
-    # Azure endpoints
-    AZURE_OPENAI_ENDPOINT: str = os.getenv('AZURE_OPENAI_ENDPOINT', '')
-    AZURE_OPENAI_API_KEY: str = os.getenv('AZURE_OPENAI_API_KEY', '')
-
-    # Deepseek
-    DEEPSEEK_ENDPOINT: str = os.getenv('DEEPSEEK_ENDPOINT', '')
+    # OpenAI
+    OPENAI_ENDPOINT: str = os.getenv('OPENAI_ENDPOINT', '')
+    OPENAI_API_KEY: str = os.getenv('OPENAI_API_KEY', '')
 
     # Slack
     HDX_SDD_SLACK_CHANNEL: str = os.getenv('HDX_SDD_SLACK_CHANNEL', 'topic-sensitive-data-alerts')
