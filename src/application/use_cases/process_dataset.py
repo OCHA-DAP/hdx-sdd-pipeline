@@ -586,7 +586,7 @@ class ProcessDatasetUseCase:
 
             # Call LLM for JSON response
             result, comp_tokens, prompt_tokens = self.readme_llm.generate_json(prompt, max_tokens=512)
-            print(f'result: {result}')
+
             # Validate result structure
             if not isinstance(result, dict):
                 logger.error(f'README PII detection returned non-dict result: {result}')

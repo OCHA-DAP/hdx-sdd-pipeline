@@ -1,7 +1,6 @@
 "use client";
 import { useState, useEffect } from "react";
-import { ChevronLeft, ChevronRight, Play, BarChart3, FileText, ChevronDown } from "lucide-react";
-import RunPipelineTab from "./RunPipelineTab";
+import { ChevronLeft, ChevronRight, BarChart3, FileText } from "lucide-react";
 import ResultsTab from "./ResultsTab";
 import AnalyticsTab from "./AnalyticsTab";
 import { getApiUrl } from "../services/api";
@@ -14,7 +13,6 @@ export default function Dashboard() {
   const [showModelDropdown, setShowModelDropdown] = useState(false);
 
   const menuItems = [
-    { id: 'pipeline', label: 'Run Pipeline', icon: Play },
     { id: 'results', label: 'Results', icon: FileText },
     { id: 'analytics', label: 'Analytics', icon: BarChart3 },
   ];
@@ -140,7 +138,6 @@ export default function Dashboard() {
 
       {/* Main Content */}
       <div className="flex-1 overflow-auto">
-        {activeTab === 'pipeline' && <RunPipelineTab />}
         {activeTab === 'results' && <ResultsTab selectedModel={selectedModel} />}
         {activeTab === 'analytics' && <AnalyticsTab />}
       </div>
