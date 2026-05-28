@@ -7,7 +7,6 @@ based on ISO3 codes from package metadata and resource names.
 
 import json
 import logging
-from pathlib import Path
 from typing import Dict, Any, Optional
 
 logger = logging.getLogger(__name__)
@@ -120,7 +119,8 @@ class ISPRetriever:
         try:
             package = ckan_client.package_show(package_id)
             groups = package.get('groups', [])
-            if not isinstance(groups, list) or not groups:
+
+            if not groups:
                 return None
 
             for group in groups:
@@ -141,13 +141,26 @@ class ISPRetriever:
         return None
 
     def _match_from_resource_name(self, resource_name: Optional[str], isps: Dict[str, Any]) -> Optional[Dict[str, Any]]:
-        """Try to match ISP from resource name stem (expected ISO3)."""
+        """Try to match ISP from resource name by searching for ISO3 in the whole string."""
         if not resource_name:
             return None
 
-        resource_iso3 = Path(resource_name).stem
-        return self.match_country(resource_iso3, isps)
+        # Look for any country ISO3 in the whole string (case-insensitive)
+        resource_name_lower = resource_name.lower()
 
-    def clear_cache(self):
-        """Clear cached ISP data."""
-        self._isps_cache = None
+        for isp_name, isp_data in isps.items():
+            if isp_name == 'default':
+                continue
+
+            country_iso3 = isp_data.get('country', '')
+            if not isinstance(country_iso3, str):
+                continue
+
+            normalized_iso3 = country_iso3.strip().lower()
+            if normalized_iso3 and normalized_iso3 in resource_name_lower:
+                logger.info(
+                    f'Using ISP: {isp_name} (matched ISO3: {normalized_iso3} in resource name: {resource_name})'
+                )
+                return isp_data
+
+        return None

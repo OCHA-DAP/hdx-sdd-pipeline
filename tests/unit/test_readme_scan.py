@@ -4,7 +4,7 @@ import pytest
 from unittest.mock import Mock
 import pandas as pd
 
-from src.application.use_cases.process_dataset import ProcessDatasetUseCase
+from src.application.process_dataset import ProcessDatasetUseCase
 
 
 class TestReadmeScan:

@@ -5,12 +5,12 @@ echo "Starting parallel batch processing for all models..."
 echo "===================================================="
 
 models=(
-    "gpt-4.1-nano"
-    "gpt-4.1-mini" 
-    "gpt-4.1"
-    "gpt-5-nano"
-    "gpt-5-mini"
-    "DeepSeek-V3.1"
+    # "gpt-4.1-nano"
+    # "gpt-4.1-mini" 
+    # "gpt-5-nano"
+    # "gpt-5-mini"
+    # "DeepSeek-V3.1"
+    "DeepSeek-V4-Flash"
 )
 
 # Function to process a single model
@@ -30,7 +30,7 @@ process_model() {
 export -f process_model
 
 # Run all models in parallel (limit to 3 concurrent jobs to avoid overwhelming system)
-printf '%s\n' "${models[@]}" | xargs -P 3 -I {} bash -c 'process_model "$@"' _ {}
+printf '%s\n' "${models[@]}" | xargs -P 6 -I {} bash -c 'process_model "$@"' _ {}
 
 echo ""
 echo "===================================================="

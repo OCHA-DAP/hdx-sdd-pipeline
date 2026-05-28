@@ -1,758 +1,150 @@
-from fastapi import APIRouter, HTTPException, UploadFile, File, BackgroundTasks
-from pathlib import Path
-import shutil
-import json
+"""Research API router — clean, thin, no business logic inline."""
+
+from __future__ import annotations
+
 import logging
-from typing import List, Optional
-from datetime import datetime
 import os
-
-# Import from clean architecture
-from config.config import Config
-from src.infrastructure.factories.pipeline_factory import PipelineFactory
-from src.application.use_cases.process_dataset import ProcessDatasetUseCase
-from src.infrastructure.storage.data_loader import SmartDataLoader
+from datetime import datetime
+from pathlib import Path
+from fastapi import APIRouter, HTTPException
 from dotenv import load_dotenv
+from .schemas import BatchStatus
+from .sdd_io import load_sdd
+from .metrics_service import compute_performance, compute_cost
 
-# Load environment variables
 load_dotenv()
-
 logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
+# ---------------------------------------------------------------------------
 # Configuration
-# Determine project base directory (can be overridden via PROJECT_ROOT env var)
-_default_base = Path(__file__).resolve().parents[1]
-BASE_DIR = Path(os.getenv('PROJECT_ROOT', str(_default_base)))
-# Directories can be configured via environment variables; fall back to repo-relative paths
-DATASETS_DIR = Path(os.getenv('DATASETS_DIR', str(BASE_DIR / 'research' / 'data')))
-REPORTS_DIR = Path(os.getenv('REPORTS_DIR', str(BASE_DIR / 'research' / 'results' / 'test_results')))
+# ---------------------------------------------------------------------------
+
+_BASE = Path(os.getenv('PROJECT_ROOT', str(Path(__file__).resolve().parents[1])))
+DATASETS_DIR = Path(os.getenv('DATASETS_DIR', str(_BASE / 'research' / 'data')))
+REPORTS_DIR = Path(os.getenv('REPORTS_DIR', str(_BASE / 'research' / 'results' / 'test_results')))
 GROUNDTRUTH_DIR = Path(os.getenv('GROUNDTRUTH_DIR', str(REPORTS_DIR / 'groundtruth2')))
 ALLOWED_EXTENSIONS = {'.csv', '.xlsx'}
 
-# Available models for batch processing
-AVAILABLE_MODELS = ['gpt-4.1-nano', 'gpt-4.1-mini', 'gpt-4.1', 'gpt-5-nano', 'gpt-5-mini', 'DeepSeek-V3.1']
+AVAILABLE_MODELS = [
+    'gpt-4.1-nano',
+    'gpt-4.1-mini',
+    'gpt-4.1',
+    'gpt-5-nano',
+    'gpt-5-mini',
+    'DeepSeek-V3.1',
+    'DeepSeek-V4-Flash',
+]
 
-# Global variable to track batch processing status
-batch_status = {
-    'is_running': False,
-    'current_model': None,
-    'completed_models': [],
-    'failed_models': [],
-    'started_at': None,
-    'progress': 0,
+PRICING: dict[str, float] = {
+    'gpt-4.1-nano': 0.17,
+    'gpt-4.1-mini': 0.70,
+    'gpt-4.1': 3.50,
+    'gpt-5-nano': 0.15,
+    'gpt-5-mini': 0.69,
+    'DeepSeek-V3.1': 0.84,
+    'DeepSeek-V4-Flash': 0.10,
 }
 
-
-def _normalize_flag(value) -> bool:
-    """
-    Normalize a ground-truth flag value to a boolean.
-    Accepts bools directly, common string/int representations,
-    and treats any other value (including placeholders like "TODO")
-    as False.
-    """
-    if isinstance(value, bool):
-        return value
-    if isinstance(value, str):
-        v = value.strip().lower()
-        if v in ('true', 'yes', 'y', '1'):
-            return True
-        if v in ('false', 'no', 'n', '0', ''):
-            return False
-        # Unrecognized strings (e.g. "todo") are treated as False
-        return False
-    if isinstance(value, (int, float)):
-        return bool(value)
-    return False
-
-
-def setup_pipeline(model_name: Optional[str] = None) -> ProcessDatasetUseCase:
-    """Setup pipeline with specified model.
-    If model_name is None, the default models from Config are used.
-    """
-    if model_name is not None:
-        logger.info(f'Setting up pipeline with model override: {model_name}')
-    else:
-        logger.info('Setting up pipeline with default model configuration')
-
-    config = Config()
-    if model_name is not None:
-        config.PII_DETECT_MODEL = model_name
-        config.PII_REFLECT_MODEL = model_name
-        config.NON_PII_DETECT_MODEL = model_name
-
-    factory = PipelineFactory(config)
-    return factory.create_pipeline()
-
-
-def create_groundtruth_template(dataset_path: Path, dataset_name: str) -> Path:
-    """Create a groundtruth template for the uploaded dataset using ProcessDatasetUseCase structure."""
-    try:
-        # Setup pipeline strictly for report structure generation (no LLMs)
-        # We manually instantiate ProcessDatasetUseCase with no LLM providers to skip classification
-        pipeline = ProcessDatasetUseCase(
-            data_loader=SmartDataLoader(max_rows=1000),
-            pii_llm_provider=None,
-            pii_reflection_llm_provider=None,
-            non_pii_llm_provider=None,
-            readme_llm_provider=None,
-        )
-
-        # Load data using the pipeline's data loader (same as process_dataset.py)
-        sheets_data = pipeline.data_loader.load_from_file(str(dataset_path))
-
-        # Create template reports using the same structure as ProcessDatasetUseCase
-        template_reports = []
-
-        for sheet_name, df in sheets_data.items():
-            # Check if it's a README sheet
-            if pipeline._is_readme_sheet(sheet_name):
-                logger.debug(f"Sheet '{sheet_name}' identified as README/metadata")
-                report = pipeline._create_readme_report(sheet_name, str(dataset_path), dataset_name, df)
-            else:
-                # Create a data report structure but without LLM processing
-                report = pipeline._create_data_report(sheet_name, str(dataset_path), dataset_name, df, isp_rules=None)
-
-            # Convert to template format with TODO placeholders
-            template_report = report.to_dict()
-
-            # Set all sensitivity flags to TODO placeholders
-            template_report['personal_data_sensitive'] = 'TODO'
-            template_report['non_personal_data_sensitive'] = 'TODO'
-
-            if not template_report.get('non_personal_data'):
-                template_report['non_personal_data'] = {}
-            template_report['non_personal_data']['sensitivity'] = 'TODO'
-
-            # Set all column classifications to TODO
-            for column in template_report.get('columns', []):
-                if not column.get('personal_data'):
-                    column['personal_data'] = {}
-                column['personal_data']['entity_type'] = 'TODO'
-                column['personal_data']['sensitive'] = 'TODO'
-
-            # Add processing status
-            template_report['template_status'] = 'TODO_MANUAL_Annotation_REQUIRED'
-
-            template_reports.append(template_report)
-
-        template_path = GROUNDTRUTH_DIR / f'{dataset_name}.json'
-        template_path.parent.mkdir(parents=True, exist_ok=True)
-
-        with open(template_path, 'w') as f:
-            json.dump(
-                template_reports,
-                f,
-                indent=2,
-            )
-
-        logger.info(f'Created template: {template_path}')
-        return template_path
-
-    except Exception as e:
-        logger.error(f'Error creating template for {dataset_name}: {e}')
-        raise HTTPException(status_code=500, detail=f'Failed to create template: {str(e)}')
-
-
-@router.post('/upload')
-async def upload_dataset(file: UploadFile = File(...)):
-    """
-    Upload dataset and immediately create groundtruth template.
-
-    This endpoint:
-    1. Saves the uploaded file to the data folder
-    2. Creates a groundtruth template in groundtruth2
-    3. Returns file info and template path
-    """
-    if not file.filename:
-        raise HTTPException(status_code=400, detail='No file provided')
-
-    # Reject filenames containing path separators
-    if any(sep in file.filename for sep in ('/', '\\')):
-        raise HTTPException(status_code=400, detail='Invalid filename')
-
-    # Sanitize to a basename to prevent path traversal
-    safe_filename = Path(file.filename).name
-
-    file_ext = Path(safe_filename).suffix.lower()
-    if file_ext not in ALLOWED_EXTENSIONS:
-        raise HTTPException(status_code=400, detail=f'File type {file_ext} not allowed')
-
-    try:
-        # Ensure directories exist
-        DATASETS_DIR.mkdir(parents=True, exist_ok=True)
-        GROUNDTRUTH_DIR.mkdir(parents=True, exist_ok=True)
-
-        # Avoid overwriting existing files by generating a unique name if needed
-        dataset_path = DATASETS_DIR / safe_filename
-        if dataset_path.exists():
-            timestamp = datetime.utcnow().strftime('%Y%m%d%H%M%S%f')
-            stem = Path(safe_filename).stem
-            suffix = Path(safe_filename).suffix
-            unique_filename = f'{stem}_{timestamp}{suffix}'
-            dataset_path = DATASETS_DIR / unique_filename
-        else:
-            unique_filename = safe_filename
-
-        # Save uploaded file to data folder
-        with open(dataset_path, 'wb') as buffer:
-            shutil.copyfileobj(file.file, buffer)
-
-        # Create groundtruth template immediately
-        template_path = create_groundtruth_template(dataset_path, unique_filename)
-
-        logger.info(f'Successfully uploaded {unique_filename} and created template')
-
-        return {
-            'message': 'Upload successful',
-            'filename': unique_filename,
-            'size': dataset_path.stat().st_size,
-            'template_path': str(template_path),
-            'dataset_path': str(dataset_path),
-        }
-
-    except Exception as e:
-        logger.error(f'Upload failed: {e}')
-        raise HTTPException(status_code=500, detail=f'Upload failed: {str(e)}')
-
-
-@router.post('/batch-process')
-async def start_batch_processing(background_tasks: BackgroundTasks, skip_existing: bool = True):
-    """
-    Start batch processing for all available models.
-
-    This endpoint runs all models in parallel with skip-existing option.
-    Returns immediately and runs processing in background.
-    """
-    global batch_status
-
-    if batch_status['is_running']:
-        raise HTTPException(status_code=400, detail='Batch processing already running')
-
-    # Get all datasets from groundtruth2
-    datasets = [d for d in GROUNDTRUTH_DIR.iterdir() if d.is_file() and d.suffix == '.json']
-
-    if not datasets:
-        raise HTTPException(status_code=404, detail='No datasets found in groundtruth2')
-
-    # Reset status
-    batch_status = {
-        'is_running': True,
-        'current_model': None,
-        'completed_models': [],
-        'failed_models': [],
-        'started_at': datetime.now().isoformat(),
-        'progress': 0,
-    }
-
-    # Start background processing
-    background_tasks.add_task(run_batch_processing, datasets, AVAILABLE_MODELS, skip_existing)
-
-    return {
-        'message': 'Batch processing started',
-        'datasets_count': len(datasets),
-        'models_count': len(AVAILABLE_MODELS),
-        'skip_existing': skip_existing,
-    }
-
-
-async def run_batch_processing(datasets: List[Path], models: List[str], skip_existing: bool):
-    """Run batch processing for all models and datasets."""
-    global batch_status
-
-    total_tasks = len(models) * len(datasets)
-    completed_tasks = 0
-
-    try:
-        for model in models:
-            batch_status['current_model'] = model
-            logger.info(f'Starting model: {model}')
-
-            try:
-                # Setup pipeline for this model
-                pipeline = setup_pipeline(model)
-
-                for dataset_file in datasets:
-                    dataset_name = dataset_file.stem
-
-                    # Check if result already exists
-                    model_result_dir = REPORTS_DIR / model
-                    expected_result = model_result_dir / f'{dataset_name}.json'
-
-                    if skip_existing and expected_result.exists():
-                        logger.info(f'Skipping {dataset_name} for {model} (already exists)')
-                        completed_tasks += 1
-                        batch_status['progress'] = int((completed_tasks / total_tasks) * 100)
-                        continue
-
-                    try:
-                        # Process dataset
-                        dataset_path = DATASETS_DIR / dataset_name
-
-                        # Fallbacks for legacy groundtruth files
-                        if not dataset_path.exists():
-                            dataset_path = DATASETS_DIR / f'{dataset_name}.csv'
-                        if not dataset_path.exists():
-                            dataset_path = DATASETS_DIR / f'{dataset_name}.xlsx'
-
-                        if not dataset_path.exists():
-                            logger.warning(f'Dataset file not found: {dataset_name}')
-                            continue
-
-                        reports = pipeline.execute(
-                            source=str(dataset_path), resource_id=dataset_name, is_url=False, isp_rules=None
-                        )
-                        result = [report.to_dict() for report in reports]
-
-                        # Save result
-                        model_result_dir.mkdir(parents=True, exist_ok=True)
-                        with open(expected_result, 'w') as f:
-                            json.dump(result, f, indent=2, default=str)
-
-                        logger.info(f'Completed {dataset_name} with {model}')
-
-                    except Exception as e:
-                        logger.error(f'Failed to process {dataset_name} with {model}: {e}')
-
-                    completed_tasks += 1
-                    batch_status['progress'] = int((completed_tasks / total_tasks) * 100)
-
-                batch_status['completed_models'].append(model)
-                logger.info(f'✅ Completed: {model}')
-
-            except Exception as e:
-                batch_status['failed_models'].append(model)
-                logger.error(f'❌ Failed: {model} - {e}')
-
-    finally:
-        batch_status['is_running'] = False
-        batch_status['current_model'] = None
-        batch_status['progress'] = 100
-
-        logger.info('Batch processing complete!')
-
-
-@router.get('/analytics/performance')
-async def get_performance_metrics():
-    """Calculate performance metrics for all models from test results."""
-    metrics = {
-        'overall_performance': [],
-        'personal_sensitive': [],
-        'non_personal_sensitive': [],
-        'sheet_personal_sensitive': [],
-        'sheet_non_personal_sensitive': [],
-        'sheet_overall_sensitive': [],
-        'cost_analysis': [],
-    }
-
-    for model_name in AVAILABLE_MODELS:
-        model_dir = REPORTS_DIR / model_name
-
-        if not model_dir.exists():
-            continue
-
-        # Initialize metrics for this model
-        model_metrics = {
-            'model': model_name,
-            'accuracy': 0.0,
-            'precision': 0.0,
-            'recall': 0.0,
-            'f1_score': 0.0,
-            'files_tested': 0,
-            'true_positives': 0,
-            'false_positives': 0,
-            'false_negatives': 0,
-            'true_negatives': 0,
-        }
-
-        personal_metrics = model_metrics.copy()
-        non_personal_metrics = model_metrics.copy()
-        sheet_personal_metrics = model_metrics.copy()
-        sheet_non_personal_metrics = model_metrics.copy()
-        sheet_overall_metrics = model_metrics.copy()
-
-        sheet_personal_metrics['sheets_tested'] = 0
-        sheet_non_personal_metrics['sheets_tested'] = 0
-        sheet_overall_metrics['sheets_tested'] = 0
-
-        # Process each dataset
-        for result_file in model_dir.glob('*.json'):
-            dataset_name = result_file.stem
-            groundtruth_path = GROUNDTRUTH_DIR / f'{dataset_name}.json'
-
-            if not groundtruth_path.exists():
-                continue
-
-            try:
-                # Load model results and ground truth
-                with open(result_file, 'r', encoding='utf-8') as f:
-                    model_data = json.load(f)
-                with open(groundtruth_path, 'r', encoding='utf-8') as f:
-                    groundtruth_data = json.load(f)
-
-                gt_personal = False
-                gt_non_personal = False
-                gt_sheets = {}
-                if isinstance(groundtruth_data, list):
-                    for sheet in groundtruth_data:
-                        if isinstance(sheet, dict):
-                            # Normalize flags to booleans to guard against placeholder strings like "TODO"
-                            personal_flag = _normalize_flag(sheet.get('personal_data_sensitive', False))
-                            non_personal_flag = _normalize_flag(sheet.get('non_personal_data_sensitive', False))
-                            if personal_flag:
-                                gt_personal = True
-                            if non_personal_flag:
-                                gt_non_personal = True
-                            gt_sheets[sheet.get('sheet_name', 'unknown')] = {
-                                'personal_data_sensitive': personal_flag,
-                                'non_personal_data_sensitive': non_personal_flag,
-                            }
-                elif isinstance(groundtruth_data, dict):
-                    sheets = groundtruth_data.get('sheets')
-                    if isinstance(sheets, list):
-                        # Newer template format: dict with a "sheets" list of per-sheet ground truth
-                        for sheet in sheets:
-                            if isinstance(sheet, dict):
-                                personal_flag = _normalize_flag(sheet.get('personal_data_sensitive', False))
-                                non_personal_flag = _normalize_flag(sheet.get('non_personal_data_sensitive', False))
-                                if personal_flag:
-                                    gt_personal = True
-                                if non_personal_flag:
-                                    gt_non_personal = True
-                                gt_sheets[sheet.get('sheet_name', 'unknown')] = {
-                                    'personal_data_sensitive': personal_flag,
-                                    'non_personal_data_sensitive': non_personal_flag,
-                                }
-                    else:
-                        # Legacy template format: flags at the top level, apply globally/one sheet
-                        gt_personal = _normalize_flag(groundtruth_data.get('personal_data_sensitive', False))
-                        gt_non_personal = _normalize_flag(groundtruth_data.get('non_personal_data_sensitive', False))
-                        gt_sheets['unknown'] = {
-                            'personal_data_sensitive': gt_personal,
-                            'non_personal_data_sensitive': gt_non_personal,
-                        }
-
-                gt_overall = gt_personal or gt_non_personal
-
-                # Determine model file-level predictions
-                model_personal = False
-                model_non_personal = False
-                model_overall = False
-
-                if isinstance(model_data, list):
-                    for sheet in model_data:
-                        if isinstance(sheet, dict):
-                            if sheet.get('personal_data_sensitive', False):
-                                model_personal = True
-                            if sheet.get('non_personal_data_sensitive', False):
-                                model_non_personal = True
-
-                    model_overall = model_personal or model_non_personal
-
-                # Update file-level confusion matrices
-                # Overall metrics
-                if model_overall and gt_overall:
-                    model_metrics['true_positives'] += 1
-                elif model_overall and not gt_overall:
-                    model_metrics['false_positives'] += 1
-                elif not model_overall and gt_overall:
-                    model_metrics['false_negatives'] += 1
-                else:
-                    model_metrics['true_negatives'] += 1
-
-                # Personal data metrics
-                if model_personal and gt_personal:
-                    personal_metrics['true_positives'] += 1
-                elif model_personal and not gt_personal:
-                    personal_metrics['false_positives'] += 1
-                elif not model_personal and gt_personal:
-                    personal_metrics['false_negatives'] += 1
-                else:
-                    personal_metrics['true_negatives'] += 1
-
-                # Non-personal data metrics
-                if model_non_personal and gt_non_personal:
-                    non_personal_metrics['true_positives'] += 1
-                elif model_non_personal and not gt_non_personal:
-                    non_personal_metrics['false_positives'] += 1
-                elif not model_non_personal and gt_non_personal:
-                    non_personal_metrics['false_negatives'] += 1
-                else:
-                    non_personal_metrics['true_negatives'] += 1
-
-                model_metrics['files_tested'] += 1
-                personal_metrics['files_tested'] += 1
-                non_personal_metrics['files_tested'] += 1
-
-                # Sheet-level metrics
-                if isinstance(model_data, list):
-                    for sheet in model_data:
-                        if not isinstance(sheet, dict):
-                            continue
-
-                        sheet_name = sheet.get('sheet_name', 'unknown')
-
-                        # For sheet-level, we need to compare with ground truth if available
-                        sheet_personal = sheet.get('personal_data_sensitive', False)
-                        sheet_non_personal = sheet.get('non_personal_data_sensitive', False)
-
-                        sheet_gt = gt_sheets.get(sheet_name, gt_sheets.get('unknown', {}))
-                        sheet_gt_personal = sheet_gt.get('personal_data_sensitive', False)
-                        sheet_gt_non_personal = sheet_gt.get('non_personal_data_sensitive', False)
-                        sheet_gt_overall = sheet_gt_personal or sheet_gt_non_personal
-
-                        # Update sheet-level confusion matrices
-                        if sheet_personal and sheet_gt_personal:
-                            sheet_personal_metrics['true_positives'] += 1
-                        elif sheet_personal and not sheet_gt_personal:
-                            sheet_personal_metrics['false_positives'] += 1
-                        elif not sheet_personal and sheet_gt_personal:
-                            sheet_personal_metrics['false_negatives'] += 1
-                        else:
-                            sheet_personal_metrics['true_negatives'] += 1
-
-                        if sheet_non_personal and sheet_gt_non_personal:
-                            sheet_non_personal_metrics['true_positives'] += 1
-                        elif sheet_non_personal and not sheet_gt_non_personal:
-                            sheet_non_personal_metrics['false_positives'] += 1
-                        elif not sheet_non_personal and sheet_gt_non_personal:
-                            sheet_non_personal_metrics['false_negatives'] += 1
-                        else:
-                            sheet_non_personal_metrics['true_negatives'] += 1
-
-                        # Overall sheet-level binary classification
-                        # (sensitive if either personal OR non-personal is true)
-                        sheet_model_overall = sheet_personal or sheet_non_personal
-                        if sheet_model_overall and sheet_gt_overall:
-                            sheet_overall_metrics['true_positives'] += 1
-                        elif sheet_model_overall and not sheet_gt_overall:
-                            sheet_overall_metrics['false_positives'] += 1
-                        elif not sheet_model_overall and sheet_gt_overall:
-                            sheet_overall_metrics['false_negatives'] += 1
-                        else:
-                            sheet_overall_metrics['true_negatives'] += 1
-
-                        sheet_personal_metrics['sheets_tested'] += 1
-                        sheet_non_personal_metrics['sheets_tested'] += 1
-                        sheet_overall_metrics['sheets_tested'] += 1
-
-            except Exception as e:
-                logger.warning(f'Could not process {dataset_name} for {model_name}: {e}')
-                continue
-
-        # Calculate metrics for each category
-        def calculate_metrics(confusion_matrix, is_sheet=False):
-            tp = confusion_matrix['true_positives']
-            fp = confusion_matrix['false_positives']
-            fn = confusion_matrix['false_negatives']
-            tn = confusion_matrix['true_negatives']
-
-            accuracy = (tp + tn) / (tp + fp + fn + tn) if (tp + fp + fn + tn) > 0 else 0
-            precision = tp / (tp + fp) if (tp + fp) > 0 else 0
-            recall = tp / (tp + fn) if (tp + fn) > 0 else 0
-            f1 = 2 * (precision * recall) / (precision + recall) if (precision + recall) > 0 else 0
-
-            result = {
-                'model': confusion_matrix['model'],
-                'accuracy': accuracy,
-                'precision': precision,
-                'recall': recall,
-                'f1_score': f1,
-                'true_positives': tp,
-                'false_positives': fp,
-                'true_negatives': tn,
-                'false_negatives': fn,
-            }
-            if is_sheet:
-                result['sheets_tested'] = confusion_matrix.get('sheets_tested', 0)
-            else:
-                result['files_tested'] = confusion_matrix.get('files_tested', 0)
-            return result
-
-        # Add calculated metrics to results
-        metrics['overall_performance'].append(calculate_metrics(model_metrics, False))
-        metrics['personal_sensitive'].append(calculate_metrics(personal_metrics, False))
-        metrics['non_personal_sensitive'].append(calculate_metrics(non_personal_metrics, False))
-        metrics['sheet_personal_sensitive'].append(calculate_metrics(sheet_personal_metrics, True))
-        metrics['sheet_non_personal_sensitive'].append(calculate_metrics(sheet_non_personal_metrics, True))
-        metrics['sheet_overall_sensitive'].append(calculate_metrics(sheet_overall_metrics, True))
-
-    return metrics
-
-
-@router.get('/analytics/cost')
-async def get_cost_analysis():
-    """Calculate cost analysis from token usage in results."""
-    cost_data = []
-
-    # Pricing per 1M tokens (adjust as needed)
-    pricing = {
-        'gpt-4.1-nano': 0.17,
-        'gpt-4.1-mini': 0.70,
-        'gpt-4.1': 3.50,
-        'gpt-5-nano': 0.15,
-        'gpt-5-mini': 0.69,
-        'DeepSeek-V3.1': 0.84,
-    }
-
-    for model_name in AVAILABLE_MODELS:
-        model_dir = REPORTS_DIR / model_name
-
-        if not model_dir.exists():
-            continue
-
-        total_prompt_tokens = 0
-        total_completion_tokens = 0
-        reports_count = 0
-
-        for result_file in model_dir.glob('*.json'):
-            try:
-                with open(result_file, 'r', encoding='utf-8') as f:
-                    data = json.load(f)
-
-                # Extract token usage from the data structure
-                if isinstance(data, list):
-                    for sheet in data:
-                        if isinstance(sheet, dict):
-                            total_prompt_tokens += sheet.get('prompt_tokens', 0)
-                            total_completion_tokens += sheet.get('completion_tokens', 0)
-
-                reports_count += 1
-
-            except Exception as e:
-                logger.warning(f'Could not extract token data from {result_file}: {e}')
-                continue
-
-        total_tokens = total_prompt_tokens + total_completion_tokens
-        total_cost = (total_tokens / 1000000) * pricing.get(model_name, 0)
-        cost_per_report = total_cost / reports_count if reports_count > 0 else 0
-
-        cost_data.append(
-            {
-                'model': model_name,
-                'reports': reports_count,
-                'prompt_tokens': total_prompt_tokens,
-                'completion_tokens': total_completion_tokens,
-                'total_tokens': total_tokens,
-                'price_per_1m': pricing.get(model_name, 0),
-                'total_cost': total_cost,
-                'cost_per_report': cost_per_report,
-            }
-        )
-
-    return {'cost_analysis': cost_data, 'pricing': pricing}
-
-
-@router.get('/batch-status')
-async def get_batch_status():
-    """Get current batch processing status."""
-    return batch_status
+# ---------------------------------------------------------------------------
+# Batch state  (replace with Redis / DB in production)
+# ---------------------------------------------------------------------------
+
+_batch_status = BatchStatus(
+    is_running=False,
+    current_model=None,
+    completed_models=[],
+    failed_models=[],
+    started_at=None,
+    progress=0,
+)
+
+
+# ---------------------------------------------------------------------------
+# Internal helpers
+# ---------------------------------------------------------------------------
+
+
+def _safe_filename(filename: str) -> str:
+    if any(sep in filename for sep in ('/', '\\')):
+        raise HTTPException(400, 'Invalid filename')
+    return Path(filename).name
+
+
+def _unique_path(directory: Path, filename: str) -> Path:
+    target = directory / filename
+    if not target.exists():
+        return target
+    stem, suffix = Path(filename).stem, Path(filename).suffix
+    ts = datetime.utcnow().strftime('%Y%m%d%H%M%S%f')
+    return directory / f'{stem}_{ts}{suffix}'
+
+
+# ---------------------------------------------------------------------------
+# Endpoints
+# ---------------------------------------------------------------------------
 
 
 @router.get('/datasets')
 async def list_datasets():
-    """List all available datasets in groundtruth2."""
     datasets = []
-    for file in GROUNDTRUTH_DIR.iterdir():
-        if file.is_file() and file.suffix == '.json':
-            try:
-                with open(file, 'r') as f:
-                    data = json.load(f)
-                    datasets.append(
-                        {
-                            'name': file.stem,
-                            'status': data.get('status', 'unknown'),
-                            'created_at': data.get('created_at'),
-                            'path': str(file),
-                        }
-                    )
-            except Exception as e:
-                # Include files that can't be parsed as well
-                logger.warning(f'Could not read dataset info for {file.name}: {e}')
-                datasets.append(
-                    {'name': file.stem, 'status': 'error', 'created_at': None, 'path': str(file), 'error': str(e)}
-                )
-
+    for f in GROUNDTRUTH_DIR.iterdir():
+        if not (f.is_file() and f.suffix == '.json'):
+            continue
+        try:
+            sdd = load_sdd(f)
+            datasets.append({'name': f.stem, 'sensitive': sdd.sensitive, 'timestamp': sdd.timestamp})
+        except Exception as exc:
+            datasets.append({'name': f.stem, 'error': str(exc)})
     return {'datasets': datasets}
 
 
 @router.get('/models')
 async def list_models():
-    """List all available models for processing."""
     return {'models': AVAILABLE_MODELS}
 
 
 @router.get('/results/{model_name}')
 async def get_model_results(model_name: str):
-    """Get all results for a specific model."""
     if model_name not in AVAILABLE_MODELS:
-        raise HTTPException(status_code=404, detail=f'Model {model_name} not found')
+        raise HTTPException(404, f'Unknown model: {model_name}')
+
+    model_dir = REPORTS_DIR / model_name
+    if not model_dir.exists():
+        return {'results': []}
 
     results = []
-    model_dir = REPORTS_DIR / model_name
-
-    if not model_dir.exists():
-        return {'results': results}
-
     for result_file in model_dir.glob('*.json'):
         try:
-            with open(result_file, 'r', encoding='utf-8') as f:
-                data = json.load(f)
-
-            # Handle the actual data structure (array of sheet results)
-            dataset_name = result_file.stem
-            processed_at = 'Unknown'
-
-            if isinstance(data, list) and len(data) > 0:
-                # Get the first sheet's timestamp
-                first_sheet = data[0]
-                processed_at = first_sheet.get('processing_timestamp', 'Unknown')
-
-                # Calculate totals from all sheets
-                total_pii = sum(1 for sheet in data if sheet.get('personal_data_sensitive', False))
-                total_rows = sum(sheet.get('n_records', 0) for sheet in data)
-
-                # Determine sensitivity based on PII detection
-                sensitivity = 'Low'
-                if any(sheet.get('personal_data_sensitive', False) for sheet in data):
-                    sensitivity = 'High'
-                elif any(sheet.get('non_personal_data_sensitive', False) for sheet in data):
-                    sensitivity = 'Medium'
-
-                results.append(
-                    {
-                        'model': model_name,
-                        'dataset': dataset_name,
-                        'processed_at': processed_at,
-                        'file_path': str(result_file),
-                        'sensitivity': sensitivity,
-                        'pii_count': total_pii,
-                        'row_count': total_rows,
-                        'status': 'completed',
-                    }
-                )
-            else:
-                # Fallback for unexpected format
-                results.append(
-                    {
-                        'model': model_name,
-                        'dataset': dataset_name,
-                        'processed_at': datetime.fromtimestamp(result_file.stat().st_mtime).isoformat(),
-                        'file_path': str(result_file),
-                        'status': 'completed',
-                    }
-                )
-
-        except Exception as e:
-            logger.warning(f'Could not read result file {result_file}: {e}')
+            sdd = load_sdd(result_file)
+            total_rows = sum(s.n_records for s in sdd.sdd_report)
             results.append(
                 {
                     'model': model_name,
                     'dataset': result_file.stem,
-                    'processed_at': datetime.fromtimestamp(result_file.stat().st_mtime).isoformat(),
-                    'file_path': str(result_file),
-                    'status': 'failed',
+                    'processed_at': sdd.timestamp,
+                    'sensitive': sdd.sensitive,
+                    'sheet_count': len(sdd.sdd_report),
+                    'total_rows': total_rows,
+                    'status': 'completed',
+                }
+            )
+        except Exception as exc:
+            try:
+                mtime = datetime.fromtimestamp(result_file.stat().st_mtime).isoformat()
+            except Exception:
+                mtime = datetime.now().isoformat()
+            results.append(
+                {
+                    'model': model_name,
+                    'dataset': result_file.stem,
+                    'processed_at': mtime,
+                    'sensitive': 'error',
+                    'sheet_count': 0,
+                    'total_rows': 0,
+                    'status': 'error',
+                    'error': str(exc),
                 }
             )
 
@@ -761,289 +153,82 @@ async def get_model_results(model_name: str):
 
 @router.get('/report/{model_name}/{dataset_name}')
 async def get_report_detail(model_name: str, dataset_name: str):
-    """Get detailed report for a specific model and dataset."""
     if model_name not in AVAILABLE_MODELS:
-        raise HTTPException(status_code=404, detail=f'Model {model_name} not found')
+        raise HTTPException(404, f'Unknown model: {model_name}')
 
     report_path = REPORTS_DIR / model_name / f'{dataset_name}.json'
-    groundtruth_path = GROUNDTRUTH_DIR / f'{dataset_name}.json'
+    gt_path = GROUNDTRUTH_DIR / f'{dataset_name}.json'
 
     if not report_path.exists():
-        raise HTTPException(status_code=404, detail=f'Report not found for {model_name}/{dataset_name}')
+        raise HTTPException(404, f'Report not found: {model_name}/{dataset_name}')
 
     try:
-        with open(report_path, 'r', encoding='utf-8') as f:
-            data = json.load(f)
+        pred = load_sdd(report_path)
+        gt = load_sdd(gt_path) if gt_path.exists() else None
+    except Exception as exc:
+        raise HTTPException(500, f'Failed to load report: {exc}')
 
-        # Load ground truth data if available
-        groundtruth_data = None
-        if groundtruth_path.exists():
-            with open(groundtruth_path, 'r', encoding='utf-8') as f:
-                groundtruth_data = json.load(f)
+    gt_map = {s.sheet_name.strip().lower(): s for s in gt.sdd_report} if gt else {}
 
-        # Format groundtruth data to file-level format for the frontend
-        formatted_groundtruth = None
-        if groundtruth_data is not None:
-            if isinstance(groundtruth_data, list):
-                has_personal = any(
-                    s.get('personal_data_sensitive', False) for s in groundtruth_data if isinstance(s, dict)
-                )
-                has_non_personal = any(
-                    s.get('non_personal_data_sensitive', False) for s in groundtruth_data if isinstance(s, dict)
-                )
-                formatted_groundtruth = {
-                    'personal_data_sensitive': has_personal,
-                    'non_personal_data_sensitive': has_non_personal,
-                }
-            elif isinstance(groundtruth_data, dict):
-                formatted_groundtruth = {
-                    'personal_data_sensitive': groundtruth_data.get('personal_data_sensitive', False),
-                    'non_personal_data_sensitive': groundtruth_data.get('non_personal_data_sensitive', False),
-                }
-
-        # Handle the actual data structure (array of sheet results)
-        formatted_data = {
-            'dataset_name': dataset_name,
-            'model': model_name,
-            'processed_at': 'Unknown',
-            'sheets': {},
-            'groundtruth': formatted_groundtruth,
+    sheets_out = {}
+    for sheet in pred.sdd_report:
+        key = sheet.sheet_name.strip().lower()
+        gt_sheet = gt_map.get(key)
+        sheets_out[sheet.sheet_name] = {
+            'sheet_name': sheet.sheet_name,
+            'n_records': sheet.n_records,
+            'personal_data_sensitive': sheet.personal_data_sensitive,
+            'non_personal_data_sensitive': sheet.non_personal_data_sensitive,
+            'personal_data': sheet.personal_data.model_dump(),
+            'non_personal_data': sheet.non_personal_data.model_dump(),
+            'columns': [c.model_dump() for c in sheet.columns],
+            'is_readme': sheet.is_readme,
+            'groundtruth': {
+                'personal_data_sensitive': gt_sheet.personal_data_sensitive if gt_sheet else None,
+                'non_personal_data_sensitive': gt_sheet.non_personal_data_sensitive if gt_sheet else None,
+            },
         }
 
-        if isinstance(data, list) and len(data) > 0:
-            # Get processing timestamp from first sheet
-            formatted_data['processed_at'] = data[0].get('processing_timestamp', 'Unknown')
-
-            # Process each sheet
-            for sheet_data in data:
-                if isinstance(sheet_data, dict):
-                    sheet_name = sheet_data.get('sheet_name', 'unknown')
-
-                    # Debug logging to see what we're working with
-                    logger.info(f'Processing sheet: {sheet_name}')
-                    logger.info(f'Non-personal data: {sheet_data.get("non_personal_data", "NOT FOUND")}')
-
-                    # Extract column predictions
-                    predictions = {}
-                    columns = sheet_data.get('columns', [])
-
-                    # Create predictions for each column
-                    for col in columns:
-                        if isinstance(col, dict):
-                            col_name = col.get('column_name', 'unknown')
-                            sample_values = col.get('sample_values', [])
-
-                            predictions[col_name] = {
-                                'prediction': (
-                                    'personal_data_sensitive'
-                                    if sheet_data.get('personal_data_sensitive', False)
-                                    else 'non_personal_data_sensitive'
-                                ),
-                                'confidence': None,  # Not available in current format
-                                'reasoning': (
-                                    f'Processed by {model_name} on {sheet_data.get("processing_timestamp", "Unknown")}'
-                                ),
-                                'sample_values': sample_values,
-                                'explanation': sheet_data.get('explanation', ''),
-                                'isp_used': sheet_data.get('isp_used', 'Unknown'),
-                            }
-
-                    # Calculate metadata
-                    total_rows = sheet_data.get('n_records', 0)
-                    pii_detected = 1 if sheet_data.get('personal_data_sensitive', False) else 0
-                    sensitivity_level = 'High' if sheet_data.get('personal_data_sensitive', False) else 'Low'
-
-                    formatted_data['sheets'][sheet_name] = {
-                        'columns': [
-                            col.get('column_name', 'unknown') if isinstance(col, dict) else str(col) for col in columns
-                        ],
-                        'predictions': predictions,
-                        'metadata': {
-                            'total_rows': total_rows,
-                            'pii_detected': pii_detected,
-                            'sensitivity_level': sensitivity_level,
-                            'personal_data_sensitive': sheet_data.get('personal_data_sensitive', False),
-                            'non_personal_data_sensitive': sheet_data.get('non_personal_data_sensitive', False),
-                            'explanation': sheet_data.get('explanation', ''),
-                            'non_personal_explanation': sheet_data.get('non_personal_data', {}).get('explanation', ''),
-                            'non_personal_sensitivity': sheet_data.get('non_personal_data', {}).get('sensitivity', ''),
-                            'isp_used': sheet_data.get('isp_used', 'Unknown'),
-                        },
-                    }
-
-                    # Debug logging to see what we extracted
-                    logger.info(
-                        'Extracted non_personal_explanation: '
-                        f'{sheet_data.get("non_personal_data", {}).get("explanation", "NOT FOUND")}'
-                    )
-                    logger.info(
-                        'Extracted non_personal_sensitivity: '
-                        f'{sheet_data.get("non_personal_data", {}).get("sensitivity", "NOT FOUND")}'
-                    )
-
-        return formatted_data
-
-    except Exception as e:
-        logger.error(f'Error reading report {report_path}: {e}')
-        raise HTTPException(status_code=500, detail='Failed to read report')
+    return {
+        'dataset_name': dataset_name,
+        'model': model_name,
+        'timestamp': pred.timestamp,
+        'sensitive': pred.sensitive,
+        'groundtruth_sensitive': gt.sensitive if gt else None,
+        'sheets': sheets_out,
+    }
 
 
-@router.post('/generate-template-report')
-async def generate_template_report(file_path: str, resource_id: Optional[str] = None):
-    """
-    Generate a template data report for a dataset file.
+@router.get('/analytics/performance')
+async def get_performance_metrics():
+    categories = [
+        'overall_performance',
+        'personal_sensitive',
+        'non_personal_sensitive',
+        'sheet_personal_sensitive',
+        'sheet_non_personal_sensitive',
+        'sheet_overall_sensitive',
+    ]
+    result = {c: [] for c in categories}
 
-    This endpoint creates a structured report similar to create_data_report from ProcessDatasetUseCase,
-    but stops before the classification pipeline steps. It's useful for creating templates
-    that can be manually reviewed and completed.
+    for model in AVAILABLE_MODELS:
+        model_dir = REPORTS_DIR / model
+        if not model_dir.exists():
+            continue
+        metrics = compute_performance(model, model_dir, GROUNDTRUTH_DIR)
+        if metrics:
+            for key, value in metrics.to_response().items():
+                result[key].append(value)
 
-    Args:
-        file_path: Path to the dataset file (CSV or Excel)
-        resource_id: Optional resource identifier
-
-    Returns:
-        Template report with column information and sample data
-    """
-    try:
-        # Validate file path
-        dataset_path = Path(file_path)
-        if not dataset_path.exists():
-            raise HTTPException(status_code=404, detail=f'File not found: {file_path}')
-
-        file_ext = dataset_path.suffix.lower()
-        if file_ext not in ALLOWED_EXTENSIONS:
-            raise HTTPException(status_code=400, detail=f'File type {file_ext} not allowed')
-
-        # Load data using SmartDataLoader
-        data_loader = SmartDataLoader(max_rows=1000)
-        sheets_data = data_loader.load_from_file(str(dataset_path))
-
-        template_reports = []
-
-        for sheet_name, df in sheets_data.items():
-            # Check if it's a README sheet (same logic as ProcessDatasetUseCase)
-            normalized = sheet_name.lower().replace(' ', '')
-            if any(keyword in normalized for keyword in ['readme', 'instructions', 'metadata', 'info']):
-                logger.info(f"Sheet '{sheet_name}' identified as README/metadata")
-                report = {
-                    'resource_id': resource_id,
-                    'file_name': str(dataset_path),
-                    'file_url': None,
-                    'sheet_name': sheet_name,
-                    'processing_timestamp': datetime.now().isoformat(),
-                    'n_records': len(df) if hasattr(df, '__len__') else 0,
-                    'is_readme': True,
-                    'status': 'template_readme',
-                }
-            else:
-                # Create template report (mimicking create_data_report but stopping before classification)
-                logger.debug(f"Creating template data report for sheet '{sheet_name}' with {len(df)} rows")
-
-                # Sample data (same as create_data_report)
-                sample_size = 5
-                sample_dict = data_loader.sample_dataframe(df, sample_size)
-                logger.debug(f'Sampled {len(sample_dict)} columns')
-
-                # Create report structure (similar to SheetReport but as dict)
-                report = {
-                    'resource_id': resource_id,
-                    'file_name': str(dataset_path),
-                    'file_url': None,
-                    'sheet_name': sheet_name,
-                    'processing_timestamp': datetime.now().isoformat(),
-                    'n_records': len(df),
-                    'n_columns': len(sample_dict),
-                    'status': 'template_data',
-                    'columns': [],
-                    # Classification fields left empty for manual completion
-                    'personal_data_sensitive': None,
-                    'non_personal_data_sensitive': None,
-                    'explanation': '',
-                    'isp_used': None,
-                    'pii_classifier_model': None,
-                    'pii_reflection_model': None,
-                    'non_pii_classifier_model': None,
-                    'prompt_tokens': 0,
-                    'completion_tokens': 0,
-                }
-
-                # Create columns (similar to Column entities but as dicts)
-                for col_name, sample_values in sample_dict.items():
-                    column_info = {
-                        'column_name': col_name,
-                        'sample_values': sample_values,
-                        # Classification fields left empty for manual completion
-                        'pii_classification': {
-                            'entity_type': None,
-                            'confidence': None,
-                            'explanation': '',
-                        },
-                        'pii_reflection': {
-                            'sensitivity_level': None,
-                            'confidence': None,
-                            'explanation': '',
-                        },
-                        'non_pii_classification': {
-                            'category': None,
-                            'sensitivity': None,
-                            'confidence': None,
-                            'explanation': '',
-                        },
-                    }
-                    report['columns'].append(column_info)
-
-                logger.debug(f'Template data report created for {len(report["columns"])} columns')
-
-            template_reports.append(report)
-
-        # Save template report
-        template_dir = REPORTS_DIR / 'templates'
-        template_dir.mkdir(parents=True, exist_ok=True)
-
-        template_filename = f'{dataset_path.stem}_template.json'
-        template_path = template_dir / template_filename
-
-        with open(template_path, 'w', encoding='utf-8') as f:
-            json.dump(
-                {
-                    'dataset_name': dataset_path.stem,
-                    'file_path': str(dataset_path),
-                    'created_at': datetime.now().isoformat(),
-                    'template_type': 'data_report',
-                    'sheets': template_reports,
-                },
-                f,
-                indent=2,
-                default=str,
-            )
-
-        logger.info(f'Generated template report: {template_path}')
-
-        return {
-            'message': 'Template report generated successfully',
-            'template_path': str(template_path),
-            'dataset_name': dataset_path.stem,
-            'sheets_processed': len(template_reports),
-            'total_columns': sum(len(r.get('columns', [])) for r in template_reports),
-            'template_data': template_reports,
-        }
-
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f'Error generating template report for {file_path}: {e}')
-        raise HTTPException(status_code=500, detail=f'Failed to generate template report: {str(e)}')
+    return result
 
 
-@router.delete('/batch-stop')
-async def stop_batch_processing():
-    """Stop current batch processing (placeholder)."""
-    global batch_status
-    if not batch_status['is_running']:
-        raise HTTPException(status_code=400, detail='No batch processing running')
-
-    # In a real implementation, you'd need to handle graceful cancellation
-    batch_status['is_running'] = False
-    batch_status['current_model'] = None
-
-    return {'message': 'Batch processing stop requested'}
+@router.get('/analytics/cost')
+async def get_cost_analysis():
+    cost_data = []
+    for model in AVAILABLE_MODELS:
+        model_dir = REPORTS_DIR / model
+        if not model_dir.exists():
+            continue
+        cost_data.append(compute_cost(model, model_dir, PRICING.get(model, 0)))
+    return {'cost_analysis': cost_data, 'pricing': PRICING}

@@ -3,25 +3,15 @@
 import logging
 from typing import List, Optional, Dict, Any
 from datetime import datetime
-import json
 
-from ...domain.entities import SheetReport, Column, NonPIIClassification, PersonalDataClassification
-from ...domain.value_objects import PIIEntityType, SensitivityLevel
-from ...domain.exceptions import DataProcessingError
-from ..interfaces import ILLMProvider, IDataLoader
-from ...shared.utils.prompt_manager import PromptManager
+from src.domain.entities import SheetReport, Column, NonPIIClassification, PersonalDataClassification
+from src.domain.value_objects import PIIEntityType, SensitivityLevel
+from src.domain.exceptions import DataProcessingError
+from src.infrastructure.data_loader import SmartDataLoader
+from src.infrastructure.openai_provider import OpenAIProvider
+from src.shared.utils.prompt_manager import PromptManager
 
 logger = logging.getLogger(__name__)
-
-
-def parse_llm_json(s: str):
-    s = s.strip()
-
-    if s.startswith('```'):
-        # remove ```json and closing ```
-        s = s.split('```', 2)[1].strip()
-
-    return json.loads(s)
 
 
 class ProcessDatasetUseCase:
@@ -39,11 +29,11 @@ class ProcessDatasetUseCase:
 
     def __init__(
         self,
-        data_loader: IDataLoader,
-        pii_llm_provider: Optional[ILLMProvider] = None,
-        pii_reflection_llm_provider: Optional[ILLMProvider] = None,
-        non_pii_llm_provider: Optional[ILLMProvider] = None,
-        readme_llm_provider: Optional[ILLMProvider] = None,
+        data_loader: SmartDataLoader,
+        pii_llm_provider: Optional[OpenAIProvider] = None,
+        pii_reflection_llm_provider: Optional[OpenAIProvider] = None,
+        non_pii_llm_provider: Optional[OpenAIProvider] = None,
+        readme_llm_provider: Optional[OpenAIProvider] = None,
         prompt_manager: Optional[PromptManager] = None,
         sample_size: int = 5,
     ):
@@ -102,7 +92,14 @@ class ProcessDatasetUseCase:
         try:
             # Step 1: Load data
             logger.debug('Step 1: Loading data...')
-            if is_url:
+
+            # Fail-safe: Check if source is a URL even if is_url is False
+            actual_is_url = is_url
+            if not is_url and source and source.startswith(('http://', 'https://')):
+                logger.warning(f'Source looks like a URL but is_url=False. Overriding to True: {source}')
+                actual_is_url = True
+
+            if actual_is_url:
                 sheets = self.data_loader.load_from_url(source, http_headers=http_headers)
             else:
                 logger.info(f'Loading from file: {source}')
@@ -266,6 +263,13 @@ class ProcessDatasetUseCase:
                 column.pii_classification.entity_type = PIIEntityType.NONE
                 continue
 
+            # Heuristic: Latitude/Longitude columns are Geo Coordinates
+            normalized_name = column.name.lower().strip()
+            if normalized_name in ('latitude', 'longitude'):
+                column.pii_classification.entity_type = PIIEntityType.GEO_COORDINATES
+                logger.info(f"Heuristic: Column '{column.name}' classified as GEO_COORDINATES")
+                continue
+
             try:
                 # Render prompt (use latest version)
                 prompt = self.prompt_manager.get_prompt(
@@ -278,7 +282,16 @@ class ProcessDatasetUseCase:
                 result, comp_tokens, prompt_tokens = self.pii_llm.generate(prompt, max_tokens=8)
 
                 # Parse result
-                column.pii_classification.entity_type = PIIEntityType.from_string(result)
+                entity_type = PIIEntityType.from_string(result)
+                if entity_type in (PIIEntityType.UNDETERMINED, PIIEntityType.UNKNOWN):
+                    logger.warning(
+                        f"PII classification returned {entity_type.value} for column '{column.name}'. "
+                        f'Raw response: {repr(result)}'
+                    )
+                    column.pii_classification.entity_type = PIIEntityType.UNKNOWN
+                    column.pii_classification.sensitive = True
+                else:
+                    column.pii_classification.entity_type = entity_type
 
                 # Update token counts
                 report.completion_tokens += comp_tokens
@@ -288,7 +301,8 @@ class ProcessDatasetUseCase:
 
             except Exception as e:
                 logger.error(f"PII classification failed for column '{column.name}': {e}")
-                column.pii_classification.entity_type = PIIEntityType.UNDETERMINED
+                column.pii_classification.entity_type = PIIEntityType.UNKNOWN
+                column.pii_classification.sensitive = True
 
         report.pii_classifier_model = self.pii_llm.model_name
         return report
@@ -329,6 +343,7 @@ class ProcessDatasetUseCase:
             PIIEntityType.EMAIL_ADDRESS,
             PIIEntityType.PHONE_NUMBER,
             PIIEntityType.PERSON_NAME,
+            PIIEntityType.GEO_COORDINATES,
         }
 
         if any(entity_type in sensitive_pii_entities for entity_type in pii_entity_types):
@@ -374,6 +389,12 @@ class ProcessDatasetUseCase:
             # Parse JSON result using the new entity
             report.personal_data_classification = PersonalDataClassification.from_dict(result)
 
+            if report.personal_data_classification.sensitivity == SensitivityLevel.UNDETERMINED:
+                logger.warning(
+                    f"PII sensitivity classification returned UNDETERMINED for sheet '{report.sheet_name}'. "
+                    f'Raw response: {repr(result)}'
+                )
+
             # Update the legacy boolean flag for backward compatibility
             # True for both MODERATE_SENSITIVE and HIGH_SENSITIVE
             report.personal_data_sensitive = report.personal_data_classification.sensitivity.is_sensitive()
@@ -393,15 +414,12 @@ class ProcessDatasetUseCase:
 
         except Exception as e:
             logger.error(f'PII sensitivity classification failed: {e}')
-            # Default to sensitive on error (fail safe)
             report.personal_data_classification.sensitivity = SensitivityLevel.HIGH_SENSITIVE
-            report.personal_data_classification.explanation = (
-                'Classification failed due to an internal error. Sensitivity set to HIGH_SENSITIVE as a safe default.'
-            )
+            report.personal_data_classification.explanation = f'Classification failed due to an error: {e}'
             report.personal_data_sensitive = True
-            # Set sensitive=True for columns with entity_type != 'None'
             for column in report.columns:
-                column.pii_classification.sensitive = column.pii_classification.entity_type != PIIEntityType.NONE
+                if column.pii_classification.entity_type != PIIEntityType.NONE:
+                    column.pii_classification.sensitive = True
 
         report.pii_reflection_model = self.pii_reflection_llm.model_name
 
@@ -438,6 +456,21 @@ class ProcessDatasetUseCase:
 
             report.non_pii_classification = NonPIIClassification.from_dict(result)
 
+            # Promoted UNDETERMINED sensitivity to SEVERE_SENSITIVE as a safe default
+            if report.non_pii_classification.sensitivity == SensitivityLevel.UNDETERMINED:
+                logger.warning(
+                    f"Non-PII classification returned UNDETERMINED for sheet '{report.sheet_name}'. "
+                    f'Raw response: {repr(result)}'
+                )
+                report.non_pii_classification.sensitivity = SensitivityLevel.SEVERE_SENSITIVE
+                msg = 'Classification returned UNDETERMINED. Promoted to SEVERE_SENSITIVE as a safe default.'
+                if report.non_pii_classification.explanation:
+                    report.non_pii_classification.explanation = (
+                        f'{msg} Original explanation: {report.non_pii_classification.explanation}'
+                    )
+                else:
+                    report.non_pii_classification.explanation = msg
+
             # Store ISP name if provided
             if isp_rules:
                 # Extract ISP name - could be from 'country' field or use a default
@@ -452,78 +485,11 @@ class ProcessDatasetUseCase:
 
         except Exception as e:
             logger.error(f'Non-PII classification failed: {e}')
-            report.non_pii_classification.sensitivity = SensitivityLevel.UNDETERMINED
+            report.non_pii_classification.sensitivity = SensitivityLevel.SEVERE_SENSITIVE
+            report.non_pii_classification.explanation = f'Classification failed due to an error: {e}'
 
         report.non_pii_model = self.non_pii_llm.model_name
         return report
-
-    def _extract_sensitivity_from_text(self, text: str) -> SensitivityLevel:
-        """
-        Extract sensitivity level from LLM response text.
-
-        Handles formats like:
-        - "Classification: MODERATE_SENSITIVE\n\nExplanation: ..."
-        - "MODERATE_SENSITIVE"
-        - "The classification is MODERATE_SENSITIVE because..."
-
-        Args:
-            text: LLM response text
-
-        Returns:
-            Extracted SensitivityLevel
-        """
-        if not text:
-            return SensitivityLevel.UNDETERMINED
-
-        # Try to extract from "Classification: LEVEL" format
-        if 'classification:' in text.lower():
-            lines = text.split('\n')
-            for line in lines:
-                if 'classification:' in line.lower():
-                    # Extract the part after "Classification:"
-                    parts = line.split(':', 1)
-                    if len(parts) > 1:
-                        level_text = parts[1].strip()
-                        # Try to parse this
-                        level = SensitivityLevel.from_string(level_text)
-                        if level != SensitivityLevel.UNDETERMINED:
-                            return level
-
-        # Try to find sensitivity keywords in the text
-        text_upper = text.upper()
-
-        # Check for each sensitivity level (most specific first)
-        if 'SEVERE_SENSITIVE' in text_upper or 'SEVERE-SENSITIVE' in text_upper:
-            return SensitivityLevel.SEVERE_SENSITIVE
-        if 'HIGH_SENSITIVE' in text_upper or 'HIGH-SENSITIVE' in text_upper:
-            return SensitivityLevel.HIGH_SENSITIVE
-        if 'MODERATE_SENSITIVE' in text_upper or 'MODERATE-SENSITIVE' in text_upper:
-            return SensitivityLevel.MODERATE_SENSITIVE
-        if 'MEDIUM_SENSITIVE' in text_upper or 'MEDIUM-SENSITIVE' in text_upper:
-            return SensitivityLevel.MEDIUM_SENSITIVE
-        if 'NON_SENSITIVE' in text_upper or 'NON-SENSITIVE' in text_upper:
-            return SensitivityLevel.NON_SENSITIVE
-
-        # Fallback to the original from_string method
-        return SensitivityLevel.from_string(text)
-
-    def _create_table_summary(self, report: SheetReport) -> str:
-        """Create a summary of the table for non-PII classification."""
-        summary_parts = [
-            f'Table: {report.sheet_name}',
-            f'Rows: {report.n_records}',
-            f'Columns: {report.n_columns}',
-            '\nColumn Overview:',
-        ]
-
-        for column in report.columns[:10]:  # First 10 columns
-            pii_info = f' (PII: {column.pii_classification.entity_type})' if column.has_pii() else ''
-            summary_parts.append(f'- {column.name}{pii_info}')
-
-        if len(report.columns) > 10:
-            summary_parts.append(f'... and {len(report.columns) - 10} more columns')
-
-        return '\n'.join(summary_parts)
 
     def _generate_table_markdown(self, report: SheetReport) -> str:
         """
@@ -633,8 +599,10 @@ class ProcessDatasetUseCase:
 
             # Ensure required fields exist
             validated_result = {
-                'personal_data_sensitive': result.get('personal_data_sensitive', False),
-                'personal_data_entities': result.get('personal_data_entities', []),
+                'personal_data_sensitive': result.get(
+                    'personal_data_sensitive', result.get('contains_personal_data', False)
+                ),
+                'personal_data_entities': result.get('personal_data_entities', result.get('personal_data_types', [])),
                 'evidence': result.get('evidence', []),
                 'completion_tokens': comp_tokens,
                 'prompt_tokens': prompt_tokens,

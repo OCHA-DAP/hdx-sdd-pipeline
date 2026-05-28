@@ -9,13 +9,12 @@ from urllib.parse import urlparse
 import requests
 import pandas as pd
 import csv
-from ...application.interfaces.data_loader import IDataLoader
-from ...domain.exceptions import DataProcessingError
+from ..domain.exceptions import DataProcessingError
 
 logger = logging.getLogger(__name__)
 
 
-class SmartDataLoader(IDataLoader):
+class SmartDataLoader:
     """
     Smart data loader with automatic preprocessing.
 
@@ -175,9 +174,7 @@ class SmartDataLoader(IDataLoader):
             return http_headers
 
         # Remove all Authorization headers in a case-insensitive way.
-        sanitized_headers = {
-            k: v for k, v in http_headers.items() if k.lower() != 'authorization'
-        }
+        sanitized_headers = {k: v for k, v in http_headers.items() if k.lower() != 'authorization'}
         return sanitized_headers
 
     def _is_hdx_domain(self, url: str) -> bool:
