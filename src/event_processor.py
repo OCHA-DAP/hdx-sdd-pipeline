@@ -12,7 +12,7 @@ from pathlib import Path
 from datetime import datetime
 from dotenv import load_dotenv
 
-from src.infrastructure.factories import PipelineFactory
+from src.infrastructure.pipeline_factory import PipelineFactory
 from src.domain.entities import SheetReport
 from src.shared.utils.isp_retrieval import ISPRetriever
 

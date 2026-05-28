@@ -2,7 +2,7 @@
 
 import pytest
 from unittest.mock import Mock, patch
-from src.infrastructure.factories.pipeline_factory import PipelineFactory
+from src.infrastructure.pipeline_factory import PipelineFactory
 from src.application.use_cases.process_dataset import ProcessDatasetUseCase
 from config.config import Config
 
@@ -43,15 +43,15 @@ class TestPipelineFactory:
         """Test that configuration is logged during initialization."""
         import logging
 
-        with caplog.at_level(logging.INFO, logger='src.infrastructure.factories.pipeline_factory'):
+        with caplog.at_level(logging.INFO, logger='src.infrastructure.pipeline_factory'):
             _ = PipelineFactory(mock_config)
 
         assert 'Pipeline Configuration' in caplog.text
         assert 'Personal data detection' in caplog.text
 
-    @patch('src.infrastructure.factories.pipeline_factory.SmartDataLoader')
-    @patch('src.infrastructure.factories.pipeline_factory.OpenAIProvider')
-    @patch('src.infrastructure.factories.pipeline_factory.PromptManager')
+    @patch('src.infrastructure.pipeline_factory.SmartDataLoader')
+    @patch('src.infrastructure.pipeline_factory.OpenAIProvider')
+    @patch('src.infrastructure.pipeline_factory.PromptManager')
     def test_create_pipeline_all_enabled(self, mock_prompt_manager, mock_openai, mock_data_loader, factory):
         """Test pipeline creation with all features enabled."""
         # Setup mocks
@@ -82,9 +82,9 @@ class TestPipelineFactory:
         # Verify prompt manager was created
         mock_prompt_manager.assert_called_once_with(prompts_dir='src/prompts')
 
-    @patch('src.infrastructure.factories.pipeline_factory.SmartDataLoader')
-    @patch('src.infrastructure.factories.pipeline_factory.OpenAIProvider')
-    @patch('src.infrastructure.factories.pipeline_factory.PromptManager')
+    @patch('src.infrastructure.pipeline_factory.SmartDataLoader')
+    @patch('src.infrastructure.pipeline_factory.OpenAIProvider')
+    @patch('src.infrastructure.pipeline_factory.PromptManager')
     def test_create_pipeline_pii_detection_disabled(
         self, mock_prompt_manager, mock_openai, mock_data_loader, mock_config
     ):
@@ -103,9 +103,9 @@ class TestPipelineFactory:
         # Verify only 3 LLM providers were created (not PII detection)
         assert mock_openai.call_count == 3
 
-    @patch('src.infrastructure.factories.pipeline_factory.SmartDataLoader')
-    @patch('src.infrastructure.factories.pipeline_factory.OpenAIProvider')
-    @patch('src.infrastructure.factories.pipeline_factory.PromptManager')
+    @patch('src.infrastructure.pipeline_factory.SmartDataLoader')
+    @patch('src.infrastructure.pipeline_factory.OpenAIProvider')
+    @patch('src.infrastructure.pipeline_factory.PromptManager')
     def test_create_pipeline_pii_reflection_disabled(
         self, mock_prompt_manager, mock_openai, mock_data_loader, mock_config
     ):
@@ -124,9 +124,9 @@ class TestPipelineFactory:
         # Verify only 3 LLM providers were created (not PII reflection)
         assert mock_openai.call_count == 3
 
-    @patch('src.infrastructure.factories.pipeline_factory.SmartDataLoader')
-    @patch('src.infrastructure.factories.pipeline_factory.OpenAIProvider')
-    @patch('src.infrastructure.factories.pipeline_factory.PromptManager')
+    @patch('src.infrastructure.pipeline_factory.SmartDataLoader')
+    @patch('src.infrastructure.pipeline_factory.OpenAIProvider')
+    @patch('src.infrastructure.pipeline_factory.PromptManager')
     def test_create_pipeline_non_pii_disabled(self, mock_prompt_manager, mock_openai, mock_data_loader, mock_config):
         """Test pipeline creation with non-PII detection disabled."""
         mock_config.NON_PERSONAL_DATA_DETECTION = False
@@ -143,9 +143,9 @@ class TestPipelineFactory:
         # Verify only 3 LLM providers were created (not non-PII)
         assert mock_openai.call_count == 3
 
-    @patch('src.infrastructure.factories.pipeline_factory.SmartDataLoader')
-    @patch('src.infrastructure.factories.pipeline_factory.OpenAIProvider')
-    @patch('src.infrastructure.factories.pipeline_factory.PromptManager')
+    @patch('src.infrastructure.pipeline_factory.SmartDataLoader')
+    @patch('src.infrastructure.pipeline_factory.OpenAIProvider')
+    @patch('src.infrastructure.pipeline_factory.PromptManager')
     def test_create_pipeline_all_disabled(self, mock_prompt_manager, mock_openai, mock_data_loader, mock_config):
         """Test pipeline creation with all LLM features disabled."""
         mock_config.PERSONAL_DATA_DETECTION = False
@@ -167,9 +167,9 @@ class TestPipelineFactory:
         # Verify no LLM providers were created
         mock_openai.assert_not_called()
 
-    @patch('src.infrastructure.factories.pipeline_factory.SmartDataLoader')
-    @patch('src.infrastructure.factories.pipeline_factory.OpenAIProvider')
-    @patch('src.infrastructure.factories.pipeline_factory.PromptManager')
+    @patch('src.infrastructure.pipeline_factory.SmartDataLoader')
+    @patch('src.infrastructure.pipeline_factory.OpenAIProvider')
+    @patch('src.infrastructure.pipeline_factory.PromptManager')
     def test_create_pipeline_custom_sample_size(self, mock_prompt_manager, mock_openai, mock_data_loader, factory):
         """Test pipeline creation with custom sample size."""
         # Setup mocks
@@ -183,7 +183,7 @@ class TestPipelineFactory:
         # Verify pipeline was created
         assert isinstance(pipeline, ProcessDatasetUseCase)
 
-    @patch('src.infrastructure.factories.pipeline_factory.OpenAIProvider')
+    @patch('src.infrastructure.pipeline_factory.OpenAIProvider')
     def test_create_pii_llm(self, mock_openai, factory):
         """Test PII LLM provider creation."""
         mock_llm = Mock()
@@ -198,7 +198,7 @@ class TestPipelineFactory:
         )
         assert result == mock_llm
 
-    @patch('src.infrastructure.factories.pipeline_factory.OpenAIProvider')
+    @patch('src.infrastructure.pipeline_factory.OpenAIProvider')
     def test_create_pii_reflection_llm(self, mock_openai, factory):
         """Test PII reflection LLM provider creation."""
         mock_llm = Mock()
@@ -213,7 +213,7 @@ class TestPipelineFactory:
         )
         assert result == mock_llm
 
-    @patch('src.infrastructure.factories.pipeline_factory.OpenAIProvider')
+    @patch('src.infrastructure.pipeline_factory.OpenAIProvider')
     def test_create_non_pii_llm(self, mock_openai, factory):
         """Test non-PII LLM provider creation."""
         mock_llm = Mock()
@@ -228,9 +228,9 @@ class TestPipelineFactory:
         )
         assert result == mock_llm
 
-    @patch('src.infrastructure.factories.pipeline_factory.SmartDataLoader')
-    @patch('src.infrastructure.factories.pipeline_factory.OpenAIProvider')
-    @patch('src.infrastructure.factories.pipeline_factory.PromptManager')
+    @patch('src.infrastructure.pipeline_factory.SmartDataLoader')
+    @patch('src.infrastructure.pipeline_factory.OpenAIProvider')
+    @patch('src.infrastructure.pipeline_factory.PromptManager')
     def test_create_pipeline_with_different_models(
         self, mock_prompt_manager, mock_openai, mock_data_loader, mock_config
     ):
@@ -268,13 +268,13 @@ class TestPipelineFactory:
         import logging
 
         with (
-            patch('src.infrastructure.factories.pipeline_factory.SmartDataLoader'),
-            patch('src.infrastructure.factories.pipeline_factory.OpenAIProvider'),
-            patch('src.infrastructure.factories.pipeline_factory.PromptManager'),
+            patch('src.infrastructure.pipeline_factory.SmartDataLoader'),
+            patch('src.infrastructure.pipeline_factory.OpenAIProvider'),
+            patch('src.infrastructure.pipeline_factory.PromptManager'),
         ):
             factory = PipelineFactory(mock_config)
 
-            with caplog.at_level(logging.INFO, logger='src.infrastructure.factories.pipeline_factory'):
+            with caplog.at_level(logging.INFO, logger='src.infrastructure.pipeline_factory'):
                 _ = factory.create_pipeline()
 
             assert 'Creating processing pipeline' in caplog.text

@@ -3,7 +3,7 @@
 import pandas as pd
 from unittest.mock import patch, MagicMock
 
-from src.infrastructure.storage.data_loader import SmartDataLoader
+from src.infrastructure.data_loader import SmartDataLoader
 from src.domain.exceptions import DataProcessingError
 import pytest
 
@@ -171,7 +171,7 @@ class TestSmartDataLoader:
         assert 'Sheet2' in result
         mock_read_excel.assert_called_once()
 
-    @patch('src.infrastructure.storage.data_loader.requests.get')
+    @patch('src.infrastructure.data_loader.requests.get')
     def test_load_from_url_csv(self, mock_requests_get):
         """Test load_from_url with CSV."""
         loader = SmartDataLoader()
@@ -188,7 +188,7 @@ class TestSmartDataLoader:
         assert len(result['sheet1']) == 2  # Two data rows
         assert list(result['sheet1'].columns) == ['Name', 'Age']
 
-    @patch('src.infrastructure.storage.data_loader.requests.get')
+    @patch('src.infrastructure.data_loader.requests.get')
     def test_load_from_url_applies_default_user_agent(self, mock_requests_get):
         """Test load_from_url applies loader default user-agent when none provided by caller."""
         loader = SmartDataLoader(user_agent='TestUA/2.0.0')
@@ -203,7 +203,7 @@ class TestSmartDataLoader:
         _, kwargs = mock_requests_get.call_args
         assert kwargs['headers']['User-Agent'] == 'TestUA/2.0.0'
 
-    @patch('src.infrastructure.storage.data_loader.requests.get')
+    @patch('src.infrastructure.data_loader.requests.get')
     def test_load_from_url_preserves_explicit_user_agent(self, mock_requests_get):
         """Test load_from_url keeps caller-provided user-agent header."""
         loader = SmartDataLoader(user_agent='DefaultUA/2.0.0')
@@ -218,7 +218,7 @@ class TestSmartDataLoader:
         _, kwargs = mock_requests_get.call_args
         assert kwargs['headers']['User-Agent'] == 'CallerUA/9.9.9'
 
-    @patch('src.infrastructure.storage.data_loader.requests.get')
+    @patch('src.infrastructure.data_loader.requests.get')
     def test_load_from_url_keeps_authorization_for_hdx_domain(self, mock_requests_get):
         """Test Authorization header is kept for configured HDX domain and subdomains."""
         loader = SmartDataLoader(hdx_base_url='https://hdx.example.org')
@@ -233,7 +233,7 @@ class TestSmartDataLoader:
         _, kwargs = mock_requests_get.call_args
         assert kwargs['headers']['Authorization'] == 'Bearer secret'
 
-    @patch('src.infrastructure.storage.data_loader.requests.get')
+    @patch('src.infrastructure.data_loader.requests.get')
     def test_load_from_url_drops_authorization_for_non_hdx_domain(self, mock_requests_get):
         """Test Authorization header is removed for non-HDX download targets."""
         loader = SmartDataLoader(hdx_base_url='https://hdx.example.org')
@@ -251,7 +251,7 @@ class TestSmartDataLoader:
         _, kwargs = mock_requests_get.call_args
         assert 'Authorization' not in kwargs['headers']
 
-    @patch('src.infrastructure.storage.data_loader.requests.get')
+    @patch('src.infrastructure.data_loader.requests.get')
     def test_load_from_url_excel(self, mock_requests_get):
         """Test load_from_url with Excel."""
         loader = SmartDataLoader()

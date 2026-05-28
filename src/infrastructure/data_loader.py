@@ -9,8 +9,8 @@ from urllib.parse import urlparse
 import requests
 import pandas as pd
 import csv
-from ...application.interfaces.data_loader import IDataLoader
-from ...domain.exceptions import DataProcessingError
+from ..application.interfaces.data_loader import IDataLoader
+from ..domain.exceptions import DataProcessingError
 
 logger = logging.getLogger(__name__)
 

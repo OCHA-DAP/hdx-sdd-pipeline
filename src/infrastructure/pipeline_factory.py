@@ -4,8 +4,8 @@ import logging
 from typing import Optional
 
 from src.application.use_cases.process_dataset import ProcessDatasetUseCase
-from src.infrastructure import OpenAIProvider
-from src.infrastructure.storage.data_loader import SmartDataLoader
+from src.infrastructure.openai_provider import OpenAIProvider
+from src.infrastructure.data_loader import SmartDataLoader
 from src.shared.utils.prompt_manager import PromptManager
 from config.config import Config
 
