@@ -8,7 +8,7 @@ from ...domain.entities import SheetReport, Column, NonPIIClassification, Person
 from ...domain.value_objects import PIIEntityType, SensitivityLevel
 from ...domain.exceptions import DataProcessingError
 from ..interfaces import IDataLoader
-from ...infrastructure.llm import OpenAIProvider
+from ...infrastructure import OpenAIProvider
 from ...shared.utils.prompt_manager import PromptManager
 
 logger = logging.getLogger(__name__)

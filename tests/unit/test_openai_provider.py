@@ -6,7 +6,7 @@ import pytest
 from openai import OpenAI
 
 from src.domain.exceptions import LLMProviderError
-from src.infrastructure.llm.openai_provider import OpenAIProvider
+from src.infrastructure.openai_provider import OpenAIProvider
 
 
 class TestOpenAIProvider:
@@ -29,7 +29,7 @@ class TestOpenAIProvider:
     def provider(self, mock_client):
         """Create provider with mocked client."""
         with patch(
-            'src.infrastructure.llm.openai_provider.OpenAI',
+            'src.infrastructure.openai_provider.OpenAI',
             return_value=mock_client,
         ):
             return OpenAIProvider(
@@ -44,7 +44,7 @@ class TestOpenAIProvider:
 
     def test_initialization(self):
         """Test provider initialization."""
-        with patch('src.infrastructure.llm.openai_provider.OpenAI') as mock_openai:
+        with patch('src.infrastructure.openai_provider.OpenAI') as mock_openai:
             provider = OpenAIProvider(
                 model_name='gpt-4',
                 endpoint='https://api.deepseek.com/v1',
@@ -60,7 +60,7 @@ class TestOpenAIProvider:
 
     def test_initialization_without_endpoint(self):
         """Test provider initialization without base_url."""
-        with patch('src.infrastructure.llm.openai_provider.OpenAI') as mock_openai:
+        with patch('src.infrastructure.openai_provider.OpenAI') as mock_openai:
             OpenAIProvider(
                 model_name='gpt-4',
                 api_key='test-key',
@@ -74,7 +74,7 @@ class TestOpenAIProvider:
     def test_initialization_failure(self):
         """Test initialization failure handles errors."""
         with patch(
-            'src.infrastructure.llm.openai_provider.OpenAI',
+            'src.infrastructure.openai_provider.OpenAI',
             side_effect=Exception('Connection error'),
         ):
             with pytest.raises(
@@ -210,7 +210,7 @@ class TestOpenAIProvider:
     def test_call_reasoning_model(self, mock_client):
         """Test _call for reasoning models."""
         with patch(
-            'src.infrastructure.llm.openai_provider.OpenAI',
+            'src.infrastructure.openai_provider.OpenAI',
             return_value=mock_client,
         ):
             provider = OpenAIProvider(
@@ -244,7 +244,7 @@ class TestOpenAIProvider:
     def test_call_reasoning_model_with_response_format(self, mock_client):
         """Test reasoning model token adjustment with response_format."""
         with patch(
-            'src.infrastructure.llm.openai_provider.OpenAI',
+            'src.infrastructure.openai_provider.OpenAI',
             return_value=mock_client,
         ):
             provider = OpenAIProvider(
