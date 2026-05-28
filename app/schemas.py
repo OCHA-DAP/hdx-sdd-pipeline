@@ -41,6 +41,8 @@ class SheetReport(BaseModel):
     prompt_tokens: int = 0
     personal_data_sensitive: bool = False
     non_personal_data_sensitive: bool = False
+    personal_data_risk_level: int = 0
+    non_personal_data_risk_level: int = 0
     personal_data: PersonalData = PersonalData()
     non_personal_data: NonPersonalData = NonPersonalData()
     columns: list[ColumnReport] = []
@@ -50,6 +52,7 @@ class SheetReport(BaseModel):
 class SDDReport(BaseModel):
     resource_id: str
     sensitive: str
+    sensitivity_level: int = 0
     timestamp: str
     sdd_report: list[SheetReport]
 

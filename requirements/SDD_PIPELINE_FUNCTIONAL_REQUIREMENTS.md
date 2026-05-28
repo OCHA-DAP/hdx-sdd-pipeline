@@ -103,6 +103,14 @@ Any new feature request for this project must follow this order:
 - [x] FR-SDD-042: Logging raw response for UNDETERMINED generation outcomes.
   - Expected behavior: Whenever PII entity detection, PII reflection, or non-PII classification yields an UNDETERMINED result, the system must clearly log the issue in generation, including the raw response back.
 
+- [x] FR-SDD-043: Risk level scoring, hierarchical maximum risk propagation, and pii_reflection prompt alignment.
+  - Expected behavior: Every sheet report receives `personal_data_risk_level` (0-3) and `non_personal_data_risk_level` (0-3) keys serialized right after `non_personal_data_sensitive`. Every resource (file) report receives a `sensitive_level` (0-3) key serialized right after `sensitive`. Risk scoring follows a hierarchical "maximum risk propagation" model where the worst-case sensitivity propagates upward:
+    - PD Score: NON_SENSITIVE/UNDETERMINED -> 0; HIGH_SENSITIVE -> 2; SEVERE_SENSITIVE -> 3.
+    - NPD Score: NONE/LOW/UNDETERMINED -> 0; MEDIUM -> 1; HIGH -> 2; SEVERE -> 3.
+    - Sheet Risk: max(PD Score, NPD Score).
+    - Resource/File Risk: max(all Sheet Risks).
+  - The `pii_reflection` prompt (specifically the latest version `v2.jinja`) must be updated to use the new PD classification scale (NON_SENSITIVE, HIGH_SENSITIVE, SEVERE_SENSITIVE) instead of the old MODERATE_SENSITIVE.
+
 
 ### Persistence and outputs
 

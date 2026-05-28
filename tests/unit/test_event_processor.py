@@ -158,3 +158,33 @@ def test_report_exists_exception(mock_config, mock_pipeline_factory, mock_ckan_c
     processor.ckan.resource_show.side_effect = Exception('DB Error')
     with pytest.raises(Exception, match='DB Error'):
         processor._report_exists('123')
+
+
+def test_determine_sensitivity_level_success(mock_config, mock_pipeline_factory):
+    processor = EventProcessor()
+
+    # Using SheetReports
+    report1 = MagicMock(spec=SheetReport)
+    report1.personal_data_risk_level = 1
+    report1.non_personal_data_risk_level = 2
+
+    report2 = MagicMock(spec=SheetReport)
+    report2.personal_data_risk_level = 3
+    report2.non_personal_data_risk_level = 0
+
+    assert processor._determine_sensitivity_level([report1, report2]) == 3
+
+    # Using dicts
+    dict_reports = [
+        {'personal_data_risk_level': 1, 'non_personal_data_risk_level': 2},
+        {'personal_data_risk_level': 3, 'non_personal_data_risk_level': 0},
+    ]
+    assert processor._determine_sensitivity_level(dict_reports) == 3
+
+
+def test_save_to_ckan_includes_sensitivity_level(mock_config, mock_pipeline_factory, mock_ckan_client):
+    processor = EventProcessor()
+    processor._save_to_ckan('123', [], 'sensitive', 3)
+    processor.ckan.update_resource_fields.assert_called_once_with(
+        '123', {'sdd_report': '[]', 'sensitive': 'sensitive', 'sensitivity_level': 3}
+    )
