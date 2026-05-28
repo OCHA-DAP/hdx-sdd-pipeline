@@ -81,7 +81,6 @@ def _unique_path(directory: Path, filename: str) -> Path:
     return directory / f'{stem}_{ts}{suffix}'
 
 
-
 # ---------------------------------------------------------------------------
 # Endpoints
 # ---------------------------------------------------------------------------
@@ -233,4 +232,3 @@ async def get_cost_analysis():
             continue
         cost_data.append(compute_cost(model, model_dir, PRICING.get(model, 0)))
     return {'cost_analysis': cost_data, 'pricing': PRICING}
-
