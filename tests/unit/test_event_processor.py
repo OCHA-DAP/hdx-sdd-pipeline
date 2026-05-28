@@ -111,7 +111,6 @@ def test_process_event_exception(mock_config, mock_pipeline_factory):
     processor.slack.post_to_slack_channel.assert_called_once()
 
 
-
 def test_determine_sensitivity_sensitive(mock_config, mock_pipeline_factory):
     processor = EventProcessor()
     report = MagicMock(spec=SheetReport)

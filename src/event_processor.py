@@ -119,7 +119,7 @@ class EventProcessor:
             reports = self.pipeline.execute(
                 source=download_url,
                 resource_id=resource_id,
-                is_url=self.custom_output_path is None,
+                is_url=download_url.startswith(('http://', 'https://')),
                 isp_rules=isp_rules,
                 http_headers=http_headers,
             )

@@ -27,6 +27,8 @@ class Config:
     # CKAN
     HDX_URL: str = os.getenv('HDX_URL', '')
     HDX_KEY: str = os.getenv('HDX_KEY', '')
+    HDX_URL_PROD: str = os.getenv('HDX_URL_PROD', '')
+    HDX_KEY_PROD: str = os.getenv('HDX_KEY_PROD', '')
     SDD_USER_AGENT: str = os.getenv('SDD_USER_AGENT', f'HDXINTERNAL:SDDPipeline/{__version__}')
 
     # Processing / Models

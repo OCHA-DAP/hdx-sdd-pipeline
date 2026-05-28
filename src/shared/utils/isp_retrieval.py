@@ -120,7 +120,8 @@ class ISPRetriever:
         try:
             package = ckan_client.package_show(package_id)
             groups = package.get('groups', [])
-            if not isinstance(groups, list) or not groups:
+
+            if not groups:
                 return None
 
             for group in groups:
@@ -145,7 +146,7 @@ class ISPRetriever:
         if not resource_name:
             return None
 
-        resource_iso3 = Path(resource_name).stem
+        resource_iso3 = Path(resource_name).stem.split('_')[0]  # Take first part if underscored
         return self.match_country(resource_iso3, isps)
 
     def clear_cache(self):

@@ -102,7 +102,14 @@ class ProcessDatasetUseCase:
         try:
             # Step 1: Load data
             logger.debug('Step 1: Loading data...')
-            if is_url:
+
+            # Fail-safe: Check if source is a URL even if is_url is False
+            actual_is_url = is_url
+            if not is_url and source and source.startswith(('http://', 'https://')):
+                logger.warning(f'Source looks like a URL but is_url=False. Overriding to True: {source}')
+                actual_is_url = True
+
+            if actual_is_url:
                 sheets = self.data_loader.load_from_url(source, http_headers=http_headers)
             else:
                 logger.info(f'Loading from file: {source}')
