@@ -3,7 +3,7 @@
 import pytest
 from unittest.mock import Mock
 
-from src.application.use_cases.process_dataset import ProcessDatasetUseCase
+from src.application.process_dataset import ProcessDatasetUseCase
 from src.domain.entities import SheetReport, Column
 from src.domain.value_objects import PIIEntityType, SensitivityLevel
 from src.domain.exceptions import DataProcessingError

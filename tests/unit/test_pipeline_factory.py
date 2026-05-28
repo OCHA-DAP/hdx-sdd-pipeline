@@ -3,7 +3,7 @@
 import pytest
 from unittest.mock import Mock, patch
 from src.infrastructure.pipeline_factory import PipelineFactory
-from src.application.use_cases.process_dataset import ProcessDatasetUseCase
+from src.application.process_dataset import ProcessDatasetUseCase
 from config.config import Config
 
 

@@ -5,7 +5,7 @@ This test validates the complete pipeline flow from DataFrame input to final rep
 using mocked Azure OpenAI responses to avoid actual API calls.
 """
 
-from src.application.use_cases.process_dataset import ProcessDatasetUseCase
+from src.application.process_dataset import ProcessDatasetUseCase
 from src.infrastructure.data_loader import SmartDataLoader
 from src.shared.utils.prompt_manager import PromptManager
 

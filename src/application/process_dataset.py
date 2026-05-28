@@ -4,12 +4,12 @@ import logging
 from typing import List, Optional, Dict, Any
 from datetime import datetime
 
-from ...domain.entities import SheetReport, Column, NonPIIClassification, PersonalDataClassification
-from ...domain.value_objects import PIIEntityType, SensitivityLevel
-from ...domain.exceptions import DataProcessingError
-from ..interfaces import IDataLoader
+from src.domain.entities import SheetReport, Column, NonPIIClassification, PersonalDataClassification
+from src.domain.value_objects import PIIEntityType, SensitivityLevel
+from src.domain.exceptions import DataProcessingError
+from src.infrastructure.data_loader import SmartDataLoader
 from src.infrastructure.openai_provider import OpenAIProvider
-from ...shared.utils.prompt_manager import PromptManager
+from src.shared.utils.prompt_manager import PromptManager
 
 logger = logging.getLogger(__name__)
 
@@ -29,7 +29,7 @@ class ProcessDatasetUseCase:
 
     def __init__(
         self,
-        data_loader: IDataLoader,
+        data_loader: SmartDataLoader,
         pii_llm_provider: Optional[OpenAIProvider] = None,
         pii_reflection_llm_provider: Optional[OpenAIProvider] = None,
         non_pii_llm_provider: Optional[OpenAIProvider] = None,
