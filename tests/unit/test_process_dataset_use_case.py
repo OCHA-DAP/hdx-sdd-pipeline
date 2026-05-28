@@ -323,3 +323,78 @@ class TestProcessDatasetUseCase:
         assert len(reports) == 2
         assert reports[0].sheet_name == 'Sheet1'
         assert reports[1].sheet_name == 'Sheet2'
+
+    def test_map_metadata_to_contexts(self, use_case):
+        """Test mapping raw metadata to dataset and resource contexts."""
+        metadata = {
+            'dataset_title': 'Test Dataset Title',
+            'dataset_description': 'Test Dataset Description',
+            'dataset_source': 'Test Source',
+            'dataset_location': 'Test Location',
+            'organization_title': 'Test Org',
+            'resource_name': 'test.xlsx',
+            'resource_description': 'Test Resource Description'
+        }
+        dataset_ctx, resource_ctx = use_case._map_metadata_to_contexts(metadata)
+
+        assert dataset_ctx['Title'] == 'Test Dataset Title'
+        assert dataset_ctx['Description'] == 'Test Dataset Description'
+        assert dataset_ctx['Source'] == 'Test Source'
+        assert dataset_ctx['Geography'] == 'Test Location'
+        assert dataset_ctx['Organization'] == 'Test Org'
+        assert resource_ctx['Name'] == 'test.xlsx'
+        assert resource_ctx['Description'] == 'Test Resource Description'
+
+    def test_load_local_metadata_real_mock(self, use_case, monkeypatch):
+        """Test loading local metadata with file mocking."""
+        from pathlib import Path
+        import io
+
+        mock_metadata = {
+            'dataset_title': 'Mock Title',
+            'resource_name': 'test.xlsx'
+        }
+
+        # Mock Path.exists to return True
+        monkeypatch.setattr(Path, "exists", lambda self: True)
+
+        # Mock open to return mock_metadata JSON
+        import builtins
+        original_open = builtins.open
+
+        def mock_open(file, *args, **kwargs):
+            if 'metadata' in str(file):
+                return io.StringIO('{"dataset_title": "Mock Title", "resource_name": "test.xlsx"}')
+            return original_open(file, *args, **kwargs)
+
+        monkeypatch.setattr(builtins, "open", mock_open)
+
+        res = use_case._load_local_metadata('test.xlsx')
+        assert res == mock_metadata
+
+    def test_fetch_metadata_from_ckan(self, use_case):
+        """Test fetching metadata from CKAN client."""
+        mock_ckan = Mock()
+        mock_ckan.resource_show = Mock(return_value={
+            'name': 'ckan_res.xlsx',
+            'description': 'CKAN Resource Description',
+            'package_id': 'pkg-123'
+        })
+        mock_ckan.package_show = Mock(return_value={
+            'title': 'CKAN Package Title',
+            'notes': 'CKAN Package Description',
+            'dataset_source': 'CKAN Author',
+            'groups': [{'title': 'CKAN Group'}],
+            'organization': {'title': 'CKAN Org'}
+        })
+
+        dataset_ctx, resource_ctx = use_case._fetch_metadata_from_ckan(mock_ckan, 'res-123')
+
+        assert resource_ctx['Name'] == 'ckan_res.xlsx'
+        assert resource_ctx['Description'] == 'CKAN Resource Description'
+        assert dataset_ctx['Title'] == 'CKAN Package Title'
+        assert dataset_ctx['Description'] == 'CKAN Package Description'
+        assert dataset_ctx['Source'] == 'CKAN Author'
+        assert dataset_ctx['Geography'] == 'CKAN Group'
+        assert dataset_ctx['Organization'] == 'CKAN Org'
+

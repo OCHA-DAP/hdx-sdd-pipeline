@@ -122,6 +122,7 @@ class EventProcessor:
                 is_url=download_url.startswith(('http://', 'https://')),
                 isp_rules=isp_rules,
                 http_headers=http_headers,
+                ckan_client=self.ckan,
             )
 
             # Determine overall sensitivity

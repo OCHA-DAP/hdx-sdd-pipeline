@@ -111,6 +111,9 @@ Any new feature request for this project must follow this order:
     - Resource/File Risk: max(all Sheet Risks).
   - The `pii_reflection` prompt (specifically the latest version `v2.jinja`) must be updated to use the new PD classification scale (NON_SENSITIVE, HIGH_SENSITIVE, SEVERE_SENSITIVE) instead of the old MODERATE_SENSITIVE.
 
+- [x] FR-SDD-044: Contextual metadata integration in LLM prompts.
+  - Expected behavior: The pipeline must load and inject dataset and resource metadata into non-PII classification and PII reflection prompts. If running with a local file, it attempts to load metadata from `research/metadata/` matching the source filename. If running with CKAN enabled, it retrieves metadata via the CKAN client. By default, the latest version of the prompts must be resolved dynamically (e.g., using `pii_reflection` latest for reflection, `non_pii_classification/default` latest for default ISP, and `non_pii_classification` latest for custom ISPs).
+
 
 ### Persistence and outputs
 

@@ -1,7 +1,7 @@
 """Process Dataset Use Case - Main orchestration."""
 
 import logging
-from typing import List, Optional, Dict, Any
+from typing import List, Optional, Dict, Any, Tuple
 from datetime import datetime
 
 from src.domain.entities import SheetReport, Column, NonPIIClassification, PersonalDataClassification
@@ -64,6 +64,9 @@ class ProcessDatasetUseCase:
         is_url: bool = True,
         isp_rules: Optional[Dict[str, Any]] = None,
         http_headers: Optional[Dict[str, str]] = None,
+        dataset_context: Optional[Dict[str, Any]] = None,
+        resource_context: Optional[Dict[str, Any]] = None,
+        ckan_client: Optional[Any] = None,
     ) -> List[SheetReport]:
         """
         Process a dataset from URL or file.
@@ -74,6 +77,9 @@ class ProcessDatasetUseCase:
             is_url: True if source is URL, False if file path
             isp_rules: Information Sensitivity Protocol rules
             http_headers: Optional HTTP headers for URL downloads (e.g. auth tokens)
+            dataset_context: Optional dataset metadata context
+            resource_context: Optional resource metadata context
+            ckan_client: Optional CKAN client instance
 
         Returns:
             List of processed SheetReports
@@ -90,14 +96,37 @@ class ProcessDatasetUseCase:
         start_time = time.time()
 
         try:
-            # Step 1: Load data
-            logger.debug('Step 1: Loading data...')
+            # Resolve metadata contexts
+            current_dataset_context = dataset_context or {}
+            current_resource_context = resource_context or {}
 
             # Fail-safe: Check if source is a URL even if is_url is False
             actual_is_url = is_url
             if not is_url and source and source.startswith(('http://', 'https://')):
                 logger.warning(f'Source looks like a URL but is_url=False. Overriding to True: {source}')
                 actual_is_url = True
+
+            # If metadata contexts are empty, try to fetch/load
+            if not current_dataset_context and not current_resource_context:
+                if not actual_is_url:
+                    try:
+                        local_metadata = self._load_local_metadata(source)
+                        if local_metadata:
+                            d_ctx, r_ctx = self._map_metadata_to_contexts(local_metadata)
+                            current_dataset_context.update(d_ctx)
+                            current_resource_context.update(r_ctx)
+                    except Exception as e:
+                        logger.warning(f"Failed to load local metadata for {source}: {e}")
+                elif resource_id and ckan_client:
+                    try:
+                        d_ctx, r_ctx = self._fetch_metadata_from_ckan(ckan_client, resource_id)
+                        current_dataset_context.update(d_ctx)
+                        current_resource_context.update(r_ctx)
+                    except Exception as e:
+                        logger.warning(f"Failed to fetch metadata from CKAN for resource {resource_id}: {e}")
+
+            # Step 1: Load data
+            logger.debug('Step 1: Loading data...')
 
             if actual_is_url:
                 sheets = self.data_loader.load_from_url(source, http_headers=http_headers)
@@ -119,7 +148,15 @@ class ProcessDatasetUseCase:
                     logger.debug(f"Sheet '{sheet_name}' identified as README/metadata")
                     report = self._create_readme_report(sheet_name, source, resource_id, df)
                 else:
-                    report = self._create_data_report(sheet_name, source, resource_id, df, isp_rules)
+                    report = self._create_data_report(
+                        sheet_name,
+                        source,
+                        resource_id,
+                        df,
+                        isp_rules,
+                        dataset_context=current_dataset_context,
+                        resource_context=current_resource_context,
+                    )
 
                 reports.append(report)
                 logger.debug(f"Completed processing sheet '{sheet_name}'")
@@ -203,7 +240,14 @@ class ProcessDatasetUseCase:
         return report
 
     def _create_data_report(
-        self, sheet_name: str, source: str, resource_id: Optional[str], df: Any, isp_rules: Optional[Dict[str, Any]]
+        self,
+        sheet_name: str,
+        source: str,
+        resource_id: Optional[str],
+        df: Any,
+        isp_rules: Optional[Dict[str, Any]],
+        dataset_context: Optional[Dict[str, Any]] = None,
+        resource_context: Optional[Dict[str, Any]] = None,
     ) -> SheetReport:
         """Create and process report for data sheet."""
         logger.debug(f"Creating data report for sheet '{sheet_name}' with {len(df)} rows")
@@ -234,10 +278,10 @@ class ProcessDatasetUseCase:
         report = self._classify_pii(report)
 
         # Step 4: Reflect on PII sensitivity
-        report = self._classify_pii_sensitivity(report)
+        report = self._classify_pii_sensitivity(report, dataset_context, resource_context)
 
         # Step 5: Classify non-PII
-        report = self._classify_non_pii(report, isp_rules)
+        report = self._classify_non_pii(report, isp_rules, dataset_context, resource_context)
 
         # Step 6: Update sensitivity flags
         report.update_non_pii_sensitivity()
@@ -311,7 +355,12 @@ class ProcessDatasetUseCase:
         report.pii_classifier_model = self.pii_llm.model_name
         return report
 
-    def _classify_pii_sensitivity(self, report: SheetReport) -> SheetReport:
+    def _classify_pii_sensitivity(
+        self,
+        report: SheetReport,
+        dataset_context: Optional[Dict[str, Any]] = None,
+        resource_context: Optional[Dict[str, Any]] = None,
+    ) -> SheetReport:
         """Classify sensitivity for PII columns."""
         if self.pii_reflection_llm is None:
             logger.info('PII sensitivity classification disabled - skipping')
@@ -384,6 +433,8 @@ class ProcessDatasetUseCase:
                 version=None,  # Auto-detect latest version
                 context={
                     'table_markdown': table_markdown,
+                    'dataset_context': dataset_context,
+                    'resource_context': resource_context,
                 },
             )
             # Call LLM
@@ -429,7 +480,13 @@ class ProcessDatasetUseCase:
 
         return report
 
-    def _classify_non_pii(self, report: SheetReport, isp_rules: Optional[Dict[str, Any]]) -> SheetReport:
+    def _classify_non_pii(
+        self,
+        report: SheetReport,
+        isp_rules: Optional[Dict[str, Any]],
+        dataset_context: Optional[Dict[str, Any]] = None,
+        resource_context: Optional[Dict[str, Any]] = None,
+    ) -> SheetReport:
         """Classify non-PII sensitivity for the table."""
         if self.non_pii_llm is None:
             logger.info('Non-PII classification disabled - skipping')
@@ -441,16 +498,22 @@ class ProcessDatasetUseCase:
             # Prepare table summary
             table_summary = self._generate_table_markdown(report)
 
-            # Determine prompt version based on ISP
-            version = None
+            # Determine prompt category based on ISP
+            prompt_name = 'non_pii_classification'
             if isp_rules and isp_rules.get('country') == 'default':
-                version = 'v2'
+                prompt_name = 'non_pii_classification/default'
 
             # Render prompt
             prompt = self.prompt_manager.get_prompt(
-                'non_pii_classification',
-                version=version,  # Auto-detect latest version unless default ISP
-                context={'table_name': report.sheet_name, 'table_markdown': table_summary, 'isp': isp_rules or {}},
+                prompt_name,
+                version=None,  # Auto-detect latest version
+                context={
+                    'table_name': report.sheet_name,
+                    'table_markdown': table_summary,
+                    'isp': isp_rules or {},
+                    'dataset_context': dataset_context,
+                    'resource_context': resource_context,
+                },
             )
             # Log prompt for debugging
             logger.debug(f"[Non-PII Classification] Prompt for table '{report.sheet_name}':\n{prompt}\n")
@@ -621,3 +684,163 @@ class ProcessDatasetUseCase:
         except Exception as e:
             logger.error(f'Failed to process README for PII: {e}')
             return {'personal_data_sensitive': False, 'personal_data_entities': [], 'evidence': [], 'error': str(e)}
+
+    def _load_local_metadata(self, source: str) -> Optional[Dict[str, Any]]:
+        """
+        Load metadata from a local JSON file in research/metadata matching the source filename.
+        """
+        import os
+        import json
+        from pathlib import Path
+
+        project_root = Path(__file__).resolve().parent.parent.parent
+        metadata_dir = project_root / 'research' / 'metadata'
+        if not metadata_dir.exists():
+            # Fallback to hardcoded absolute path just in case
+            metadata_dir = Path('/Users/liangtelkamp/Documents/GitHub/hdx-ssd-pipeline/research/metadata')
+            if not metadata_dir.exists():
+                logger.warning(f"Metadata directory not found: {metadata_dir}")
+                return None
+
+        base_name = os.path.basename(source)
+        candidates = []
+        if base_name.endswith('.json'):
+            candidates.append(base_name)
+            # Try stripping .json
+            stripped = base_name[:-5]
+            candidates.append(f"{stripped}.json")
+            if not stripped.endswith(('.xlsx', '.csv')):
+                candidates.append(f"{stripped}.xlsx.json")
+                candidates.append(f"{stripped}.csv.json")
+        else:
+            candidates.append(f"{base_name}.json")
+            # Try removing extension and adding .xlsx.json or .csv.json
+            name_we, _ = os.path.splitext(base_name)
+            candidates.append(f"{name_we}.xlsx.json")
+            candidates.append(f"{name_we}.csv.json")
+            candidates.append(f"{name_we}.json")
+
+        # De-duplicate candidates while preserving order
+        seen = set()
+        candidates = [x for x in candidates if not (x in seen or seen.add(x))]
+
+        for candidate in candidates:
+            metadata_file = metadata_dir / candidate
+            if metadata_file.exists():
+                try:
+                    with open(metadata_file, 'r', encoding='utf-8') as f:
+                        data = json.load(f)
+                        logger.info(f"Successfully loaded local metadata from {metadata_file}")
+                        return data
+                except Exception as e:
+                    logger.warning(f"Error reading local metadata file {metadata_file}: {e}")
+
+        logger.debug(f"No local metadata file found in {metadata_dir} for source {source} (candidates: {candidates})")
+        return None
+
+    def _fetch_metadata_from_ckan(self, ckan_client, resource_id: str) -> Tuple[Dict[str, Any], Dict[str, Any]]:
+        """
+        Fetch resource and package metadata from CKAN.
+        """
+        dataset_ctx = {}
+        resource_ctx = {}
+
+        if not ckan_client:
+            return dataset_ctx, resource_ctx
+
+        try:
+            # 1. Fetch resource metadata
+            resource = ckan_client.resource_show(resource_id)
+            if resource:
+                resource_ctx['Name'] = resource.get('name')
+                resource_ctx['Description'] = resource.get('description') or resource.get('resource_description')
+
+                # Get package/dataset ID
+                package_id = resource.get('package_id') or resource.get('dataset_id')
+                if package_id:
+                    # 2. Fetch package metadata
+                    package = ckan_client.package_show(package_id)
+                    if package:
+                        dataset_ctx['Title'] = package.get('title') or package.get('dataset_title')
+                        dataset_ctx['Description'] = package.get('notes') or package.get('dataset_description')
+                        dataset_ctx['Source'] = package.get('dataset_source') or package.get('author')
+
+                        # Fetch geography from groups
+                        groups = package.get('groups', [])
+                        if isinstance(groups, list) and len(groups) > 0:
+                            if isinstance(groups[0], dict):
+                                dataset_ctx['Geography'] = groups[0].get('title') or groups[0].get('name')
+                            else:
+                                dataset_ctx['Geography'] = str(groups[0])
+                        elif isinstance(package.get('location'), str):
+                            dataset_ctx['Geography'] = package.get('location')
+
+                        # Fetch organization
+                        org_obj = package.get('organization')
+                        if isinstance(org_obj, dict):
+                            dataset_ctx['Organization'] = org_obj.get('title') or org_obj.get('name')
+                        else:
+                            dataset_ctx['Organization'] = package.get('owner_org') or package.get('organization_title')
+        except Exception as e:
+            logger.warning(f"Error fetching metadata from CKAN for resource {resource_id}: {e}")
+
+        return dataset_ctx, resource_ctx
+
+    def _map_metadata_to_contexts(self, metadata: Dict[str, Any]) -> Tuple[Dict[str, Any], Dict[str, Any]]:
+        """
+        Map a raw metadata dictionary (from CKAN or local JSON) to dataset_context and resource_context.
+        """
+        dataset_ctx = {}
+        resource_ctx = {}
+
+        if not metadata:
+            return dataset_ctx, resource_ctx
+
+        # 1. Dataset Context Mapping
+        title = metadata.get('dataset_title') or metadata.get('title')
+        if title:
+            dataset_ctx['Title'] = title
+
+        desc = metadata.get('dataset_description') or metadata.get('notes')
+        if not desc and 'description' in metadata:
+            # If both 'resource_description' and 'description' exist, 'description' is likely dataset description.
+            if 'resource_description' in metadata:
+                desc = metadata.get('description')
+        if desc:
+            dataset_ctx['Description'] = desc
+
+        source = metadata.get('dataset_source') or metadata.get('author')
+        if source:
+            dataset_ctx['Source'] = source
+
+        geography = metadata.get('dataset_location') or metadata.get('location') or metadata.get('geography')
+        if not geography and 'groups' in metadata:
+            groups = metadata.get('groups', [])
+            if isinstance(groups, list) and len(groups) > 0:
+                if isinstance(groups[0], dict):
+                    geography = groups[0].get('title') or groups[0].get('name')
+                else:
+                    geography = str(groups[0])
+        if geography:
+            dataset_ctx['Geography'] = geography
+
+        org = metadata.get('organization_title')
+        if not org and 'organization' in metadata:
+            org_obj = metadata.get('organization')
+            if isinstance(org_obj, dict):
+                org = org_obj.get('title') or org_obj.get('name')
+        if not org:
+            org = metadata.get('owner_org')
+        if org:
+            dataset_ctx['Organization'] = org
+
+        # 2. Resource Context Mapping
+        r_name = metadata.get('resource_name') or metadata.get('name')
+        if r_name:
+            resource_ctx['Name'] = r_name
+
+        r_desc = metadata.get('resource_description') or metadata.get('description')
+        if r_desc:
+            resource_ctx['Description'] = r_desc
+
+        return dataset_ctx, resource_ctx
