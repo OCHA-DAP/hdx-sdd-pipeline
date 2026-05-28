@@ -470,3 +470,42 @@ class TestSmartDataLoader:
 
         # Should find the first row where all cells are filled
         assert result >= 0
+
+    def test_initialization_default_max_rows(self):
+        """Test that default max_rows is None (loading whole dataset)."""
+        loader = SmartDataLoader()
+        assert loader.max_rows is None
+
+    def test_sample_dataframe_unique_values(self):
+        """Test that sample_dataframe extracts unique values and filters empty/nan/none values."""
+        loader = SmartDataLoader()
+
+        # Column Name has duplicates and invalid placeholder strings
+        # Column Age has unique valid values, nulls, and empty strings
+        df = pd.DataFrame({
+            'Name': ['John', 'John', 'Jane', '   ', 'Bob', 'none', 'nan', 'Jane', 'Alice'],
+            'Age': [25, None, 30, '', 35, 25, 40, 25, 45]
+        })
+
+        samples = loader.sample_dataframe(df, sample_size=5)
+
+        # Name should be: John, Jane, Bob, Alice (4 unique values, padded with 1 empty string)
+        assert samples['Name'] == ['John', 'Jane', 'Bob', 'Alice', '']
+
+        # Age unique values in order: 25, 30, 35, 40, 45 (5 unique values, float/int types preserved)
+        # Note: 25 appears multiple times but should only be present once
+        assert samples['Age'] == [25.0, 30.0, 35.0, 40.0, 45.0]
+
+    def test_sample_dataframe_chunking_efficiency(self):
+        """Test that sample_dataframe's chunking optimization works correctly and returns correct values."""
+        loader = SmartDataLoader()
+
+        # Create a large series of values: 2000 'duplicate' followed by 5 unique values,
+        # then check if we can still extract the unique values.
+        # This will trigger the fallback check because the first 100 or 1000 rows do not have 5 unique values.
+        names = ['John'] * 2000 + ['Jane', 'Bob', 'Alice', 'Charlie', 'Dave']
+        df = pd.DataFrame({'Name': names})
+
+        samples = loader.sample_dataframe(df, sample_size=5)
+        assert samples['Name'] == ['John', 'Jane', 'Bob', 'Alice', 'Charlie']
+

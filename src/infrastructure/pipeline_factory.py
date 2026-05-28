@@ -55,7 +55,7 @@ class PipelineFactory:
 
         # Always create data loader
         data_loader = SmartDataLoader(
-            max_rows=1000,
+            max_rows=None,
             user_agent=self.config.SDD_USER_AGENT,
             hdx_base_url=self.config.HDX_URL,
         )

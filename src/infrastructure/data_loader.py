@@ -28,12 +28,12 @@ class SmartDataLoader:
 
     SUPPORTED_EXTENSIONS = ('.csv', '.xls', '.xlsx')
 
-    def __init__(self, max_rows: int = 1000, user_agent: Optional[str] = None, hdx_base_url: Optional[str] = None):
+    def __init__(self, max_rows: Optional[int] = None, user_agent: Optional[str] = None, hdx_base_url: Optional[str] = None):
         """
         Initialize data loader.
 
         Args:
-            max_rows: Maximum rows to load per sheet
+            max_rows: Optional maximum rows to load per sheet (None for all rows)
             user_agent: Optional default User-Agent header for outbound URL requests
             hdx_base_url: Optional HDX base URL used to scope Authorization header forwarding
         """
@@ -450,9 +450,9 @@ class SmartDataLoader:
 
     def sample_dataframe(self, df: pd.DataFrame, sample_size: int = 5) -> Dict[str, List[Any]]:
         """
-        Sample values from DataFrame.
+        Sample unique values from DataFrame.
 
-        Takes the most complete rows (fewest nulls) and samples from them.
+        Takes the first N unique non-empty/non-null values for each column.
 
         Args:
             df: DataFrame to sample from
@@ -468,13 +468,29 @@ class SmartDataLoader:
 
         for col in df.columns:
             col_data = df[col]
+            values = []
 
-            # Drop empty values
-            non_empty = col_data.dropna()
-            non_empty = non_empty[non_empty != '']
-
-            # Take top N values
-            values = non_empty.head(sample_size).values.ravel().tolist()
+            # Optimization: Check small chunks first to avoid scanning large columns
+            for chunk_size in [100, 1000, 10000]:
+                chunk = col_data.head(chunk_size)
+                clean_chunk = chunk.dropna()
+                if not clean_chunk.empty:
+                    str_mask = clean_chunk.astype(str).str.strip().str.lower()
+                    clean_chunk = clean_chunk[~str_mask.isin(['', 'nan', 'none'])]
+                
+                unique_chunk = clean_chunk.drop_duplicates()
+                if len(unique_chunk) >= sample_size:
+                    values = unique_chunk.head(sample_size).tolist()
+                    break
+            else:
+                # Fallback to scanning the entire column
+                clean_col = col_data.dropna()
+                if not clean_col.empty:
+                    str_mask = clean_col.astype(str).str.strip().str.lower()
+                    clean_col = clean_col[~str_mask.isin(['', 'nan', 'none'])]
+                
+                unique_series = clean_col.drop_duplicates()
+                values = unique_series.head(sample_size).tolist()
 
             # Pad to sample_size if needed
             while len(values) < sample_size:
@@ -483,6 +499,7 @@ class SmartDataLoader:
             sample_dict[str(col)] = values[:sample_size]
 
         return sample_dict
+
 
     @contextmanager
     def _download_to_tempfile(self, url: str, http_headers: Dict[str, str], suffix: str):
