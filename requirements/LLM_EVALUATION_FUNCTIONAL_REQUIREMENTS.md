@@ -80,7 +80,7 @@ Any new feature request for this project must follow this order:
   - Implemented behavior: Ground-truth normalization converts recognized boolean-like values and treats unknown placeholders (for example TODO) as false.
 
 - [x] FR-EVAL-034: Cost analytics must be derived from stored token usage and model pricing map.
-  - Implemented behavior: Prompt/completion tokens are aggregated per model and converted to total and per-report cost estimates.
+  - Implemented behavior: Prompt/completion tokens are aggregated per model and converted to total and per-report cost estimates using separate input (prompt) and output (completion) prices and appropriate currencies (e.g. USD, EUR).
 
 - [x] FR-EVAL-035: Performance analytics and report views must handle the new dict-based report format.
   - Implemented behavior: Data extraction logic for analytics and report details handles both legacy list-based and new dict-based (sdd_report) formats, correctly identifying overall and sheet-level sensitivity flags.
