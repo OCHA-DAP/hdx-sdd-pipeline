@@ -9,7 +9,7 @@ import pandas as pd
 import numpy as np
 import tempfile
 import os
-from src.infrastructure.storage.data_loader import SmartDataLoader
+from src.infrastructure.data_loader import SmartDataLoader
 
 
 class TestSmartDataLoader:

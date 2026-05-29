@@ -119,6 +119,22 @@ class TestProcessDatasetUseCase:
 
         assert result.columns[0].pii_classification.entity_type == PIIEntityType.NONE
 
+    def test_classify_pii_heuristic_geo_coordinates(self, use_case):
+        """Test heuristic classification for latitude and longitude."""
+        report = SheetReport(file_name='test.csv', sheet_name='Sheet1')
+        lat_col = Column(name='Latitude', sample_values=['40.7128'])
+        lon_col = Column(name='longitude ', sample_values=['-74.0060'])  # test strip and case
+        report.add_column(lat_col)
+        report.add_column(lon_col)
+
+        # Should not call LLM
+        result = use_case._classify_pii(report)
+
+        assert result.columns[0].pii_classification.entity_type == PIIEntityType.GEO_COORDINATES
+        assert result.columns[1].pii_classification.entity_type == PIIEntityType.GEO_COORDINATES
+        assert result.completion_tokens == 0
+        assert result.prompt_tokens == 0
+
     def test_classify_pii_error_handling(self, use_case, mock_llm_provider):
         """Test PII classification handles errors."""
         report = SheetReport(file_name='test.csv', sheet_name='Sheet1')
@@ -129,8 +145,9 @@ class TestProcessDatasetUseCase:
 
         result = use_case._classify_pii(report)
 
-        # Should mark as UNDETERMINED on error
-        assert result.columns[0].pii_classification.entity_type == PIIEntityType.UNDETERMINED
+        # Should mark as UNKNOWN and sensitive on error
+        assert result.columns[0].pii_classification.entity_type == PIIEntityType.UNKNOWN
+        assert result.columns[0].pii_classification.sensitive is True
 
     def test_classify_pii_sensitivity(self, use_case, mock_llm_provider):
         """Test PII sensitivity classification with sensitive PII entities (should skip LLM)."""
@@ -149,6 +166,20 @@ class TestProcessDatasetUseCase:
             result.pii_reflection_model
             == 'skipped - sensitive PII entities detected (email, phone number, or person names)'
         )
+
+    def test_classify_pii_sensitivity_geo_coordinates(self, use_case, mock_llm_provider):
+        """Test PII sensitivity classification with GEO_COORDINATES (should skip LLM)."""
+        report = SheetReport(file_name='test.csv', sheet_name='Sheet1')
+        column = Column(name='coords', sample_values=['40.7128, -74.0060'])
+        column.pii_classification.entity_type = PIIEntityType.GEO_COORDINATES
+        report.add_column(column)
+
+        # LLM should not be called due to sensitive PII detection
+        result = use_case._classify_pii_sensitivity(report)
+
+        assert result.columns[0].pii_classification.sensitive is True
+        assert result.personal_data_sensitive is True
+        assert 'sensitive PII entities detected' in result.pii_reflection_model
 
     def test_classify_pii_sensitivity_non_sensitive(self, use_case, mock_llm_provider):
         """Test PII sensitivity classification for non-sensitive."""
@@ -170,12 +201,14 @@ class TestProcessDatasetUseCase:
         column.pii_classification.entity_type = PIIEntityType.ID_NUMBER  # Use non-sensitive PII type
         report.add_column(column)
 
-        mock_llm_provider.generate.side_effect = Exception('API error')
+        mock_llm_provider.generate_json.side_effect = Exception('API error')
 
         result = use_case._classify_pii_sensitivity(report)
 
-        # Should default to sensitive on error (err on side of caution)
+        # Should default to sensitive on error (err on side of caution) and add explanation
         assert result.columns[0].pii_classification.sensitive is True
+        assert result.personal_data_sensitive is True
+        assert result.personal_data_classification.explanation == 'Classification failed due to an error: API error'
 
     def test_classify_non_pii(self, use_case, mock_llm_provider):
         """Test non-PII classification."""
@@ -219,39 +252,9 @@ class TestProcessDatasetUseCase:
 
         result = use_case._classify_non_pii(report, isp_rules=None)
 
-        # Should mark as UNDETERMINED on error
-        assert result.non_pii_classification.sensitivity == SensitivityLevel.UNDETERMINED
-
-    def test_create_table_summary(self, use_case):
-        """Test table summary creation."""
-        report = SheetReport(file_name='test.csv', sheet_name='TestSheet', n_records=100, n_columns=5)
-
-        for i in range(5):
-            column = Column(name=f'col{i}', sample_values=['value'])
-            report.add_column(column)
-
-        summary = use_case._create_table_summary(report)
-
-        assert 'TestSheet' in summary
-        assert '100' in summary
-        assert '5' in summary
-        assert 'col0' in summary
-
-    def test_create_table_summary_many_columns(self, use_case):
-        """Test table summary with many columns."""
-        report = SheetReport(file_name='test.csv', sheet_name='Sheet1')
-
-        # Add 15 columns
-        for i in range(15):
-            column = Column(name=f'col{i}', sample_values=['value'])
-            report.add_column(column)
-
-        summary = use_case._create_table_summary(report)
-
-        # Should show first 10 and mention "more"
-        assert 'col0' in summary
-        assert 'col9' in summary
-        assert 'more columns' in summary
+        # Should mark as SEVERE_SENSITIVE on error and include exception details in explanation
+        assert result.non_pii_classification.sensitivity == SensitivityLevel.SEVERE_SENSITIVE
+        assert 'Classification failed due to an error: API error' in result.non_pii_classification.explanation
 
     def test_execute_from_url(self, use_case, mock_data_loader, mock_llm_provider):
         """Test execute with URL source."""
@@ -320,68 +323,3 @@ class TestProcessDatasetUseCase:
         assert len(reports) == 2
         assert reports[0].sheet_name == 'Sheet1'
         assert reports[1].sheet_name == 'Sheet2'
-
-    def test_extract_sensitivity_from_text_empty(self, use_case):
-        """Test _extract_sensitivity_from_text with empty text."""
-        result = use_case._extract_sensitivity_from_text('')
-        assert result == SensitivityLevel.UNDETERMINED
-
-        result = use_case._extract_sensitivity_from_text(None)
-        assert result == SensitivityLevel.UNDETERMINED
-
-    def test_extract_sensitivity_from_text_classification_format(self, use_case):
-        """Test _extract_sensitivity_from_text with 'Classification:' format."""
-        text = 'Classification: MODERATE_SENSITIVE\n\nExplanation: This data is moderately sensitive.'
-        result = use_case._extract_sensitivity_from_text(text)
-        assert result == SensitivityLevel.MODERATE_SENSITIVE
-
-        text = 'Classification: HIGH_SENSITIVE\n\nDetails here.'
-        result = use_case._extract_sensitivity_from_text(text)
-        assert result == SensitivityLevel.HIGH_SENSITIVE
-
-    def test_extract_sensitivity_from_text_severe_sensitive(self, use_case):
-        """Test _extract_sensitivity_from_text with SEVERE_SENSITIVE."""
-        text = 'The data is SEVERE_SENSITIVE because it contains critical information.'
-        result = use_case._extract_sensitivity_from_text(text)
-        assert result == SensitivityLevel.SEVERE_SENSITIVE
-
-        text = 'SEVERE-SENSITIVE data detected'
-        result = use_case._extract_sensitivity_from_text(text)
-        assert result == SensitivityLevel.SEVERE_SENSITIVE
-
-    def test_extract_sensitivity_from_text_medium_sensitive(self, use_case):
-        """Test _extract_sensitivity_from_text with MEDIUM_SENSITIVE."""
-        text = 'This is MEDIUM_SENSITIVE data.'
-        result = use_case._extract_sensitivity_from_text(text)
-        assert result == SensitivityLevel.MEDIUM_SENSITIVE
-
-        text = 'MEDIUM-SENSITIVE classification'
-        result = use_case._extract_sensitivity_from_text(text)
-        assert result == SensitivityLevel.MEDIUM_SENSITIVE
-
-    def test_extract_sensitivity_from_text_non_sensitive(self, use_case):
-        """Test _extract_sensitivity_from_text with NON_SENSITIVE."""
-        text = 'This data is NON_SENSITIVE.'
-        result = use_case._extract_sensitivity_from_text(text)
-        assert result == SensitivityLevel.NON_SENSITIVE
-
-        text = 'NON-SENSITIVE information'
-        result = use_case._extract_sensitivity_from_text(text)
-        assert result == SensitivityLevel.NON_SENSITIVE
-
-    def test_extract_sensitivity_from_text_all_levels(self, use_case):
-        """Test _extract_sensitivity_from_text with all sensitivity levels."""
-        # Test HIGH_SENSITIVE
-        text = 'HIGH_SENSITIVE data'
-        result = use_case._extract_sensitivity_from_text(text)
-        assert result == SensitivityLevel.HIGH_SENSITIVE
-
-        # Test with hyphen
-        text = 'HIGH-SENSITIVE data'
-        result = use_case._extract_sensitivity_from_text(text)
-        assert result == SensitivityLevel.HIGH_SENSITIVE
-
-        # Test MODERATE_SENSITIVE
-        text = 'MODERATE-SENSITIVE classification'
-        result = use_case._extract_sensitivity_from_text(text)
-        assert result == SensitivityLevel.MODERATE_SENSITIVE

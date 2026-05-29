@@ -4,8 +4,8 @@ import logging
 from typing import Optional
 
 from src.application.use_cases.process_dataset import ProcessDatasetUseCase
-from src.infrastructure.llm.azure_openai_provider import AzureOpenAIProvider
-from src.infrastructure.storage.data_loader import SmartDataLoader
+from src.infrastructure.openai_provider import OpenAIProvider
+from src.infrastructure.data_loader import SmartDataLoader
 from src.shared.utils.prompt_manager import PromptManager
 from config.config import Config
 
@@ -83,38 +83,28 @@ class PipelineFactory:
         logger.info('Pipeline created successfully')
         return pipeline
 
-    def _create_pii_llm(self) -> Optional[AzureOpenAIProvider]:
+    def _create_pii_llm(self) -> Optional[OpenAIProvider]:
         """Create PII detection LLM provider."""
-        logger.debug(f'Creating PII detection LLM: {self.config.PII_DETECT_MODEL}')
-        return AzureOpenAIProvider(
-            model_name=self.config.PII_DETECT_MODEL,
-            azure_endpoint=self.config.AZURE_OPENAI_ENDPOINT,
-            api_key=self.config.AZURE_OPENAI_API_KEY,
-        )
+        return self._get_llm_provider(self.config.PII_DETECT_MODEL)
 
-    def _create_pii_reflection_llm(self) -> Optional[AzureOpenAIProvider]:
+    def _create_pii_reflection_llm(self) -> Optional[OpenAIProvider]:
         """Create PII reflection LLM provider."""
-        logger.debug(f'Creating PII reflection LLM: {self.config.PII_REFLECT_MODEL}')
-        return AzureOpenAIProvider(
-            model_name=self.config.PII_REFLECT_MODEL,
-            azure_endpoint=self.config.AZURE_OPENAI_ENDPOINT,
-            api_key=self.config.AZURE_OPENAI_API_KEY,
-        )
+        return self._get_llm_provider(self.config.PII_REFLECT_MODEL)
 
-    def _create_non_pii_llm(self) -> Optional[AzureOpenAIProvider]:
+    def _create_non_pii_llm(self) -> Optional[OpenAIProvider]:
         """Create non-PII detection LLM provider."""
-        logger.debug(f'Creating non-PII detection LLM: {self.config.NON_PII_DETECT_MODEL}')
-        return AzureOpenAIProvider(
-            model_name=self.config.NON_PII_DETECT_MODEL,
-            azure_endpoint=self.config.AZURE_OPENAI_ENDPOINT,
-            api_key=self.config.AZURE_OPENAI_API_KEY,
-        )
+        return self._get_llm_provider(self.config.NON_PII_DETECT_MODEL)
 
-    def _create_readme_llm(self) -> Optional[AzureOpenAIProvider]:
+    def _create_readme_llm(self) -> Optional[OpenAIProvider]:
         """Create README scan LLM provider."""
-        logger.debug(f'Creating README scan LLM: {self.config.README_SCAN_MODEL}')
-        return AzureOpenAIProvider(
-            model_name=self.config.README_SCAN_MODEL,
-            azure_endpoint=self.config.AZURE_OPENAI_ENDPOINT,
-            api_key=self.config.AZURE_OPENAI_API_KEY,
+        return self._get_llm_provider(self.config.README_SCAN_MODEL)
+
+    def _get_llm_provider(self, model_name: str) -> OpenAIProvider:
+        """Resolve and create the appropriate LLM provider."""
+
+        logger.info(f'Creating OpenAIProvider for model {model_name}')
+        return OpenAIProvider(
+            model_name=model_name,
+            endpoint=self.config.OPENAI_ENDPOINT,
+            api_key=self.config.OPENAI_API_KEY,
         )

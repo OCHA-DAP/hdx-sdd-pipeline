@@ -1,7 +1,6 @@
 """utils/ckan.py: CKAN API client and utilities."""
 
 import logging
-from pathlib import Path
 from typing import Optional, Dict, Any
 import requests
 
@@ -25,7 +24,6 @@ class CKANClient:
         self.base_url = base_url
         self.api_token = api_token
         self.user_agent = user_agent
-        self.project_root = Path(__file__).resolve().parent.parent
         self.headers = {'Authorization': self.api_token} if self.api_token else {}
         if self.user_agent:
             self.headers['User-Agent'] = self.user_agent
@@ -86,51 +84,3 @@ class CKANClient:
         else:
             logger.error('Failed to update resource %s', resource_id)
             return None
-
-    @handle_exception()
-    def remove_resource_field(self, resource_id: str, field_name: str) -> Optional[dict]:
-        """
-        Remove (set to None) a specific field in a CKAN resource.
-        """
-        if not self.api_token:
-            raise EnvironmentError('HDX_API_TOKEN is required to modify resources')
-
-        payload = {'id': resource_id, field_name: None}
-        logger.info(f'Removing field {field_name} from resource {resource_id}')
-        return self._request('resource_patch', method='POST', json=payload)
-
-    @handle_exception()
-    def _get_download_link(self, resource_id: str) -> Optional[str]:
-        """Get the download link for a resource."""
-        resource = self.resource_show(resource_id)
-        if resource and resource.get('download_url'):
-            return resource['download_url']
-        logger.info('No download URL found for resource: %s', resource_id)
-        return None
-
-    # --- File operations ---
-    @handle_exception()
-    def _download_file(self, url: str, filename: str, output_dir: Path) -> Path:
-        """Download a file from a URL and save it locally."""
-        output_dir.mkdir(parents=True, exist_ok=True)
-        file_path = output_dir / filename
-        logger.info('Downloading file: %s', url)
-
-        response = requests.get(url, timeout=30, headers=self.headers)
-        response.raise_for_status()
-        file_path.write_bytes(response.content)
-
-        logger.info('File saved to: %s', file_path)
-        return file_path
-
-    @handle_exception()
-    def download_resource(
-        self, resource_id: str, filename: Optional[str] = None, output_dir: Optional[Path] = None
-    ) -> Path:
-        """Download a CKAN resource by its ID."""
-        output_dir = output_dir or (self.project_root / 'resources')
-        url = self._get_download_link(resource_id)
-        if not url:
-            raise ValueError('No download URL found for resource: %s', resource_id)
-        filename = filename or Path(url).name
-        return self._download_file(url, filename, output_dir)

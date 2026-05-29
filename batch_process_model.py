@@ -5,7 +5,7 @@ This script processes all datasets that exist in groundtruth2 with a specified m
 Useful for running a new model on your test set.
 
 Usage:
-    uv run python batch_process_model.py --model gpt-4.1-nano
+    uv run python batch_process_model.py --model DeepSeek-V4-Flash --skip-existing
     uv run python batch_process_model.py --model gpt-4.1-nano --skip-existing
 """
 
@@ -21,6 +21,7 @@ from config import get_config
 from src.event_processor import EventProcessor
 
 # Setup logging
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
 # Load environment variables
@@ -47,6 +48,7 @@ def setup_event_processor(model_name: str, output_dir: Path) -> EventProcessor:
     config.PII_DETECT_MODEL = model_name
     config.PII_REFLECT_MODEL = model_name
     config.NON_PII_DETECT_MODEL = model_name
+    config.README_SCAN_MODEL = model_name
 
     # Ensure all detection steps are enabled
     config.PERSONAL_DATA_DETECTION = True
@@ -57,7 +59,7 @@ def setup_event_processor(model_name: str, output_dir: Path) -> EventProcessor:
     config.CKAN_UPDATE = False
 
     # Create EventProcessor with custom output directory
-    event_processor = EventProcessor(custom_output_path=str(output_dir))
+    event_processor = EventProcessor(custom_output_path=str(output_dir), config=config)
 
     print('EventProcessor setup complete!')
     return event_processor

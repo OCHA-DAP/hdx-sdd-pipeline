@@ -65,6 +65,9 @@ Any new feature request for this project must follow this order:
 - [x] FR-SDD-023: ISP rules must be retrieved and applied during sensitivity analysis.
   - Implemented behavior: Event processor resolves ISP rules from package/resource context before executing classification pipeline.
 
+- [x] FR-SDD-024: ISP matching from resource name must search the entire filename for a match.
+  - Implemented behavior: The system iterates through all configured ISPs and checks if their country ISO3 code is present as a substring (case-insensitive) within the entire resource name string.
+
 ### Classification and sensitivity
 
 - [x] FR-SDD-030: The dataset pipeline must execute the implemented multi-stage classification flow.
@@ -78,6 +81,28 @@ Any new feature request for this project must follow this order:
 
 - [x] FR-SDD-033: The non-PII classification prompt must be specialized when using the default ISP rules.
   - Expected behavior: When the ISP country is 'default', use a simplified 2-level classification prompt (NON_SENSITIVE/SEVERE_SENSITIVE) with hardcoded humanitarian data sensitivity rules instead of the standard multi-level ISP-based prompt.
+
+- [x] FR-SDD-034: The pipeline must support detection of Geo Coordinates as a PII entity.
+  - Expected behavior: 'GEO_COORDINATES' is included in the PII entity type enumeration and the PII detection prompt. Additionally, columns named 'latitude' or 'longitude' (case-insensitive) are automatically classified as 'GEO_COORDINATES'.
+
+- [x] FR-SDD-035: If non-personal data sensitivity classification fails or returns UNDETERMINED, the pipeline must promote the sensitivity to SEVERE_SENSITIVE as a safe default, and record the error details in the explanation field.
+  - Expected behavior: Any decoding, connectivity, safety filter, or parse errors in non-personal classification, or an explicitly returned UNDETERMINED sensitivity, must trigger a fallback to SEVERE_SENSITIVE with diagnostic details.
+
+- [x] FR-SDD-036: Unified OpenAI SDK usage.
+  - Expected behavior: All LLM models (Azure OpenAI, DeepSeek, etc.) must be queried using the standard openai SDK through a unified OpenAIProvider class, completely removing the abstract ILLMProvider interface and factories, throwing LLMProviderError on failure rather than returning placeholder values like 'UNDETERMINED'.
+
+- [x] FR-SDD-037: PII entity prediction failure fallback.
+  - Expected behavior: If PII entity classification fails (raises an exception or returns UNDETERMINED/UNKNOWN), the column's entity type must be set to UNKNOWN and classified as sensitive.
+
+- [x] FR-SDD-038: PII reflection failure fallback.
+  - Expected behavior: If PII reflection classification fails (raises an exception), the sheet-level personal data classification must be set to sensitive (personal_data_sensitive = True), and the reason/exception details must be recorded in the explanation field.
+
+- [x] FR-SDD-039: Non-PII classification failure fallback.
+  - Expected behavior: If non-PII classification fails (raises an exception), the sheet-level non-personal data classification must be set to sensitive (SensitivityLevel.SEVERE_SENSITIVE), and the reason/exception details must be recorded in the explanation field.
+
+- [x] FR-SDD-042: Logging raw response for UNDETERMINED generation outcomes.
+  - Expected behavior: Whenever PII entity detection, PII reflection, or non-PII classification yields an UNDETERMINED result, the system must clearly log the issue in generation, including the raw response back.
+
 
 ### Persistence and outputs
 

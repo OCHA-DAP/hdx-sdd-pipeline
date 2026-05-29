@@ -12,7 +12,7 @@ from pathlib import Path
 from datetime import datetime
 from dotenv import load_dotenv
 
-from src.infrastructure.factories import PipelineFactory
+from src.infrastructure.pipeline_factory import PipelineFactory
 from src.domain.entities import SheetReport
 from src.shared.utils.isp_retrieval import ISPRetriever
 
@@ -36,12 +36,12 @@ class EventProcessor:
     clean architecture use cases.
     """
 
-    def __init__(self, custom_output_path: Optional[str] = None):
+    def __init__(self, custom_output_path: Optional[str] = None, config=None):
         """Initialize event processor with all dependencies."""
         logger.info('Initializing Event Processor...')
 
         # Load configuration
-        self.config = get_config()
+        self.config = config if config else get_config()
 
         # Set custom output path if provided
         self.custom_output_path = Path(custom_output_path) if custom_output_path else None
