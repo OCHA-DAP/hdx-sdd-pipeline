@@ -28,7 +28,9 @@ class SmartDataLoader:
 
     SUPPORTED_EXTENSIONS = ('.csv', '.xls', '.xlsx')
 
-    def __init__(self, max_rows: Optional[int] = None, user_agent: Optional[str] = None, hdx_base_url: Optional[str] = None):
+    def __init__(
+        self, max_rows: Optional[int] = None, user_agent: Optional[str] = None, hdx_base_url: Optional[str] = None
+    ):
         """
         Initialize data loader.
 
@@ -233,56 +235,56 @@ class SmartDataLoader:
         """Load CSV file with chunked loading to find unique values."""
         logger.debug('Reading CSV file: %s (max_rows=%s)', source, self.max_rows)
         delimiter = self._detect_csv_delimiter(source)
-        
+
         chunk_sizes = [100, 1000, 10000, 25000, 50000, 100000]
         if self.max_rows is not None:
             chunk_sizes = [c for c in chunk_sizes if c < self.max_rows] + [self.max_rows]
 
         final_df = None
         for chunk_size in chunk_sizes:
-            logger.debug(f"Trying to load CSV with chunk size: {chunk_size}")
+            logger.debug(f'Trying to load CSV with chunk size: {chunk_size}')
             try:
                 df = pd.read_csv(source, header=None, nrows=chunk_size, delimiter=delimiter)
             except Exception as e:
-                logger.error(f"Error reading CSV with chunk size {chunk_size}: {e}")
+                logger.error(f'Error reading CSV with chunk size {chunk_size}: {e}')
                 if final_df is not None:
                     break
                 raise
-                
+
             raw_len = len(df)
             processed_df = self._preprocess_dataframe(df)
             final_df = processed_df
-            
+
             # Check if we have enough unique values for all columns
             if self._has_enough_unique_values({'sheet1': processed_df}):
-                logger.debug(f"Found enough unique values with chunk size {chunk_size}")
+                logger.debug(f'Found enough unique values with chunk size {chunk_size}')
                 break
-                
+
             # If we reached the end of the file, we cannot load more rows
             if raw_len < chunk_size:
-                logger.debug(f"Reached end of file at {raw_len} rows (chunk size was {chunk_size})")
+                logger.debug(f'Reached end of file at {raw_len} rows (chunk size was {chunk_size})')
                 break
-        
+
         if final_df is None:
             final_df = pd.DataFrame()
-            
+
         return {'sheet1': final_df}
 
     def _load_excel(self, source: str) -> Dict[str, pd.DataFrame]:
         """Load Excel file with multiple sheets and chunked loading."""
         logger.debug(f'Reading Excel file: {source} (max_rows={self.max_rows})')
-        
+
         chunk_sizes = [100, 1000, 10000, 25000, 50000, 100000]
         if self.max_rows is not None:
             chunk_sizes = [c for c in chunk_sizes if c < self.max_rows] + [self.max_rows]
 
         final_result = {}
         for chunk_size in chunk_sizes:
-            logger.debug(f"Trying to load Excel with chunk size: {chunk_size}")
+            logger.debug(f'Trying to load Excel with chunk size: {chunk_size}')
             try:
                 df_dict = pd.read_excel(source, sheet_name=None, nrows=chunk_size, header=None)
             except Exception as e:
-                logger.error(f"Error reading Excel with chunk size {chunk_size}: {e}")
+                logger.error(f'Error reading Excel with chunk size {chunk_size}: {e}')
                 if final_result:
                     break
                 raise
@@ -293,19 +295,19 @@ class SmartDataLoader:
                 max_raw_len = max(max_raw_len, len(df))
                 processed_df = self._preprocess_dataframe(df)
                 processed_dict[sheet_name] = processed_df
-                
+
             final_result = processed_dict
-            
+
             # Check if all sheets/columns have enough unique values
             if self._has_enough_unique_values(processed_dict):
-                logger.debug(f"Found enough unique values with chunk size {chunk_size}")
+                logger.debug(f'Found enough unique values with chunk size {chunk_size}')
                 break
-                
+
             # If we reached the end of the file, stop
             if max_raw_len < chunk_size:
-                logger.debug(f"Reached end of Excel file at {max_raw_len} rows (chunk size was {chunk_size})")
+                logger.debug(f'Reached end of Excel file at {max_raw_len} rows (chunk size was {chunk_size})')
                 break
-                
+
         return final_result
 
     def _preprocess_dataframe(self, df: pd.DataFrame) -> pd.DataFrame:
@@ -542,24 +544,24 @@ class SmartDataLoader:
 
         for col in df.columns:
             col_data = df[col]
-            
+
             # Clean and get unique values
             clean_col = col_data.dropna()
             if not clean_col.empty:
                 str_mask = clean_col.astype(str).str.strip().str.lower()
                 clean_col = clean_col[~str_mask.isin(['', 'nan', 'none'])]
-            
+
             # Drop duplicates to get unique values
             unique_series = clean_col.drop_duplicates()
             unique_list = unique_series.tolist()
-            
+
             # Randomly sample from unique values if we have enough
             if len(unique_list) >= sample_size:
                 sampled_series = pd.Series(unique_list).sample(n=sample_size, random_state=42)
                 values = sampled_series.tolist()
             else:
                 values = unique_list
-                
+
             # Pad to sample_size if needed
             while len(values) < sample_size:
                 values.append('')
@@ -567,7 +569,6 @@ class SmartDataLoader:
             sample_dict[str(col)] = values[:sample_size]
 
         return sample_dict
-
 
     @contextmanager
     def _download_to_tempfile(self, url: str, http_headers: Dict[str, str], suffix: str):

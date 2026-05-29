@@ -482,10 +482,12 @@ class TestSmartDataLoader:
 
         # Column Name has duplicates and invalid placeholder strings
         # Column Age has unique valid values, nulls, and empty strings
-        df = pd.DataFrame({
-            'Name': ['John', 'John', 'Jane', '   ', 'Bob', 'none', 'nan', 'Jane', 'Alice'],
-            'Age': [25, None, 30, '', 35, 25, 40, 25, 45]
-        })
+        df = pd.DataFrame(
+            {
+                'Name': ['John', 'John', 'Jane', '   ', 'Bob', 'none', 'nan', 'Jane', 'Alice'],
+                'Age': [25, None, 30, '', 35, 25, 40, 25, 45],
+            }
+        )
 
         samples = loader.sample_dataframe(df, sample_size=5)
 
@@ -517,10 +519,10 @@ class TestSmartDataLoader:
 
         # Create a CSV file with 150 rows.
         # First 100 rows already have 5 unique values: John0, John1, John2, John3, John4.
-        rows = ["Name,Age"]
+        rows = ['Name,Age']
         for i in range(150):
-            rows.append(f"John{i % 5},{20 + i}")
-        
+            rows.append(f'John{i % 5},{20 + i}')
+
         with tempfile.NamedTemporaryFile(mode='w', suffix='.csv', delete=False, newline='') as f:
             f.write('\n'.join(rows))
             temp_file = f.name
@@ -530,14 +532,14 @@ class TestSmartDataLoader:
             # Let's spy/mock pd.read_csv to see what chunk sizes it's called with.
             original_read_csv = pd.read_csv
             calls = []
-            
+
             def mock_read_csv(*args, **kwargs):
                 calls.append(kwargs.get('nrows'))
                 return original_read_csv(*args, **kwargs)
 
             with patch('pandas.read_csv', side_effect=mock_read_csv):
                 result = loader.load_from_file(temp_file)
-                
+
             assert 'sheet1' in result
             # Should have only loaded the first chunk (100)
             assert calls == [100]
@@ -555,10 +557,10 @@ class TestSmartDataLoader:
 
         # Create a CSV file with 250 rows.
         # First 100 rows only have 2 unique values for Name: John0, John1.
-        rows = ["Name,Age"]
+        rows = ['Name,Age']
         for i in range(250):
-            name_val = f"John{i % 2}" if i < 100 else f"John{i}"
-            rows.append(f"{name_val},{20 + i}")
+            name_val = f'John{i % 2}' if i < 100 else f'John{i}'
+            rows.append(f'{name_val},{20 + i}')
 
         with tempfile.NamedTemporaryFile(mode='w', suffix='.csv', delete=False, newline='') as f:
             f.write('\n'.join(rows))
@@ -568,14 +570,14 @@ class TestSmartDataLoader:
             loader = SmartDataLoader()
             calls = []
             original_read_csv = pd.read_csv
-            
+
             def mock_read_csv(*args, **kwargs):
                 calls.append(kwargs.get('nrows'))
                 return original_read_csv(*args, **kwargs)
 
             with patch('pandas.read_csv', side_effect=mock_read_csv):
                 result = loader.load_from_file(temp_file)
-                
+
             # First chunk is 100. It doesn't have 5 unique values for Name.
             # So it tries chunk size 1000.
             # File has 251 lines total, so read_csv(nrows=1000) reads all 250 rows, which is < 1000.
