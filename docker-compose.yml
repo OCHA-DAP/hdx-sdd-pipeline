@@ -34,6 +34,8 @@ services:
       HDX_URL: ${HDX_URL:-https://data.humdata.local}
       HDX_KEY: ${HDX_KEY:-YOUR_HDX_TOKEN}
       HDX_SDD_SLACK_ACCESS_TOKEN: ${HDX_SDD_SLACK_ACCESS_TOKEN:-your-token-here}
+      OPENAI_ENDPOINT: ${OPENAI_ENDPOINT:-https://your-resource.openai.azure.com/}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-your-api-key-here}
     entrypoint: [ "tail", "-f", "/dev/null" ]
     networks:
       - redis-network
