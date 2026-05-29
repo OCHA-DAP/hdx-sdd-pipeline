@@ -221,6 +221,22 @@ class SmartDataLoader:
             logger.debug('Fallback detection failed, defaulting to comma: %s', e)
             return ','
 
+    def _has_enough_unique_values(self, df_dict: Dict[str, pd.DataFrame], target_unique: int = 5) -> bool:
+        """Check if all non-README sheets have at least target_unique unique values in every column."""
+        for sheet_name, df in df_dict.items():
+            normalized_name = sheet_name.lower().replace(' ', '')
+            if any(k in normalized_name for k in ['readme', 'instructions', 'metadata', 'info']):
+                continue
+            if df.empty:
+                continue
+            for col in df.columns:
+                col_data = df[col].dropna()
+                if not col_data.empty:
+                    str_mask = col_data.astype(str).str.strip().str.lower()
+                    col_data = col_data[~str_mask.isin(['', 'nan', 'none'])]
+                if col_data.nunique() < target_unique:
+                    return False
+        return True
     @staticmethod
     def _convert_string_to_numeric(val: Any) -> Any:
         """Convert a string representation of a number to a real float or int."""
@@ -271,16 +287,40 @@ class SmartDataLoader:
         """Load CSV file with chunked loading to find unique values."""
         logger.debug('Reading CSV file: %s (max_rows=%s)', source, self.max_rows)
         delimiter = self._detect_csv_delimiter(source)
-        df = pd.read_csv(source, header=None, nrows=self.max_rows, delimiter=delimiter)
-        df = self._preprocess_dataframe(df)
 
-        # Convert numeric strings to actual numbers
-        if hasattr(df, 'map'):
-            df = df.map(self._convert_string_to_numeric)
-        else:
-            df = df.applymap(self._convert_string_to_numeric)
+        chunk_sizes = [100, 1000, 10000, 25000, 50000, 100000]
+        if self.max_rows is not None:
+            chunk_sizes = [c for c in chunk_sizes if c < self.max_rows] + [self.max_rows]
 
-        return {'sheet1': df}
+        final_df = None
+        for chunk_size in chunk_sizes:
+            logger.debug(f'Trying to load CSV with chunk size: {chunk_size}')
+            try:
+                df = pd.read_csv(source, header=None, nrows=chunk_size, delimiter=delimiter)
+            except Exception as e:
+                logger.error(f'Error reading CSV with chunk size {chunk_size}: {e}')
+                if final_df is not None:
+                    break
+                raise
+
+            raw_len = len(df)
+            processed_df = self._preprocess_dataframe(df)
+            final_df = processed_df
+
+            # Check if we have enough unique values for all columns
+            if self._has_enough_unique_values({'sheet1': processed_df}):
+                logger.debug(f'Found enough unique values with chunk size {chunk_size}')
+                break
+
+            # If we reached the end of the file, we cannot load more rows
+            if raw_len < chunk_size:
+                logger.debug(f'Reached end of file at {raw_len} rows (chunk size was {chunk_size})')
+                break
+
+        if final_df is None:
+            final_df = pd.DataFrame()
+
+        return {'sheet1': final_df}
 
     def _load_excel(self, source: str) -> Dict[str, pd.DataFrame]:
         """Load Excel file with multiple sheets and chunked loading."""
