@@ -50,7 +50,7 @@ class Config:
     DOWNLOAD_DIR: str = os.getenv('DOWNLOAD_DIR', '/tmp/download')
 
     # OpenAI
-    OPENAI_ENDPOINT: str = os.getenv('OPENAI_ENDPOINT', '')
+    OPENAI_ENDPOINT: str = os.getenv('OPENAI_ENDPOINT', 'https://hdx-azurellm-classification.services.ai.azure.com/openai/v1')
     OPENAI_API_KEY: str = os.getenv('OPENAI_API_KEY') or os.getenv('AZURE_OPENAI_API_KEY', '')
 
     # Slack
