@@ -1,6 +1,7 @@
 """Data loader implementation with smart preprocessing."""
 
 import logging
+import re
 from typing import Dict, List, Any, Optional
 from pathlib import Path
 from contextlib import contextmanager
@@ -12,6 +13,12 @@ import csv
 from ..domain.exceptions import DataProcessingError
 
 logger = logging.getLogger(__name__)
+
+# Regex for number with comma as thousands separator (e.g. 1,234 or 1,234.56)
+COMMA_NUMERIC_RE = re.compile(r'^[+-]?\d{1,3}(?:,\d{3})+(?:\.\d+)?$')
+
+# Regex for number with space as thousands separator (e.g. 1 234 or 1 234.56)
+SPACE_NUMERIC_RE = re.compile(r'^[+-]?\d{1,3}(?:\s\d{3})+(?:\.\d+)?$')
 
 
 class SmartDataLoader:
@@ -212,12 +219,65 @@ class SmartDataLoader:
             logger.debug('Fallback detection failed, defaulting to comma: %s', e)
             return ','
 
+    @staticmethod
+    def _convert_string_to_numeric(val: Any) -> Any:
+        """Convert a string representation of a number to a real float or int."""
+        if not isinstance(val, str):
+            return val
+
+        val_clean = val.strip()
+        if not val_clean:
+            return val
+
+        # 1. Try direct integer conversion
+        try:
+            return int(val_clean)
+        except ValueError:
+            pass
+
+        # 2. Try direct float conversion
+        try:
+            return float(val_clean)
+        except ValueError:
+            pass
+
+        # 3. Check for comma thousands separators (e.g., "3,466", "1,234,567.89")
+        if COMMA_NUMERIC_RE.match(val_clean):
+            val_no_comma = val_clean.replace(',', '')
+            try:
+                if '.' in val_no_comma:
+                    return float(val_no_comma)
+                else:
+                    return int(val_no_comma)
+            except ValueError:
+                pass
+
+        # 4. Check for space thousands separators (e.g., "3 466", "1 234 567.89")
+        if SPACE_NUMERIC_RE.match(val_clean):
+            val_no_space = re.sub(r'\s+', '', val_clean)
+            try:
+                if '.' in val_no_space:
+                    return float(val_no_space)
+                else:
+                    return int(val_no_space)
+            except ValueError:
+                pass
+
+        return val
+
     def _load_csv(self, source: str) -> Dict[str, pd.DataFrame]:
         """Load CSV file."""
         logger.debug('Reading CSV file: %s (max_rows=%s)', source, self.max_rows)
         delimiter = self._detect_csv_delimiter(source)
         df = pd.read_csv(source, header=None, nrows=self.max_rows, delimiter=delimiter)
         df = self._preprocess_dataframe(df)
+
+        # Convert numeric strings to actual numbers
+        if hasattr(df, 'map'):
+            df = df.map(self._convert_string_to_numeric)
+        else:
+            df = df.applymap(self._convert_string_to_numeric)
+
         return {'sheet1': df}
 
     def _load_excel(self, source: str) -> Dict[str, pd.DataFrame]:
