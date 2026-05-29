@@ -68,6 +68,9 @@ Any new feature request for this project must follow this order:
 - [x] FR-SDD-024: ISP matching from resource name must search the entire filename for a match.
   - Implemented behavior: The system iterates through all configured ISPs and checks if their country ISO3 code is present as a substring (case-insensitive) within the entire resource name string.
 
+- [x] FR-SDD-025: CSV numeric value normalisation.
+  - Implemented behavior: When loading data from CSV, elements are mapped element-wise to parse string-formatted integers or floats (including cleaning of comma and space thousands separators) into real numeric objects.
+
 ### Classification and sensitivity
 
 - [x] FR-SDD-030: The dataset pipeline must execute the implemented multi-stage classification flow.
