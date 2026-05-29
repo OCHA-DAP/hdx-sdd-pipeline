@@ -57,7 +57,7 @@ uv run uvicorn app.main_fastapi:app --host 127.0.0.1 --port 8000 --reload
 #### Option 3: Direct Processing
 
 ```python
-from src.application.use_cases.process_dataset import ProcessDatasetUseCase
+from src.application.process_dataset import ProcessDatasetUseCase
 from src.infrastructure.factories import PipelineFactory
 from config import get_config
 

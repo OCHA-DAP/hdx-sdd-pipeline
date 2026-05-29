@@ -390,7 +390,7 @@ HDX_SDD_SLACK_ACCESS_TOKEN=xoxb-your-token
 #### Pipeline Initialization
 
 ```python
-from src.application.use_cases.process_dataset import ProcessDatasetUseCase
+from src.application.process_dataset import ProcessDatasetUseCase
 from src.infrastructure.llm.azure_openai_provider import AzureOpenAIProvider
 from src.infrastructure.storage.data_loader import SmartDataLoader
 from src.shared.utils.prompt_manager import PromptManager
