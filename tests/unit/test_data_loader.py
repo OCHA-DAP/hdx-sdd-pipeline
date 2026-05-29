@@ -481,25 +481,25 @@ class TestSmartDataLoader:
         assert loader._convert_string_to_numeric(None) is None
 
         # Standard integers and floats
-        assert loader._convert_string_to_numeric("123") == 123
-        assert loader._convert_string_to_numeric("-123") == -123
-        assert loader._convert_string_to_numeric("12.3") == 12.3
-        assert loader._convert_string_to_numeric("-12.3") == -12.3
+        assert loader._convert_string_to_numeric('123') == 123
+        assert loader._convert_string_to_numeric('-123') == -123
+        assert loader._convert_string_to_numeric('12.3') == 12.3
+        assert loader._convert_string_to_numeric('-12.3') == -12.3
 
         # Formatted integers/floats with thousands separator
-        assert loader._convert_string_to_numeric("3,466") == 3466
-        assert loader._convert_string_to_numeric("1,234,567") == 1234567
-        assert loader._convert_string_to_numeric("1,234,567.89") == 1234567.89
-        assert loader._convert_string_to_numeric("3 466") == 3466
-        assert loader._convert_string_to_numeric("1 234 567.89") == 1234567.89
+        assert loader._convert_string_to_numeric('3,466') == 3466
+        assert loader._convert_string_to_numeric('1,234,567') == 1234567
+        assert loader._convert_string_to_numeric('1,234,567.89') == 1234567.89
+        assert loader._convert_string_to_numeric('3 466') == 3466
+        assert loader._convert_string_to_numeric('1 234 567.89') == 1234567.89
 
         # Non-numeric or invalid formats (should remain as strings)
-        assert loader._convert_string_to_numeric("1,2") == "1,2"
-        assert loader._convert_string_to_numeric("1,2,3") == "1,2,3"
-        assert loader._convert_string_to_numeric("abc") == "abc"
-        assert loader._convert_string_to_numeric("3,46") == "3,46"
-        assert loader._convert_string_to_numeric("") == ""
-        assert loader._convert_string_to_numeric("   ") == "   "
+        assert loader._convert_string_to_numeric('1,2') == '1,2'
+        assert loader._convert_string_to_numeric('1,2,3') == '1,2,3'
+        assert loader._convert_string_to_numeric('abc') == 'abc'
+        assert loader._convert_string_to_numeric('3,46') == '3,46'
+        assert loader._convert_string_to_numeric('') == ''
+        assert loader._convert_string_to_numeric('   ') == '   '
 
     @patch('pandas.read_csv')
     def test_load_csv_converts_numeric_strings(self, mock_read_csv):
@@ -507,10 +507,7 @@ class TestSmartDataLoader:
         loader = SmartDataLoader()
 
         # Mock CSV data containing numeric strings
-        mock_df = pd.DataFrame({
-            0: ['Col1', '3,466', '12.3'],
-            1: ['Col2', 'abc', '123']
-        })
+        mock_df = pd.DataFrame({0: ['Col1', '3,466', '12.3'], 1: ['Col2', 'abc', '123']})
         mock_read_csv.return_value = mock_df
 
         # Call load_csv
@@ -520,8 +517,8 @@ class TestSmartDataLoader:
         df = result['sheet1']
 
         # Verify the columns are converted appropriately
-        assert df.loc[0, 'Col1'] == 3466      # "3,466" -> 3466
-        assert df.loc[1, 'Col1'] == 12.3      # "12.3" -> 12.3
+        assert df.loc[0, 'Col1'] == 3466  # "3,466" -> 3466
+        assert df.loc[1, 'Col1'] == 12.3  # "12.3" -> 12.3
 
-        assert df.loc[0, 'Col2'] == "abc"     # "abc" remains "abc"
-        assert df.loc[1, 'Col2'] == 123       # "123" -> 123
+        assert df.loc[0, 'Col2'] == 'abc'  # "abc" remains "abc"
+        assert df.loc[1, 'Col2'] == 123  # "123" -> 123
