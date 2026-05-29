@@ -122,7 +122,7 @@ def compute_performance(
 def compute_cost(
     model: str,
     model_dir: Path,
-    price_per_1m: float,
+    price_info: dict[str, float | str] | None,
 ) -> dict:
     total_prompt = total_completion = reports = 0
 
@@ -137,14 +137,26 @@ def compute_cost(
             continue
 
     total = total_prompt + total_completion
-    cost = total / 1_000_000 * price_per_1m
+
+    if price_info is None or not isinstance(price_info, dict):
+        price_info = {'prompt': 0.0, 'completion': 0.0, 'currency': '$'}
+
+    prompt_price = float(price_info.get('prompt', 0.0))
+    completion_price = float(price_info.get('completion', 0.0))
+    currency = str(price_info.get('currency', '$'))
+
+    cost = (total_prompt / 1_000_000 * prompt_price) + (total_completion / 1_000_000 * completion_price)
+
     return {
         'model': model,
         'reports': reports,
         'prompt_tokens': total_prompt,
         'completion_tokens': total_completion,
         'total_tokens': total,
-        'price_per_1m': price_per_1m,
+        'prompt_price_per_1m': prompt_price,
+        'completion_price_per_1m': completion_price,
+        'currency': currency,
+        'price_per_1m': prompt_price,
         'total_cost': cost,
         'cost_per_report': cost / reports if reports else 0,
     }
