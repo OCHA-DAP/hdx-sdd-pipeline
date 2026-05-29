@@ -102,8 +102,8 @@ Any new feature request for this project must follow this order:
 
 - [x] FR-SDD-042: Logging raw response for UNDETERMINED generation outcomes.
   - Expected behavior: Whenever PII entity detection, PII reflection, or non-PII classification yields an UNDETERMINED result, the system must clearly log the issue in generation, including the raw response back.
-- [x] FR-SDD-043: Load whole dataset and extract unique values for sampling.
-  - Expected behavior: SmartDataLoader defaults to loading the entire dataset (max_rows=None) and samples the first 5 unique non-empty/non-null values for each column to improve PII detection.
+- [x] FR-SDD-043: Incremental chunked loading and random sampling with fixed seed for sample values.
+  - Expected behavior: SmartDataLoader loads datasets in chunks (100, 1000, 10000, 25000, 50000, and 100000 rows) using pandas. If all columns have at least 5 unique non-empty/non-null values, it stops loading. If not, it tries the next chunk size until the end of the file or max chunk size is reached. Unique values for each column are randomly sampled (5 values) with a random seed of 42.
 
 
 
