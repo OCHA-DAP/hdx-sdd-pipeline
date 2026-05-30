@@ -533,9 +533,7 @@ class TestSmartDataLoader:
         loader = SmartDataLoader()
 
         # Mock Excel data containing numeric strings
-        mock_sheets = {
-            'Sheet1': pd.DataFrame({0: ['Col1', '3,466', '12.3'], 1: ['Col2', 'abc', '123']})
-        }
+        mock_sheets = {'Sheet1': pd.DataFrame({0: ['Col1', '3,466', '12.3'], 1: ['Col2', 'abc', '123']})}
         mock_read_excel.return_value = mock_sheets
 
         # Call load_excel
