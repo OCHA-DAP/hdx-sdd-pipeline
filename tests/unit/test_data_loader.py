@@ -492,6 +492,10 @@ class TestSmartDataLoader:
         assert loader._convert_string_to_numeric('1,234,567.89') == 1234567.89
         assert loader._convert_string_to_numeric('3 466') == 3466
         assert loader._convert_string_to_numeric('1 234 567.89') == 1234567.89
+        # Multiple spaces, non-breaking spaces (NBSP), and narrow no-break spaces (NNBSP)
+        assert loader._convert_string_to_numeric('1  234') == 1234
+        assert loader._convert_string_to_numeric('3\u00a0466') == 3466  # NBSP
+        assert loader._convert_string_to_numeric('1\u202f234\u202f567.89') == 1234567.89  # NNBSP
 
         # Non-numeric or invalid formats (should remain as strings)
         assert loader._convert_string_to_numeric('1,2') == '1,2'
@@ -522,3 +526,34 @@ class TestSmartDataLoader:
 
         assert df.loc[0, 'Col2'] == 'abc'  # "abc" remains "abc"
         assert df.loc[1, 'Col2'] == 123  # "123" -> 123
+
+    @patch('pandas.read_excel')
+    def test_load_excel_converts_numeric_strings(self, mock_read_excel):
+        """Test that loading an Excel file converts numeric string columns."""
+        loader = SmartDataLoader()
+
+        # Mock Excel data containing numeric strings
+        mock_sheets = {
+            'Sheet1': pd.DataFrame({0: ['Col1', '3,466', '12.3'], 1: ['Col2', 'abc', '123']})
+        }
+        mock_read_excel.return_value = mock_sheets
+
+        # Call load_excel
+        result = loader._load_excel('test.xlsx')
+
+        assert 'Sheet1' in result
+        df = result['Sheet1']
+
+        # Verify the columns are converted appropriately
+        assert df.loc[0, 'Col1'] == 3466  # "3,466" -> 3466
+        assert df.loc[1, 'Col1'] == 12.3  # "12.3" -> 12.3
+
+        assert df.loc[0, 'Col2'] == 'abc'  # "abc" remains "abc"
+        assert df.loc[1, 'Col2'] == 123  # "123" -> 123
+
+    def test_normalize_numeric_values_empty(self):
+        """Test that _normalize_numeric_values handles empty DataFrame."""
+        loader = SmartDataLoader()
+        df = pd.DataFrame()
+        result = loader._normalize_numeric_values(df)
+        assert result.empty

@@ -17,8 +17,8 @@ logger = logging.getLogger(__name__)
 # Regex for number with comma as thousands separator (e.g. 1,234 or 1,234.56)
 COMMA_NUMERIC_RE = re.compile(r'^[+-]?\d{1,3}(?:,\d{3})+(?:\.\d+)?$')
 
-# Regex for number with space as thousands separator (e.g. 1 234 or 1 234.56)
-SPACE_NUMERIC_RE = re.compile(r'^[+-]?\d{1,3}(?:\s\d{3})+(?:\.\d+)?$')
+# Regex for number with space as thousands separator (e.g. 1 234 or 1 234.56, supporting multiple/Unicode spaces)
+SPACE_NUMERIC_RE = re.compile(r'^[+-]?\d{1,3}(?:[\s\xa0\u202f]+\d{3})+(?:\.\d+)?$')
 
 
 class SmartDataLoader:
@@ -254,7 +254,7 @@ class SmartDataLoader:
 
         # 4. Check for space thousands separators (e.g., "3 466", "1 234 567.89")
         if SPACE_NUMERIC_RE.match(val_clean):
-            val_no_space = re.sub(r'\s+', '', val_clean)
+            val_no_space = re.sub(r'[\s\xa0\u202f]+', '', val_clean)
             try:
                 if '.' in val_no_space:
                     return float(val_no_space)
@@ -265,19 +265,22 @@ class SmartDataLoader:
 
         return val
 
+    def _normalize_numeric_values(self, df: pd.DataFrame) -> pd.DataFrame:
+        """Convert numeric strings in DataFrame to actual numbers."""
+        if df.empty:
+            return df
+        if hasattr(df, 'map'):
+            return df.map(self._convert_string_to_numeric)
+        else:
+            return df.applymap(self._convert_string_to_numeric)
+
     def _load_csv(self, source: str) -> Dict[str, pd.DataFrame]:
         """Load CSV file."""
         logger.debug('Reading CSV file: %s (max_rows=%s)', source, self.max_rows)
         delimiter = self._detect_csv_delimiter(source)
         df = pd.read_csv(source, header=None, nrows=self.max_rows, delimiter=delimiter)
         df = self._preprocess_dataframe(df)
-
-        # Convert numeric strings to actual numbers
-        if hasattr(df, 'map'):
-            df = df.map(self._convert_string_to_numeric)
-        else:
-            df = df.applymap(self._convert_string_to_numeric)
-
+        df = self._normalize_numeric_values(df)
         return {'sheet1': df}
 
     def _load_excel(self, source: str) -> Dict[str, pd.DataFrame]:
@@ -290,6 +293,7 @@ class SmartDataLoader:
         for sheet_name, df in df_dict.items():
             logger.debug(f"Preprocessing sheet '{sheet_name}': raw shape={df.shape}")
             processed_df = self._preprocess_dataframe(df)
+            processed_df = self._normalize_numeric_values(processed_df)
             logger.debug(f"Sheet '{sheet_name}' preprocessed: final shape={processed_df.shape}")
             result[sheet_name] = processed_df
         return result
