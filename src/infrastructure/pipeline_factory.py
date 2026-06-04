@@ -3,7 +3,7 @@
 import logging
 from typing import Optional
 
-from src.application.use_cases.process_dataset import ProcessDatasetUseCase
+from src.application.process_dataset import ProcessDatasetUseCase
 from src.infrastructure.openai_provider import OpenAIProvider
 from src.infrastructure.data_loader import SmartDataLoader
 from src.shared.utils.prompt_manager import PromptManager
@@ -55,7 +55,7 @@ class PipelineFactory:
 
         # Always create data loader
         data_loader = SmartDataLoader(
-            max_rows=1000,
+            max_rows=None,
             user_agent=self.config.SDD_USER_AGENT,
             hdx_base_url=self.config.HDX_URL,
         )

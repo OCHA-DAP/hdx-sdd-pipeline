@@ -3,7 +3,7 @@
 import pytest
 from unittest.mock import Mock, patch
 from src.infrastructure.pipeline_factory import PipelineFactory
-from src.application.use_cases.process_dataset import ProcessDatasetUseCase
+from src.application.process_dataset import ProcessDatasetUseCase
 from config.config import Config
 
 
@@ -71,7 +71,7 @@ class TestPipelineFactory:
 
         # Verify data loader was created
         mock_data_loader.assert_called_once_with(
-            max_rows=1000,
+            max_rows=None,
             user_agent='HDXINTERNAL:SDDPipeline/test',
             hdx_base_url='https://hdx.example.org',
         )
