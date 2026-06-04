@@ -17,8 +17,8 @@ logger = logging.getLogger(__name__)
 # Regex for number with comma as thousands separator (e.g. 1,234 or 1,234.56)
 COMMA_NUMERIC_RE = re.compile(r'^[+-]?\d{1,3}(?:,\d{3})+(?:\.\d+)?$')
 
-# Regex for number with space as thousands separator (e.g. 1 234 or 1 234.56)
-SPACE_NUMERIC_RE = re.compile(r'^[+-]?\d{1,3}(?:\s\d{3})+(?:\.\d+)?$')
+# Regex for number with space as thousands separator (e.g. 1 234 or 1 234.56, supporting multiple/Unicode spaces)
+SPACE_NUMERIC_RE = re.compile(r'^[+-]?\d{1,3}(?:[ \xa0\u202f]+\d{3})+(?:\.\d+)?$')
 
 
 class SmartDataLoader:
@@ -221,22 +221,6 @@ class SmartDataLoader:
             logger.debug('Fallback detection failed, defaulting to comma: %s', e)
             return ','
 
-    def _has_enough_unique_values(self, df_dict: Dict[str, pd.DataFrame], target_unique: int = 5) -> bool:
-        """Check if all non-README sheets have at least target_unique unique values in every column."""
-        for sheet_name, df in df_dict.items():
-            normalized_name = sheet_name.lower().replace(' ', '')
-            if any(k in normalized_name for k in ['readme', 'instructions', 'metadata', 'info']):
-                continue
-            if df.empty:
-                continue
-            for col in df.columns:
-                col_data = df[col].dropna()
-                if not col_data.empty:
-                    str_mask = col_data.astype(str).str.strip().str.lower()
-                    col_data = col_data[~str_mask.isin(['', 'nan', 'none'])]
-                if col_data.nunique() < target_unique:
-                    return False
-        return True
     @staticmethod
     def _convert_string_to_numeric(val: Any) -> Any:
         """Convert a string representation of a number to a real float or int."""
@@ -255,7 +239,9 @@ class SmartDataLoader:
 
         # 2. Try direct float conversion
         try:
-            return float(val_clean)
+            result = float(val_clean)
+            if not (result != result or result == float('inf') or result == float('-inf')):
+                return result
         except ValueError:
             pass
 
@@ -272,7 +258,7 @@ class SmartDataLoader:
 
         # 4. Check for space thousands separators (e.g., "3 466", "1 234 567.89")
         if SPACE_NUMERIC_RE.match(val_clean):
-            val_no_space = re.sub(r'\s+', '', val_clean)
+            val_no_space = re.sub(r'[ \xa0\u202f]+', '', val_clean)
             try:
                 if '.' in val_no_space:
                     return float(val_no_space)
@@ -282,6 +268,32 @@ class SmartDataLoader:
                 pass
 
         return val
+
+    def _normalize_numeric_values(self, df: pd.DataFrame) -> pd.DataFrame:
+        """Convert numeric strings in DataFrame to actual numbers."""
+        if df.empty:
+            return df
+        if hasattr(df, 'map'):
+            return df.map(self._convert_string_to_numeric)
+        else:
+            return df.applymap(self._convert_string_to_numeric)
+
+    def _has_enough_unique_values(self, df_dict: Dict[str, pd.DataFrame], target_unique: int = 5) -> bool:
+        """Check if all non-README sheets have at least target_unique unique values in every column."""
+        for sheet_name, df in df_dict.items():
+            normalized_name = sheet_name.lower().replace(' ', '')
+            if any(k in normalized_name for k in ['readme', 'instructions', 'metadata', 'info']):
+                continue
+            if df.empty:
+                continue
+            for col in df.columns:
+                col_data = df[col].dropna()
+                if not col_data.empty:
+                    str_mask = col_data.astype(str).str.strip().str.lower()
+                    col_data = col_data[~str_mask.isin(['', 'nan', 'none'])]
+                if col_data.nunique() < target_unique:
+                    return False
+        return True
 
     def _load_csv(self, source: str) -> Dict[str, pd.DataFrame]:
         """Load CSV file with chunked loading to find unique values."""
@@ -305,6 +317,7 @@ class SmartDataLoader:
 
             raw_len = len(df)
             processed_df = self._preprocess_dataframe(df)
+            processed_df = self._normalize_numeric_values(processed_df)
             final_df = processed_df
 
             # Check if we have enough unique values for all columns
@@ -346,6 +359,7 @@ class SmartDataLoader:
             for sheet_name, df in df_dict.items():
                 max_raw_len = max(max_raw_len, len(df))
                 processed_df = self._preprocess_dataframe(df)
+                processed_df = self._normalize_numeric_values(processed_df)
                 processed_dict[sheet_name] = processed_df
 
             final_result = processed_dict
