@@ -396,7 +396,6 @@ class ProcessDatasetUseCase:
             PIIEntityType.EMAIL_ADDRESS,
             PIIEntityType.PHONE_NUMBER,
             PIIEntityType.PERSON_NAME,
-            PIIEntityType.GEO_COORDINATES,
         }
 
         if any(entity_type in sensitive_pii_entities for entity_type in pii_entity_types):

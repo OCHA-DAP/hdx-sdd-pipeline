@@ -390,7 +390,7 @@ HDX_SDD_SLACK_ACCESS_TOKEN=xoxb-your-token
 #### Pipeline Initialization
 
 ```python
-from src.application.use_cases.process_dataset import ProcessDatasetUseCase
+from src.application.process_dataset import ProcessDatasetUseCase
 from src.infrastructure.llm.azure_openai_provider import AzureOpenAIProvider
 from src.infrastructure.storage.data_loader import SmartDataLoader
 from src.shared.utils.prompt_manager import PromptManager
@@ -649,7 +649,6 @@ class SheetReport:
 
 - `add_column(column)` - Add a column to the report
 - `has_pii_columns()` - Check if any column contains PII
-- `has_sensitive_pii()` - Check if any column has sensitive PII
 - `update_non_pii_sensitivity()` - Update non_personal_data_sensitive flag
 - `is_sensitive()` - Check if sheet is sensitive (PII or non-PII)
 - `total_tokens()` - Calculate total tokens used

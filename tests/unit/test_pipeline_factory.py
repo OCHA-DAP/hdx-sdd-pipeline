@@ -71,7 +71,7 @@ class TestPipelineFactory:
 
         # Verify data loader was created
         mock_data_loader.assert_called_once_with(
-            max_rows=1000,
+            max_rows=None,
             user_agent='HDXINTERNAL:SDDPipeline/test',
             hdx_base_url='https://hdx.example.org',
         )
