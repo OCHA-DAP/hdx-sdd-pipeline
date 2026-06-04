@@ -44,10 +44,10 @@ def test_prompt_rendering_with_metadata():
         assert val in prompt
     assert 'Severe Rule' in prompt
 
-    # 3. Test non_pii_classification v4 (default) template rendering
+    # 3. Test non_pii_classification/default v1 template rendering
     prompt = pm.get_prompt(
-        'non_pii_classification',
-        version='v4',
+        'non_pii_classification/default',
+        version='v1',
         context={'table_markdown': '| col1 | col2 |\n|---|---|\n| 1 | 2 |', **metadata},
     )
     for key, val in metadata.items():

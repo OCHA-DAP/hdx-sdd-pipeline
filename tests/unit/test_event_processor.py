@@ -299,8 +299,10 @@ def test_process_event_metadata_local_json_folder(mock_config, mock_pipeline_fac
         '"resource_description": "local_json_res_desc"}'
     )
 
-    with patch('pathlib.Path.exists', return_value=True), \
-         patch('builtins.open', mock_open(read_data=mock_json_content)):
+    with (
+        patch('pathlib.Path.exists', return_value=True),
+        patch('builtins.open', mock_open(read_data=mock_json_content)),
+    ):
         success, _ = processor.process_event(event)
         assert success
 
@@ -315,4 +317,3 @@ def test_process_event_metadata_local_json_folder(mock_config, mock_pipeline_fac
     assert metadata['organization_title'] == 'local_json_org'
     assert metadata['resource_name'] == 'local_json_res_name'
     assert metadata['resource_description'] == 'local_json_res_desc'
-
