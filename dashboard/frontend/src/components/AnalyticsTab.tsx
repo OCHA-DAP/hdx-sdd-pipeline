@@ -37,6 +37,9 @@ interface CostAnalysis {
   prompt_tokens: number;
   completion_tokens: number;
   total_tokens: number;
+  prompt_price_per_1m: number;
+  completion_price_per_1m: number;
+  currency: string;
   price_per_1m: number;
   total_cost: number;
   cost_per_report: number;
@@ -201,7 +204,16 @@ export default function AnalyticsTab() {
             <span className="font-medium text-gray-900">Total Tokens:</span> <span className="text-gray-700">{costAnalysis.reduce((sum, cost) => sum + cost.total_tokens, 0).toLocaleString()}</span>
           </div>
           <div>
-            <span className="font-medium text-gray-900">Total Cost:</span> <span className="text-gray-700">${costAnalysis.reduce((sum, cost) => sum + cost.total_cost, 0).toFixed(4)}</span>
+            <span className="font-medium text-gray-900">Total Cost:</span>{" "}
+            <span className="text-gray-700">
+              {Object.entries(
+                costAnalysis.reduce((acc, cost) => {
+                  const symbol = cost.currency || "$";
+                  acc[symbol] = (acc[symbol] || 0) + cost.total_cost;
+                  return acc;
+                }, {} as Record<string, number>)
+              ).map(([symbol, sum]) => `${symbol}${sum.toFixed(4)}`).join(" + ") || "$0.0000"}
+            </span>
           </div>
         </div>
       </div>
@@ -212,9 +224,10 @@ export default function AnalyticsTab() {
               <th className="px-4 py-2 text-left text-xs font-medium text-gray-900">Model</th>
               <th className="px-4 py-2 text-center text-xs font-medium text-gray-900">Reports</th>
               <th className="px-4 py-2 text-center text-xs font-medium text-gray-900">Prompt Tokens</th>
+              <th className="px-4 py-2 text-center text-xs font-medium text-gray-900">Prompt Price/1M</th>
               <th className="px-4 py-2 text-center text-xs font-medium text-gray-900">Completion Tokens</th>
+              <th className="px-4 py-2 text-center text-xs font-medium text-gray-900">Completion Price/1M</th>
               <th className="px-4 py-2 text-center text-xs font-medium text-gray-900">Total Tokens</th>
-              <th className="px-4 py-2 text-center text-xs font-medium text-gray-900">Price/1M</th>
               <th className="px-4 py-2 text-center text-xs font-medium text-gray-900">Total Cost</th>
               <th className="px-4 py-2 text-center text-xs font-medium text-gray-900">Cost/Report</th>
             </tr>
@@ -225,11 +238,16 @@ export default function AnalyticsTab() {
                 <td className="px-4 py-2 text-xs font-medium text-gray-900">{cost.model}</td>
                 <td className="px-4 py-2 text-center text-xs text-gray-600">{cost.reports}</td>
                 <td className="px-4 py-2 text-center text-xs text-gray-600">{cost.prompt_tokens.toLocaleString()}</td>
+                <td className="px-4 py-2 text-center text-xs text-gray-600">
+                  {cost.currency || '$'}{cost.prompt_price_per_1m != null ? cost.prompt_price_per_1m.toFixed(4) : (cost.price_per_1m ? cost.price_per_1m.toFixed(4) : '0.0000')}
+                </td>
                 <td className="px-4 py-2 text-center text-xs text-gray-600">{cost.completion_tokens.toLocaleString()}</td>
+                <td className="px-4 py-2 text-center text-xs text-gray-600">
+                  {cost.currency || '$'}{cost.completion_price_per_1m != null ? cost.completion_price_per_1m.toFixed(4) : '0.0000'}
+                </td>
                 <td className="px-4 py-2 text-center text-xs text-gray-600">{cost.total_tokens.toLocaleString()}</td>
-                <td className="px-4 py-2 text-center text-xs text-gray-600">{cost.price_per_1m}</td>
-                <td className="px-4 py-2 text-center text-xs text-gray-600">{cost.total_cost.toFixed(4)}</td>
-                <td className="px-4 py-2 text-center text-xs text-gray-600">{cost.cost_per_report.toFixed(4)}</td>
+                <td className="px-4 py-2 text-center text-xs text-gray-600">{cost.currency || '$'}{cost.total_cost.toFixed(4)}</td>
+                <td className="px-4 py-2 text-center text-xs text-gray-600">{cost.currency || '$'}{cost.cost_per_report.toFixed(4)}</td>
               </tr>
             ))}
           </tbody>
@@ -237,11 +255,15 @@ export default function AnalyticsTab() {
       </div>
       
       <div className="mt-4 p-4 bg-gray-50 rounded-lg">
-        <h4 className="text-sm font-semibold text-gray-900 mb-2">📋 Pricing Reference</h4>
-        <div className="grid grid-cols-3 lg:grid-cols-6 gap-2 text-xs text-gray-600">
+        <h4 className="text-sm font-semibold text-gray-900 mb-2">📋 Pricing Reference (per 1M tokens)</h4>
+        <div className="grid grid-cols-2 lg:grid-cols-3 gap-4 text-xs text-gray-600">
           {costAnalysis.map((cost) => (
-            <div key={cost.model}>
-              <span className="font-medium">{cost.model}:</span> <span>{cost.price_per_1m}</span>
+            <div key={cost.model} className="border-l-2 border-blue-500 pl-2 py-1">
+              <span className="font-semibold text-gray-900">{cost.model}</span>
+              <div className="mt-1 space-y-0.5">
+                <div>Prompt: <span className="font-medium">{cost.currency || '$'}{cost.prompt_price_per_1m != null ? cost.prompt_price_per_1m.toFixed(4) : (cost.price_per_1m ? cost.price_per_1m.toFixed(4) : '0.0000')}</span></div>
+                <div>Completion: <span className="font-medium">{cost.currency || '$'}{cost.completion_price_per_1m != null ? cost.completion_price_per_1m.toFixed(4) : '0.0000'}</span></div>
+              </div>
             </div>
           ))}
         </div>
@@ -410,8 +432,8 @@ export default function AnalyticsTab() {
         pdf.text('Token usage and cost analysis across all models and datasets', 20, yPosition);
         yPosition += 8;
         
-        const costHeaders = ['Model', 'Reports', 'Total Tokens', 'Total Cost', 'Cost/Report'];
-        const costColumnWidths = [30, 15, 25, 20, 20];
+        const costHeaders = ['Model', 'Reports', 'Prompt (Price)', 'Compl (Price)', 'Total Tokens', 'Total Cost', 'Cost/Report'];
+        const costColumnWidths = [28, 12, 28, 28, 22, 22, 20];
         let xPosition = 20;
         
         pdf.setFontSize(8);
@@ -427,12 +449,18 @@ export default function AnalyticsTab() {
           checkPageBreak(8);
           xPosition = 20;
           
+          const currency = row.currency || '$';
+          const promptPriceStr = row.prompt_price_per_1m != null ? row.prompt_price_per_1m.toFixed(4) : (row.price_per_1m ? row.price_per_1m.toFixed(4) : '0.0000');
+          const complPriceStr = row.completion_price_per_1m != null ? row.completion_price_per_1m.toFixed(4) : '0.0000';
+          
           const costRowData = [
             row.model,
             row.reports.toString(),
+            `${row.prompt_tokens.toLocaleString()} (${currency}${promptPriceStr})`,
+            `${row.completion_tokens.toLocaleString()} (${currency}${complPriceStr})`,
             row.total_tokens.toLocaleString(),
-            `$${row.total_cost.toFixed(4)}`,
-            `$${row.cost_per_report.toFixed(4)}`
+            `${currency}${row.total_cost.toFixed(4)}`,
+            `${currency}${row.cost_per_report.toFixed(4)}`
           ];
           
           costRowData.forEach((cell, index) => {
@@ -447,17 +475,16 @@ export default function AnalyticsTab() {
         // Add pricing reference
         pdf.setFontSize(10);
         pdf.setFont('helvetica', 'bold');
-        pdf.text('Pricing Reference', 20, yPosition);
+        pdf.text('Pricing Reference (per 1M tokens)', 20, yPosition);
         yPosition += 6;
         
         pdf.setFont('helvetica', 'normal');
-        const pricingData = costAnalysis.map((cost) => ({
-          model: cost.model,
-          price: cost.price_per_1m
-        }));
-        
-        pricingData.forEach((item) => {
-          pdf.text(`${item.model}: $${item.price}/1M tokens`, 20, yPosition);
+        costAnalysis.forEach((item) => {
+          checkPageBreak(6);
+          const currency = item.currency || '$';
+          const pPrice = item.prompt_price_per_1m != null ? item.prompt_price_per_1m.toFixed(4) : (item.price_per_1m ? item.price_per_1m.toFixed(4) : '0.0000');
+          const cPrice = item.completion_price_per_1m != null ? item.completion_price_per_1m.toFixed(4) : '0.0000';
+          pdf.text(`${item.model}: Prompt ${currency}${pPrice}, Completion ${currency}${cPrice}`, 20, yPosition);
           yPosition += 5;
         });
       }
