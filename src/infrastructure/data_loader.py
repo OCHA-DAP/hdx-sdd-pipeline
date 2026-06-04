@@ -1,6 +1,7 @@
 """Data loader implementation with smart preprocessing."""
 
 import logging
+import re
 from typing import Dict, List, Any, Optional
 from pathlib import Path
 from contextlib import contextmanager
@@ -12,6 +13,12 @@ import csv
 from ..domain.exceptions import DataProcessingError
 
 logger = logging.getLogger(__name__)
+
+# Regex for number with comma as thousands separator (e.g. 1,234 or 1,234.56)
+COMMA_NUMERIC_RE = re.compile(r'^[+-]?\d{1,3}(?:,\d{3})+(?:\.\d+)?$')
+
+# Regex for number with space as thousands separator (e.g. 1 234 or 1 234.56, supporting multiple/Unicode spaces)
+SPACE_NUMERIC_RE = re.compile(r'^[+-]?\d{1,3}(?:[ \xa0\u202f]+\d{3})+(?:\.\d+)?$')
 
 
 class SmartDataLoader:
@@ -214,6 +221,63 @@ class SmartDataLoader:
             logger.debug('Fallback detection failed, defaulting to comma: %s', e)
             return ','
 
+    @staticmethod
+    def _convert_string_to_numeric(val: Any) -> Any:
+        """Convert a string representation of a number to a real float or int."""
+        if not isinstance(val, str):
+            return val
+
+        val_clean = val.strip()
+        if not val_clean:
+            return val
+
+        # 1. Try direct integer conversion
+        try:
+            return int(val_clean)
+        except ValueError:
+            pass
+
+        # 2. Try direct float conversion
+        try:
+            result = float(val_clean)
+            if not (result != result or result == float('inf') or result == float('-inf')):
+                return result
+        except ValueError:
+            pass
+
+        # 3. Check for comma thousands separators (e.g., "3,466", "1,234,567.89")
+        if COMMA_NUMERIC_RE.match(val_clean):
+            val_no_comma = val_clean.replace(',', '')
+            try:
+                if '.' in val_no_comma:
+                    return float(val_no_comma)
+                else:
+                    return int(val_no_comma)
+            except ValueError:
+                pass
+
+        # 4. Check for space thousands separators (e.g., "3 466", "1 234 567.89")
+        if SPACE_NUMERIC_RE.match(val_clean):
+            val_no_space = re.sub(r'[ \xa0\u202f]+', '', val_clean)
+            try:
+                if '.' in val_no_space:
+                    return float(val_no_space)
+                else:
+                    return int(val_no_space)
+            except ValueError:
+                pass
+
+        return val
+
+    def _normalize_numeric_values(self, df: pd.DataFrame) -> pd.DataFrame:
+        """Convert numeric strings in DataFrame to actual numbers."""
+        if df.empty:
+            return df
+        if hasattr(df, 'map'):
+            return df.map(self._convert_string_to_numeric)
+        else:
+            return df.applymap(self._convert_string_to_numeric)
+
     def _has_enough_unique_values(self, df_dict: Dict[str, pd.DataFrame], target_unique: int = 5) -> bool:
         """Check if all non-README sheets have at least target_unique unique values in every column."""
         for sheet_name, df in df_dict.items():
@@ -253,6 +317,7 @@ class SmartDataLoader:
 
             raw_len = len(df)
             processed_df = self._preprocess_dataframe(df)
+            processed_df = self._normalize_numeric_values(processed_df)
             final_df = processed_df
 
             # Check if we have enough unique values for all columns
@@ -294,6 +359,7 @@ class SmartDataLoader:
             for sheet_name, df in df_dict.items():
                 max_raw_len = max(max_raw_len, len(df))
                 processed_df = self._preprocess_dataframe(df)
+                processed_df = self._normalize_numeric_values(processed_df)
                 processed_dict[sheet_name] = processed_df
 
             final_result = processed_dict
