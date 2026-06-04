@@ -274,3 +274,45 @@ def test_process_event_metadata_extraction_no_ckan(mock_config, mock_pipeline_fa
     assert metadata['dataset_source'] == 'event_source'
     assert metadata['dataset_location'] == 'event_loc'
     assert metadata['organization_title'] == 'event_org'
+
+
+def test_process_event_metadata_local_json_folder(mock_config, mock_pipeline_factory, mock_ckan_client):
+    mock_config.CKAN_UPDATE = False
+    processor = EventProcessor()
+    processor.isp_retriever.get_isp_rules = MagicMock(return_value={})
+    processor.pipeline.execute.return_value = []
+    processor._save_to_local_file = MagicMock()
+
+    event = {
+        'resource_id': 'res-123',
+        'download_url': 'http://example.com/event_file.csv',
+        'file_name': 'event_file.csv',
+    }
+
+    mock_json_content = (
+        '{"dataset_title": "local_json_title", '
+        '"dataset_description": "local_json_desc", '
+        '"dataset_source": "local_json_source", '
+        '"dataset_location": "local_json_location", '
+        '"organization_title": "local_json_org", '
+        '"resource_name": "local_json_res_name", '
+        '"resource_description": "local_json_res_desc"}'
+    )
+
+    with patch('pathlib.Path.exists', return_value=True), \
+         patch('builtins.open', mock_open(read_data=mock_json_content)):
+        success, _ = processor.process_event(event)
+        assert success
+
+    processor.pipeline.execute.assert_called_once()
+    _, kwargs = processor.pipeline.execute.call_args
+    metadata = kwargs['metadata']
+
+    assert metadata['dataset_title'] == 'local_json_title'
+    assert metadata['dataset_description'] == 'local_json_desc'
+    assert metadata['dataset_source'] == 'local_json_source'
+    assert metadata['dataset_location'] == 'local_json_location'
+    assert metadata['organization_title'] == 'local_json_org'
+    assert metadata['resource_name'] == 'local_json_res_name'
+    assert metadata['resource_description'] == 'local_json_res_desc'
+

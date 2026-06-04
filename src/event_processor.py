@@ -168,6 +168,36 @@ class EventProcessor:
                 except Exception as e:
                     logger.warning(f'Error fetching package metadata from CKAN for package {package_id}: {e}')
 
+            # Check if there is a local metadata file in research/metadata
+            meta_filename = resource_name or (Path(download_url).name if download_url else None)
+            if meta_filename:
+                basename = Path(meta_filename).name
+                metadata_dir = Path(__file__).parent.parent / 'research' / 'metadata'
+                local_metadata_path = metadata_dir / f'{basename}.json'
+                if not local_metadata_path.exists():
+                    local_metadata_path = (
+                        Path('/Users/liangtelkamp/Documents/GitHub/hdx-ssd-pipeline/research/metadata')
+                        / f'{basename}.json'
+                    )
+                if local_metadata_path.exists():
+                    try:
+                        with open(local_metadata_path, 'r', encoding='utf-8') as f:
+                            local_meta = json.load(f)
+                            logger.info(f'Loaded local metadata from {local_metadata_path}')
+                            for key in [
+                                'dataset_title',
+                                'dataset_description',
+                                'dataset_source',
+                                'dataset_location',
+                                'organization_title',
+                                'resource_name',
+                                'resource_description',
+                            ]:
+                                if local_meta.get(key) is not None:
+                                    metadata[key] = local_meta[key]
+                    except Exception as e:
+                        logger.warning(f'Failed to read local metadata from {local_metadata_path}: {e}')
+
             # Process dataset using our use case
             logger.info(f'Processing dataset from: {download_url}')
             http_headers = self.ckan.headers if self.ckan else {}
