@@ -37,14 +37,14 @@ AVAILABLE_MODELS = [
     'DeepSeek-V4-Flash',
 ]
 
-PRICING: dict[str, float] = {
-    'gpt-4.1-nano': 0.17,
-    'gpt-4.1-mini': 0.70,
-    'gpt-4.1': 3.50,
-    'gpt-5-nano': 0.15,
-    'gpt-5-mini': 0.69,
-    'DeepSeek-V3.1': 0.84,
-    'DeepSeek-V4-Flash': 0.10,
+PRICING: dict[str, dict[str, float | str]] = {
+    'gpt-4.1-nano': {'prompt': 0.11, 'completion': 0.42, 'currency': '€'},
+    'gpt-4.1-mini': {'prompt': 0.42, 'completion': 1.66, 'currency': '€'},
+    'gpt-4.1': {'prompt': 2.07, 'completion': 8.28, 'currency': '€'},
+    'gpt-5-nano': {'prompt': 0.05, 'completion': 0.35, 'currency': '€'},
+    'gpt-5-mini': {'prompt': 0.24, 'completion': 1.89, 'currency': '€'},
+    'DeepSeek-V3.1': {'prompt': 1.05111, 'completion': 4.22151, 'currency': '€'},
+    'DeepSeek-V4-Flash': {'prompt': 0.00, 'completion': 0.00, 'currency': '€'},
 }
 
 # ---------------------------------------------------------------------------
@@ -230,5 +230,5 @@ async def get_cost_analysis():
         model_dir = REPORTS_DIR / model
         if not model_dir.exists():
             continue
-        cost_data.append(compute_cost(model, model_dir, PRICING.get(model, 0)))
+        cost_data.append(compute_cost(model, model_dir, PRICING.get(model)))
     return {'cost_analysis': cost_data, 'pricing': PRICING}

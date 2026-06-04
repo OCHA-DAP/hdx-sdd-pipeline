@@ -555,3 +555,117 @@ class TestSmartDataLoader:
         df = pd.DataFrame()
         result = loader._normalize_numeric_values(df)
         assert result.empty
+    def test_initialization_default_max_rows(self):
+        """Test that default max_rows is None (loading whole dataset)."""
+        loader = SmartDataLoader()
+        assert loader.max_rows is None
+
+    def test_sample_dataframe_unique_values(self):
+        """Test that sample_dataframe extracts unique values and filters empty/nan/none values."""
+        loader = SmartDataLoader()
+
+        # Column Name has duplicates and invalid placeholder strings
+        # Column Age has unique valid values, nulls, and empty strings
+        df = pd.DataFrame(
+            {
+                'Name': ['John', 'John', 'Jane', '   ', 'Bob', 'none', 'nan', 'Jane', 'Alice'],
+                'Age': [25, None, 30, '', 35, 25, 40, 25, 45],
+            }
+        )
+
+        samples = loader.sample_dataframe(df, sample_size=5)
+
+        # Name should be: John, Jane, Bob, Alice (4 unique values, padded with 1 empty string)
+        assert samples['Name'] == ['John', 'Jane', 'Bob', 'Alice', '']
+
+        # Age unique values in order, randomly sampled with seed 42: [30.0, 45.0, 35.0, 25.0, 40.0]
+        # Note: 25 appears multiple times but should only be present once
+        assert samples['Age'] == [30.0, 45.0, 35.0, 25.0, 40.0]
+
+    def test_sample_dataframe_chunking_efficiency(self):
+        """Test that sample_dataframe's chunking optimization works correctly and returns correct values."""
+        loader = SmartDataLoader()
+
+        # Create a large series of values: 2000 'duplicate' followed by 5 unique values,
+        # then check if we can still extract the unique values.
+        # This will trigger the fallback check because the first 100 or 1000 rows do not have 5 unique values.
+        names = ['John'] * 2000 + ['Jane', 'Bob', 'Alice', 'Charlie', 'Dave']
+        df = pd.DataFrame({'Name': names})
+
+        samples = loader.sample_dataframe(df, sample_size=5)
+        assert samples['Name'] == ['John', 'Jane', 'Dave', 'Bob', 'Charlie']
+
+    def test_load_csv_chunking_stops_early(self):
+        """Test that load_csv stops loading larger chunks if 5 unique values are found in the first chunk."""
+        import tempfile
+        import os
+        from unittest.mock import patch
+
+        # Create a CSV file with 150 rows.
+        # First 100 rows already have 5 unique values: John0, John1, John2, John3, John4.
+        rows = ['Name,Age']
+        for i in range(150):
+            rows.append(f'John{i % 5},{20 + i}')
+
+        with tempfile.NamedTemporaryFile(mode='w', suffix='.csv', delete=False, newline='') as f:
+            f.write('\n'.join(rows))
+            temp_file = f.name
+
+        try:
+            loader = SmartDataLoader()
+            # Let's spy/mock pd.read_csv to see what chunk sizes it's called with.
+            original_read_csv = pd.read_csv
+            calls = []
+
+            def mock_read_csv(*args, **kwargs):
+                calls.append(kwargs.get('nrows'))
+                return original_read_csv(*args, **kwargs)
+
+            with patch('pandas.read_csv', side_effect=mock_read_csv):
+                result = loader.load_from_file(temp_file)
+
+            assert 'sheet1' in result
+            # Should have only loaded the first chunk (100)
+            assert calls == [100]
+            # Verify data matches the first 100 loaded rows
+            # 1 header row + 99 data rows
+            assert len(result['sheet1']) == 99
+        finally:
+            os.unlink(temp_file)
+
+    def test_load_csv_chunking_goes_to_next_chunk(self):
+        """Test that load_csv proceeds to larger chunks if first chunk does not have 5 unique values."""
+        import tempfile
+        import os
+        from unittest.mock import patch
+
+        # Create a CSV file with 250 rows.
+        # First 100 rows only have 2 unique values for Name: John0, John1.
+        rows = ['Name,Age']
+        for i in range(250):
+            name_val = f'John{i % 2}' if i < 100 else f'John{i}'
+            rows.append(f'{name_val},{20 + i}')
+
+        with tempfile.NamedTemporaryFile(mode='w', suffix='.csv', delete=False, newline='') as f:
+            f.write('\n'.join(rows))
+            temp_file = f.name
+
+        try:
+            loader = SmartDataLoader()
+            calls = []
+            original_read_csv = pd.read_csv
+
+            def mock_read_csv(*args, **kwargs):
+                calls.append(kwargs.get('nrows'))
+                return original_read_csv(*args, **kwargs)
+
+            with patch('pandas.read_csv', side_effect=mock_read_csv):
+                result = loader.load_from_file(temp_file)
+
+            # First chunk is 100. It doesn't have 5 unique values for Name.
+            # So it tries chunk size 1000.
+            # File has 251 lines total, so read_csv(nrows=1000) reads all 250 rows, which is < 1000.
+            assert calls == [100, 1000]
+            assert len(result['sheet1']) == 250  # 250 rows
+        finally:
+            os.unlink(temp_file)
