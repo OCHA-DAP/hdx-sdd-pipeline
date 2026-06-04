@@ -117,6 +117,11 @@ Any new feature request for this project must follow this order:
     - Resource/File Risk: max(all Sheet Risks).
   - The `pii_reflection` prompt (specifically the latest version `v2.jinja`) must be updated to use the new PD classification scale (NON_SENSITIVE, HIGH_SENSITIVE, SEVERE_SENSITIVE) instead of the old MODERATE_SENSITIVE.
 
+- [x] FR-SDD-044: Metadata-aware prompts for PII reflection and non-PII classification.
+  - Expected behavior: New Jinja prompt templates `pii_reflection/v4.jinja` (reflection), `non_pii_classification/v3.jinja` (standard non-PII), and `non_pii_classification/v4.jinja` (default non-PII) include dataset metadata (`dataset_title`, `dataset_description`, `dataset_source`, `dataset_location`, `organization_title`) and resource metadata (`resource_name`, `resource_description`), handling missing/null metadata fields gracefully without rendering empty entries.
+
+- [x] FR-SDD-045: Dataset and resource metadata extraction and propagation.
+  - Expected behavior: The event processor extracts metadata fields from events and/or CKAN (via resource_show and package_show), maps them to a context payload, and passes them to the processing pipeline in a backward-compatible manner.
 
 ### Persistence and outputs
 

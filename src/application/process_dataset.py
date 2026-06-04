@@ -64,6 +64,7 @@ class ProcessDatasetUseCase:
         is_url: bool = True,
         isp_rules: Optional[Dict[str, Any]] = None,
         http_headers: Optional[Dict[str, str]] = None,
+        metadata: Optional[Dict[str, Any]] = None,
     ) -> List[SheetReport]:
         """
         Process a dataset from URL or file.
@@ -74,6 +75,7 @@ class ProcessDatasetUseCase:
             is_url: True if source is URL, False if file path
             isp_rules: Information Sensitivity Protocol rules
             http_headers: Optional HTTP headers for URL downloads (e.g. auth tokens)
+            metadata: Optional dataset/resource metadata dictionary
 
         Returns:
             List of processed SheetReports
@@ -119,7 +121,7 @@ class ProcessDatasetUseCase:
                     logger.debug(f"Sheet '{sheet_name}' identified as README/metadata")
                     report = self._create_readme_report(sheet_name, source, resource_id, df)
                 else:
-                    report = self._create_data_report(sheet_name, source, resource_id, df, isp_rules)
+                    report = self._create_data_report(sheet_name, source, resource_id, df, isp_rules, metadata)
 
                 reports.append(report)
                 logger.debug(f"Completed processing sheet '{sheet_name}'")
@@ -203,7 +205,13 @@ class ProcessDatasetUseCase:
         return report
 
     def _create_data_report(
-        self, sheet_name: str, source: str, resource_id: Optional[str], df: Any, isp_rules: Optional[Dict[str, Any]]
+        self,
+        sheet_name: str,
+        source: str,
+        resource_id: Optional[str],
+        df: Any,
+        isp_rules: Optional[Dict[str, Any]],
+        metadata: Optional[Dict[str, Any]] = None,
     ) -> SheetReport:
         """Create and process report for data sheet."""
         logger.debug(f"Creating data report for sheet '{sheet_name}' with {len(df)} rows")
@@ -234,10 +242,10 @@ class ProcessDatasetUseCase:
         report = self._classify_pii(report)
 
         # Step 4: Reflect on PII sensitivity
-        report = self._classify_pii_sensitivity(report)
+        report = self._classify_pii_sensitivity(report, metadata)
 
         # Step 5: Classify non-PII
-        report = self._classify_non_pii(report, isp_rules)
+        report = self._classify_non_pii(report, isp_rules, metadata)
 
         # Step 6: Update sensitivity flags
         report.update_non_pii_sensitivity()
@@ -311,7 +319,7 @@ class ProcessDatasetUseCase:
         report.pii_classifier_model = self.pii_llm.model_name
         return report
 
-    def _classify_pii_sensitivity(self, report: SheetReport) -> SheetReport:
+    def _classify_pii_sensitivity(self, report: SheetReport, metadata: Optional[Dict[str, Any]] = None) -> SheetReport:
         """Classify sensitivity for PII columns."""
         if self.pii_reflection_llm is None:
             logger.info('PII sensitivity classification disabled - skipping')
@@ -377,12 +385,26 @@ class ProcessDatasetUseCase:
             # Generate table markdown context for all columns
             table_markdown = self._generate_table_markdown(report)
 
+            # Prepare metadata context for rendering
+            metadata_context = {
+                'dataset_title': None,
+                'dataset_description': None,
+                'dataset_source': None,
+                'dataset_location': None,
+                'organization_title': None,
+                'resource_name': None,
+                'resource_description': None,
+            }
+            if metadata:
+                metadata_context.update({k: v for k, v in metadata.items() if v is not None})
+
             # Render prompt with table context (use latest version)
             prompt = self.prompt_manager.get_prompt(
                 'pii_reflection',
                 version=None,  # Auto-detect latest version
                 context={
                     'table_markdown': table_markdown,
+                    **metadata_context,
                 },
             )
             # Call LLM
@@ -428,7 +450,9 @@ class ProcessDatasetUseCase:
 
         return report
 
-    def _classify_non_pii(self, report: SheetReport, isp_rules: Optional[Dict[str, Any]]) -> SheetReport:
+    def _classify_non_pii(
+        self, report: SheetReport, isp_rules: Optional[Dict[str, Any]], metadata: Optional[Dict[str, Any]] = None
+    ) -> SheetReport:
         """Classify non-PII sensitivity for the table."""
         if self.non_pii_llm is None:
             logger.info('Non-PII classification disabled - skipping')
@@ -440,16 +464,34 @@ class ProcessDatasetUseCase:
             # Prepare table summary
             table_summary = self._generate_table_markdown(report)
 
+            # Prepare metadata context for rendering
+            metadata_context = {
+                'dataset_title': None,
+                'dataset_description': None,
+                'dataset_source': None,
+                'dataset_location': None,
+                'organization_title': None,
+                'resource_name': None,
+                'resource_description': None,
+            }
+            if metadata:
+                metadata_context.update({k: v for k, v in metadata.items() if v is not None})
+
             # Determine prompt version based on ISP
             version = None
             if isp_rules and isp_rules.get('country') == 'default':
-                version = 'v2'
+                version = 'v4'
 
             # Render prompt
             prompt = self.prompt_manager.get_prompt(
                 'non_pii_classification',
                 version=version,  # Auto-detect latest version unless default ISP
-                context={'table_name': report.sheet_name, 'table_markdown': table_summary, 'isp': isp_rules or {}},
+                context={
+                    'table_name': report.sheet_name,
+                    'table_markdown': table_summary,
+                    'isp': isp_rules or {},
+                    **metadata_context,
+                },
             )
             # Log prompt for debugging
             logger.debug(f"[Non-PII Classification] Prompt for table '{report.sheet_name}':\n{prompt}\n")

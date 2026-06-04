@@ -188,3 +188,89 @@ def test_save_to_ckan_includes_sensitivity_level(mock_config, mock_pipeline_fact
     processor.ckan.update_resource_fields.assert_called_once_with(
         '123', {'sdd_report': '[]', 'sensitive': 'sensitive', 'sensitivity_level': 3}
     )
+
+
+def test_process_event_metadata_extraction(mock_config, mock_pipeline_factory, mock_ckan_client):
+    processor = EventProcessor()
+
+    # Mock CKAN calls
+    resource_data = {
+        'download_url': 'http://example.com/data.csv',
+        'name': 'resource_name_from_ckan.csv',
+        'description': 'resource_description_from_ckan',
+        'package_id': 'pkg-123',
+    }
+    package_data = {
+        'title': 'dataset_title_from_ckan',
+        'notes': 'dataset_notes_from_ckan',
+        'dataset_source': 'dataset_source_from_ckan',
+        'groups': [{'name': 'afg', 'title': 'Afghanistan'}],
+        'organization': {'name': 'ocha', 'title': 'OCHA Office'},
+    }
+
+    processor.ckan.resource_show.return_value = resource_data
+    processor.ckan.package_show.return_value = package_data
+    processor.isp_retriever.get_isp_rules = MagicMock(return_value={})
+    processor.pipeline.execute.return_value = []
+    processor._save_to_ckan = MagicMock()
+
+    event = {
+        'resource_id': 'res-123',
+        'dataset_id': 'ds-123',
+        'file_name': 'ignored.csv',
+        'dataset_title': 'ignored_title',
+    }
+
+    success, _ = processor.process_event(event)
+    assert success
+
+    # Verify metadata passed to execute
+    processor.pipeline.execute.assert_called_once()
+    _, kwargs = processor.pipeline.execute.call_args
+    assert 'metadata' in kwargs
+    metadata = kwargs['metadata']
+
+    assert metadata['resource_name'] == 'resource_name_from_ckan.csv'
+    assert metadata['resource_description'] == 'resource_description_from_ckan'
+    assert metadata['dataset_title'] == 'dataset_title_from_ckan'
+    assert metadata['dataset_description'] == 'dataset_notes_from_ckan'
+    assert metadata['dataset_source'] == 'dataset_source_from_ckan'
+    assert metadata['dataset_location'] == 'Afghanistan'
+    assert metadata['organization_title'] == 'OCHA Office'
+
+
+def test_process_event_metadata_extraction_no_ckan(mock_config, mock_pipeline_factory, mock_ckan_client):
+    mock_config.CKAN_UPDATE = False
+    processor = EventProcessor()
+    processor.isp_retriever.get_isp_rules = MagicMock(return_value={})
+    processor.pipeline.execute.return_value = []
+    processor._save_to_local_file = MagicMock()
+
+    event = {
+        'resource_id': 'res-123',
+        'download_url': 'http://example.com/data.csv',
+        'file_name': 'event_file.csv',
+        'resource_description': 'event_res_desc',
+        'dataset_title': 'event_ds_title',
+        'dataset_description': 'event_ds_desc',
+        'dataset_source': 'event_source',
+        'dataset_location': 'event_loc',
+        'organization_title': 'event_org',
+    }
+
+    success, _ = processor.process_event(event)
+    assert success
+
+    # Verify metadata passed to execute
+    processor.pipeline.execute.assert_called_once()
+    _, kwargs = processor.pipeline.execute.call_args
+    assert 'metadata' in kwargs
+    metadata = kwargs['metadata']
+
+    assert metadata['resource_name'] == 'event_file.csv'
+    assert metadata['resource_description'] == 'event_res_desc'
+    assert metadata['dataset_title'] == 'event_ds_title'
+    assert metadata['dataset_description'] == 'event_ds_desc'
+    assert metadata['dataset_source'] == 'event_source'
+    assert metadata['dataset_location'] == 'event_loc'
+    assert metadata['organization_title'] == 'event_org'

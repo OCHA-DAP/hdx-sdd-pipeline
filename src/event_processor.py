@@ -93,11 +93,12 @@ class EventProcessor:
                 return True, 'Already processed'
 
             # Get resource info from CKAN
+            resource = None
             resource_name = None
             if self.ckan:
                 resource = self.ckan.resource_show(resource_id)
-                download_url = resource.get('download_url')
-                resource_name = resource.get('name', 'unknown_dataset.csv')
+                download_url = resource.get('download_url') if resource else None
+                resource_name = resource.get('name', 'unknown_dataset.csv') if resource else 'unknown_dataset.csv'
             else:
                 # When CKAN is disabled, expect download_url in event
                 download_url = event.get('download_url')
@@ -109,9 +110,63 @@ class EventProcessor:
                 logger.error(f'No download URL for resource {resource_id}')
                 return False, 'No download URL'
 
+            # Extract metadata
+            metadata = {
+                'resource_name': event.get('file_name') or event.get('resource_name'),
+                'resource_description': event.get('resource_description') or event.get('description'),
+                'dataset_title': event.get('dataset_title') or event.get('package_title'),
+                'dataset_description': event.get('dataset_description')
+                or event.get('dataset_notes')
+                or event.get('notes'),
+                'dataset_source': event.get('dataset_source'),
+                'dataset_location': event.get('dataset_location') or event.get('location'),
+                'organization_title': event.get('organization_title') or event.get('org_title'),
+            }
+
+            if resource:
+                if resource.get('name'):
+                    metadata['resource_name'] = resource.get('name')
+                if resource.get('description'):
+                    metadata['resource_description'] = resource.get('description')
+
             # Get dataset location for ISP rules
-            package_id = event.get('dataset_id')
+            package_id = (
+                event.get('dataset_id') or event.get('package_id') or (resource.get('package_id') if resource else None)
+            )
             isp_rules = self.isp_retriever.get_isp_rules(package_id, resource_name, self.ckan)
+
+            # Fetch package metadata if CKAN is enabled and package_id is available
+            if self.ckan and package_id:
+                try:
+                    package = self.ckan.package_show(package_id)
+                    if package:
+                        if package.get('title'):
+                            metadata['dataset_title'] = package.get('title')
+                        if package.get('notes'):
+                            metadata['dataset_description'] = package.get('notes')
+                        elif package.get('description'):
+                            metadata['dataset_description'] = package.get('description')
+
+                        if package.get('dataset_source'):
+                            metadata['dataset_source'] = package.get('dataset_source')
+
+                        groups = package.get('groups', [])
+                        locations = [
+                            g.get('title') or g.get('display_name') or g.get('name')
+                            for g in groups
+                            if isinstance(g, dict)
+                        ]
+                        loc_str = ', '.join([loc for loc in locations if loc])
+                        if loc_str:
+                            metadata['dataset_location'] = loc_str
+
+                        org = package.get('organization')
+                        if isinstance(org, dict):
+                            org_title = org.get('title') or org.get('name')
+                            if org_title:
+                                metadata['organization_title'] = org_title
+                except Exception as e:
+                    logger.warning(f'Error fetching package metadata from CKAN for package {package_id}: {e}')
 
             # Process dataset using our use case
             logger.info(f'Processing dataset from: {download_url}')
@@ -122,6 +177,7 @@ class EventProcessor:
                 is_url=download_url.startswith(('http://', 'https://')),
                 isp_rules=isp_rules,
                 http_headers=http_headers,
+                metadata=metadata,
             )
 
             # Determine overall sensitivity

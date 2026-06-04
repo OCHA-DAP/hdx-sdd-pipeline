@@ -1261,6 +1261,53 @@ reports = pipeline.execute(
 )
 ```
 
+## Metadata-Aware Prompting (HDXSDD-45)
+
+To improve classification accuracy, the PII reflection and non-PII classification stages utilize metadata-aware prompts. This injects contextual dataset and resource-level metadata directly into the model's prompts.
+
+### Supported Metadata Fields
+
+*   **Dataset Metadata**:
+    *   `dataset_title`: The title of the dataset (e.g., from `package['title']`).
+    *   `dataset_description`: The description/notes of the dataset (e.g., from `package['notes']`).
+    *   `dataset_source`: The data source organization/publisher (e.g., from `package['dataset_source']`).
+    *   `dataset_location`: The country/location of the dataset (e.g., comma-separated list of package `groups` titles).
+    *   `organization_title`: The title of the organization ownership (e.g., from `package['organization']['title']`).
+*   **Resource Metadata**:
+    *   `resource_name`: The filename of the resource being analyzed (e.g., from `resource['name']`).
+    *   `resource_description`: The description of the specific resource (e.g., from `resource['description']`).
+
+### SDD Pipeline Flow Updates
+
+1.  **Extraction**: The `EventProcessor` extracts metadata from the incoming event payload. If CKAN update is enabled, it queries `resource_show` and `package_show` to retrieve enriched dataset and resource fields.
+2.  **Propagation**: The extracted metadata dictionary is passed to the pipeline use case via the `metadata` argument on `execute()`.
+3.  **Rendering**: The pipeline rendering layer injects these values into the Jinja template context. To prevent errors, all metadata keys default to `None` if they are missing or unavailable.
+
+### Prompt Templates
+
+The following templates are used when rendering metadata-aware prompts:
+
+*   **PII Reflection**: `src/prompts/pii_reflection/v4.jinja` (automatically selected as the latest version)
+*   **Standard Non-PII**: `src/prompts/non_pii_classification/v3.jinja` (automatically selected as the latest version)
+*   **Default Non-PII**: `src/prompts/non_pii_classification/v4.jinja` (selected when country is `'default'`)
+
+### Example Rendered Metadata Snippet
+
+When metadata is available, the template renders it cleanly under the input section:
+
+```markdown
+Metadata:
+* Dataset Title: Yemen Cholera Outbreak Data 2026
+* Dataset Description: Weekly cholera cases and deaths by governorate and district.
+* Dataset Source: Ministry of Public Health and Population
+* Dataset Location: Yemen
+* Organization: WHO Yemen
+* Resource Name: cholera_cases_yemen_2026.csv
+* Resource Description: Raw CSV containing district-level weekly cases.
+```
+
+If all metadata is missing or null, the metadata section is omitted entirely from the prompt, maintaining backward compatibility.
+
 ---
 
 ## Summary
