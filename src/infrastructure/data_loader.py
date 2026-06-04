@@ -275,6 +275,7 @@ class SmartDataLoader:
             return df.map(self._convert_string_to_numeric)
         else:
             return df.applymap(self._convert_string_to_numeric)
+
     def _has_enough_unique_values(self, df_dict: Dict[str, pd.DataFrame], target_unique: int = 5) -> bool:
         """Check if all non-README sheets have at least target_unique unique values in every column."""
         for sheet_name, df in df_dict.items():

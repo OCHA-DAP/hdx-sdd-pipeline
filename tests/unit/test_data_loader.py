@@ -555,6 +555,7 @@ class TestSmartDataLoader:
         df = pd.DataFrame()
         result = loader._normalize_numeric_values(df)
         assert result.empty
+
     def test_initialization_default_max_rows(self):
         """Test that default max_rows is None (loading whole dataset)."""
         loader = SmartDataLoader()
