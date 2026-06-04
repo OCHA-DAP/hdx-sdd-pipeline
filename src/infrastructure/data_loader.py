@@ -18,7 +18,7 @@ logger = logging.getLogger(__name__)
 COMMA_NUMERIC_RE = re.compile(r'^[+-]?\d{1,3}(?:,\d{3})+(?:\.\d+)?$')
 
 # Regex for number with space as thousands separator (e.g. 1 234 or 1 234.56, supporting multiple/Unicode spaces)
-SPACE_NUMERIC_RE = re.compile(r'^[+-]?\d{1,3}(?:[\s\xa0\u202f]+\d{3})+(?:\.\d+)?$')
+SPACE_NUMERIC_RE = re.compile(r'^[+-]?\d{1,3}(?:[ \xa0\u202f]+\d{3})+(?:\.\d+)?$')
 
 
 class SmartDataLoader:
@@ -256,7 +256,7 @@ class SmartDataLoader:
 
         # 4. Check for space thousands separators (e.g., "3 466", "1 234 567.89")
         if SPACE_NUMERIC_RE.match(val_clean):
-            val_no_space = re.sub(r'[\s\xa0\u202f]+', '', val_clean)
+            val_no_space = re.sub(r'[ \xa0\u202f]+', '', val_clean)
             try:
                 if '.' in val_no_space:
                     return float(val_no_space)
