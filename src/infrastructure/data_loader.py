@@ -239,7 +239,9 @@ class SmartDataLoader:
 
         # 2. Try direct float conversion
         try:
-            return float(val_clean)
+            result = float(val_clean)
+            if not (result != result or result == float('inf') or result == float('-inf')):
+                return result
         except ValueError:
             pass
 
