@@ -181,8 +181,10 @@ class ProcessDatasetUseCase:
                     # Update sensitivity flags based on README PII detection
                     if result.get('personal_data_sensitive', False):
                         report.personal_data_sensitive = True
+                        report.personal_data_classification.sensitivity = SensitivityLevel.HIGH_SENSITIVE
                         logger.info(f'PII detected in README: {result.get("personal_data_entities", [])}')
                     else:
+                        report.personal_data_classification.sensitivity = SensitivityLevel.NON_SENSITIVE
                         logger.info('No PII detected in README')
 
                     # Set model name
@@ -197,6 +199,7 @@ class ProcessDatasetUseCase:
         else:
             logger.info('README scanning disabled - skipping PII analysis')
 
+        report.update_risk_levels()
         return report
 
     def _create_data_report(
@@ -238,6 +241,7 @@ class ProcessDatasetUseCase:
 
         # Step 6: Update sensitivity flags
         report.update_non_pii_sensitivity()
+        report.update_risk_levels()
 
         logger.debug(
             f"Data report complete for '{sheet_name}': "
@@ -356,7 +360,7 @@ class ProcessDatasetUseCase:
                     column.pii_classification.sensitive = True
 
             # Set PII sensitivity classification to HIGH_SENSITIVE since we detected sensitive entities
-            report.personal_data_classification.sensitivity = SensitivityLevel.HIGH_SENSITIVE
+            report.personal_data_classification.sensitivity = SensitivityLevel.SEVERE_SENSITIVE
             report.personal_data_classification.explanation = (
                 'Highly sensitive PII entities detected (email, phone number, or person names). '
                 'These are direct identifiers that can be used to identify individuals.'

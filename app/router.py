@@ -179,6 +179,8 @@ async def get_report_detail(model_name: str, dataset_name: str):
             'n_records': sheet.n_records,
             'personal_data_sensitive': sheet.personal_data_sensitive,
             'non_personal_data_sensitive': sheet.non_personal_data_sensitive,
+            'personal_data_risk_level': sheet.personal_data_risk_level,
+            'non_personal_data_risk_level': sheet.non_personal_data_risk_level,
             'personal_data': sheet.personal_data.model_dump(),
             'non_personal_data': sheet.non_personal_data.model_dump(),
             'columns': [c.model_dump() for c in sheet.columns],
@@ -194,6 +196,7 @@ async def get_report_detail(model_name: str, dataset_name: str):
         'model': model_name,
         'timestamp': pred.timestamp,
         'sensitive': pred.sensitive,
+        'sensitivity_level': pred.sensitivity_level,
         'groundtruth_sensitive': gt.sensitive if gt else None,
         'sheets': sheets_out,
     }

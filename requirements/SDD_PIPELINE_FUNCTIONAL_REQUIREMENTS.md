@@ -109,6 +109,14 @@ Any new feature request for this project must follow this order:
   - Expected behavior: SmartDataLoader loads datasets in chunks (100, 1000, 10000, 25000, 50000, and 100000 rows) using pandas. If all columns have at least 5 unique non-empty/non-null values, it stops loading. If not, it tries the next chunk size until the end of the file or max chunk size is reached. Unique values for each column are randomly sampled (5 values) with a random seed of 42.
 
 
+- [x] FR-SDD-044: Risk level scoring, hierarchical maximum risk propagation, and pii_reflection prompt alignment.
+  - Expected behavior: Every sheet report receives `personal_data_risk_level` (0-3) and `non_personal_data_risk_level` (0-3) keys serialized right after `non_personal_data_sensitive`. Every resource (file) report receives a `sensitivity_level` (0-3) key serialized right after `sensitive`. Risk scoring follows a hierarchical "maximum risk propagation" model where the worst-case sensitivity propagates upward:
+    - PD Score: NON_SENSITIVE/UNDETERMINED -> 0; HIGH_SENSITIVE -> 2; SEVERE_SENSITIVE -> 3.
+    - NPD Score: NONE/LOW/UNDETERMINED -> 0; MEDIUM -> 1; HIGH -> 2; SEVERE -> 3.
+    - Sheet Risk: max(PD Score, NPD Score).
+    - Resource/File Risk: max(all Sheet Risks).
+  - The `pii_reflection` prompt (specifically the latest version `v2.jinja`) must be updated to use the new PD classification scale (NON_SENSITIVE, HIGH_SENSITIVE, SEVERE_SENSITIVE) instead of the old MODERATE_SENSITIVE.
+
 
 ### Persistence and outputs
 

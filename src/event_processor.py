@@ -126,9 +126,10 @@ class EventProcessor:
 
             # Determine overall sensitivity
             sensitivity = self._determine_sensitivity(reports)
+            sensitivity_level = self._determine_sensitivity_level(reports)
 
             # Save to CKAN
-            self._save_to_ckan(resource_id, reports, sensitivity)
+            self._save_to_ckan(resource_id, reports, sensitivity, sensitivity_level)
 
             logger.info(f'Successfully processed {resource_id}: {sensitivity}')
             return True, f'Processed successfully ({sensitivity})'
@@ -178,7 +179,23 @@ class EventProcessor:
         else:
             return 'not-sensitive'
 
-    def _save_to_ckan(self, resource_id: str, reports: list, sensitivity: str):
+    def _determine_sensitivity_level(self, reports: list) -> int:
+        """Determine overall sensitive level from reports."""
+        max_risk = 0
+        for report in reports:
+            if isinstance(report, SheetReport):
+                sheet_risk = max(report.personal_data_risk_level, report.non_personal_data_risk_level)
+                if sheet_risk > max_risk:
+                    max_risk = sheet_risk
+            elif isinstance(report, dict):
+                pd_risk = report.get('personal_data_risk_level', 0)
+                npd_risk = report.get('non_personal_data_risk_level', 0)
+                sheet_risk = max(pd_risk, npd_risk)
+                if sheet_risk > max_risk:
+                    max_risk = sheet_risk
+        return max_risk
+
+    def _save_to_ckan(self, resource_id: str, reports: list, sensitivity: str, sensitivity_level: int = 0):
         """Save results to CKAN or local file."""
         # Convert reports to dict
         reports_dict = [report.to_dict() if isinstance(report, SheetReport) else report for report in reports]
@@ -186,17 +203,22 @@ class EventProcessor:
         # Check if CKAN updates are enabled
         if self.ckan is None:
             logger.warning('CKAN_UPDATE is disabled - saving to dev.json instead')
-            self._save_to_local_file(resource_id, reports_dict, sensitivity)
+            self._save_to_local_file(resource_id, reports_dict, sensitivity, sensitivity_level)
             return
 
         # Update CKAN resource
         self.ckan.update_resource_fields(
-            resource_id, {'sdd_report': json.dumps(reports_dict, indent=2), 'sensitive': sensitivity}
+            resource_id,
+            {
+                'sdd_report': json.dumps(reports_dict, indent=2),
+                'sensitive': sensitivity,
+                'sensitivity_level': sensitivity_level,
+            },
         )
 
         logger.info(f'Saved report to CKAN for resource {resource_id}')
 
-    def _save_to_local_file(self, resource_id: str, reports_dict: list, sensitivity: str):
+    def _save_to_local_file(self, resource_id: str, reports_dict: list, sensitivity: str, sensitivity_level: int = 0):
         """Save report to local file with configurable output path."""
 
         # Determine output directory and filename
@@ -219,6 +241,7 @@ class EventProcessor:
         report_data = {
             'resource_id': resource_id,
             'sensitive': sensitivity,
+            'sensitivity_level': sensitivity_level,
             'timestamp': datetime.now().isoformat(),
             'sdd_report': reports_dict,
         }
@@ -227,7 +250,10 @@ class EventProcessor:
         with open(output_file, 'w', encoding='utf-8') as f:
             json.dump(report_data, f, indent=2, default=str)
 
-        logger.info(f'Saved report to {output_file} (sensitivity={sensitivity}, {len(reports_dict)} sheets)')
+        logger.info(
+            f'Saved report to {output_file} (sensitivity={sensitivity}, '
+            f'sensitivity_level={sensitivity_level}, {len(reports_dict)} sheets)'
+        )
 
 
 def main():
@@ -263,6 +289,7 @@ if __name__ == '__main__':  # pragma: no cover
 
     # Assert if sdd_report is list
     assert isinstance(dev_data['sdd_report'], list)
+    assert 'sensitivity_level' in dev_data
 
     for sheet_report in dev_data['sdd_report']:
         # Check required fields
@@ -279,6 +306,8 @@ if __name__ == '__main__':  # pragma: no cover
         assert 'prompt_tokens' in sheet_report
         assert 'personal_data_sensitive' in sheet_report
         assert 'non_personal_data_sensitive' in sheet_report
+        assert 'personal_data_risk_level' in sheet_report
+        assert 'non_personal_data_risk_level' in sheet_report
 
         # Model fields are optional (None when steps are disabled)
         # Just verify they exist in the report, even if None
