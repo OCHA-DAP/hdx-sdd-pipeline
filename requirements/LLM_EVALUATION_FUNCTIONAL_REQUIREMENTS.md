@@ -65,6 +65,9 @@ Any new feature request for this project must follow this order:
 - [x] FR-EVAL-025: Batch processing must support processing by a list of HDX resource IDs.
   - Implemented behavior: Scripted batch execution can accept a list of resource IDs, fetch their metadata from CKAN, and save reports to a specific research directory (e.g., research/results/false_positives_prod).
 
+- [x] FR-EVAL-026: Batch processing must support resource IDs for non-sensitive datasets.
+  - Expected behavior: When processing datasets using `batch_process_model.py`, non-sensitive datasets are resolved using their real HDX resource IDs (e.g., from CKAN download URLs, with local fallback for private/404/403 resources) instead of local files. Sensitive datasets are still processed as local files in `research/data/`. Groundtruth files in `groundtruth2` are updated accordingly (named as resource IDs for the non-sensitive datasets).
+
 ### Results and analytics
 
 - [x] FR-EVAL-030: Results must be persisted in model-scoped directories using JSON per dataset.
