@@ -360,7 +360,7 @@ class ProcessDatasetUseCase:
                     column.pii_classification.sensitive = True
 
             # Set PII sensitivity classification to HIGH_SENSITIVE since we detected sensitive entities
-            report.personal_data_classification.sensitivity = SensitivityLevel.HIGH_SENSITIVE
+            report.personal_data_classification.sensitivity = SensitivityLevel.SEVERE_SENSITIVE
             report.personal_data_classification.explanation = (
                 'Highly sensitive PII entities detected (email, phone number, or person names). '
                 'These are direct identifiers that can be used to identify individuals.'
