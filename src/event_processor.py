@@ -27,6 +27,13 @@ logger = logging.getLogger(__name__)
 load_dotenv()
 
 
+def truncate_description(desc: Any) -> Any:
+    """Truncate description to 1000 characters if it exceeds 1000 characters."""
+    if isinstance(desc, str) and len(desc) > 1000:
+        return desc[:1000]
+    return desc
+
+
 class EventProcessor:
     """
     Processes HDX resource events from Redis streams.
@@ -113,11 +120,13 @@ class EventProcessor:
             # Extract metadata
             metadata = {
                 'resource_name': event.get('file_name') or event.get('resource_name'),
-                'resource_description': event.get('resource_description') or event.get('description'),
+                'resource_description': truncate_description(event.get('resource_description') or event.get('description')),
                 'dataset_title': event.get('dataset_title') or event.get('package_title'),
-                'dataset_description': event.get('dataset_description')
-                or event.get('dataset_notes')
-                or event.get('notes'),
+                'dataset_description': truncate_description(
+                    event.get('dataset_description')
+                    or event.get('dataset_notes')
+                    or event.get('notes')
+                ),
                 'dataset_source': event.get('dataset_source'),
                 'dataset_location': event.get('dataset_location') or event.get('location'),
                 'organization_title': event.get('organization_title') or event.get('org_title'),
@@ -127,7 +136,7 @@ class EventProcessor:
                 if resource.get('name'):
                     metadata['resource_name'] = resource.get('name')
                 if resource.get('description'):
-                    metadata['resource_description'] = resource.get('description')
+                    metadata['resource_description'] = truncate_description(resource.get('description'))
 
             # Get dataset location for ISP rules
             package_id = (
@@ -143,9 +152,9 @@ class EventProcessor:
                         if package.get('title'):
                             metadata['dataset_title'] = package.get('title')
                         if package.get('notes'):
-                            metadata['dataset_description'] = package.get('notes')
+                            metadata['dataset_description'] = truncate_description(package.get('notes'))
                         elif package.get('description'):
-                            metadata['dataset_description'] = package.get('description')
+                            metadata['dataset_description'] = truncate_description(package.get('description'))
 
                         if package.get('dataset_source'):
                             metadata['dataset_source'] = package.get('dataset_source')
@@ -194,7 +203,10 @@ class EventProcessor:
                                 'resource_description',
                             ]:
                                 if local_meta.get(key) is not None:
-                                    metadata[key] = local_meta[key]
+                                    val = local_meta[key]
+                                    if key in ('dataset_description', 'resource_description'):
+                                        val = truncate_description(val)
+                                    metadata[key] = val
                     except Exception as e:
                         logger.warning(f'Failed to read local metadata from {local_metadata_path}: {e}')
 

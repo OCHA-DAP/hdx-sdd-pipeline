@@ -317,3 +317,34 @@ def test_process_event_metadata_local_json_folder(mock_config, mock_pipeline_fac
     assert metadata['organization_title'] == 'local_json_org'
     assert metadata['resource_name'] == 'local_json_res_name'
     assert metadata['resource_description'] == 'local_json_res_desc'
+
+
+def test_process_event_metadata_truncation(mock_config, mock_pipeline_factory, mock_ckan_client):
+    mock_config.CKAN_UPDATE = False
+    processor = EventProcessor()
+    processor.isp_retriever.get_isp_rules = MagicMock(return_value={})
+    processor.pipeline.execute.return_value = []
+    processor._save_to_local_file = MagicMock()
+
+    long_desc = "a" * 1050
+    event = {
+        'resource_id': 'res-123',
+        'download_url': 'http://example.com/data.csv',
+        'file_name': 'event_file.csv',
+        'resource_description': long_desc,
+        'dataset_title': 'event_ds_title',
+        'dataset_description': long_desc,
+    }
+
+    success, _ = processor.process_event(event)
+    assert success
+
+    processor.pipeline.execute.assert_called_once()
+    _, kwargs = processor.pipeline.execute.call_args
+    metadata = kwargs['metadata']
+
+    assert len(metadata['resource_description']) == 1000
+    assert metadata['resource_description'] == "a" * 1000
+    assert len(metadata['dataset_description']) == 1000
+    assert metadata['dataset_description'] == "a" * 1000
+

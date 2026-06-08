@@ -87,6 +87,14 @@ class ProcessDatasetUseCase:
             f'Starting dataset processing: source={source}, resource_id={resource_id}, '
             f'is_url={is_url}, has_isp_rules={isp_rules is not None}'
         )
+        if metadata:
+            metadata = metadata.copy()
+            for key in ('dataset_description', 'resource_description'):
+                if key in metadata:
+                    val = metadata[key]
+                    if isinstance(val, str) and len(val) > 1000:
+                        metadata[key] = val[:1000]
+
         import time
 
         start_time = time.time()

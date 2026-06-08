@@ -126,6 +126,10 @@ Any new feature request for this project must follow this order:
 - [x] FR-SDD-046: Separate folder for default non-PII classification prompts.
   - Expected behavior: The default non-PII classification prompts are stored in a dedicated `src/prompts/non_pii_classification/default/` folder. The former non-PII default templates (`v2.jinja` without metadata and `v4.jinja` with metadata) are relocated to this directory and versioned as `v0.jinja` and `v1.jinja` respectively. When default ISP country rules are applied, the pipeline resolves these templates from `non_pii_classification/default` using auto-detection for the latest version.
 
+- [x] FR-SDD-047: Truncation of dataset and resource descriptions.
+  - Expected behavior: When extracting or passing dataset description (`dataset_description`) or resource description (`resource_description`) in the metadata payload, they must be truncated/cut off at 1000 characters if their length exceeds 1000 characters.
+
+
 ### Persistence and outputs
 
 - [x] FR-SDD-040: Results must be persisted either to CKAN or local output depending on runtime mode.
