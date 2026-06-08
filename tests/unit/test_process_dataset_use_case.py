@@ -317,21 +317,11 @@ class TestProcessDatasetUseCase:
         mock_data_loader.sample_dataframe.return_value = {'col1': ['1', '2', '3', '', '']}
         mock_llm_provider.generate.return_value = ('NONE', 10, 20)
 
-        long_desc = "a" * 1200
-        metadata = {
-            'dataset_description': long_desc,
-            'resource_description': long_desc,
-            'dataset_title': 'short title'
-        }
+        long_desc = 'a' * 1200
+        metadata = {'dataset_description': long_desc, 'resource_description': long_desc, 'dataset_title': 'short title'}
 
         # We patch _create_data_report to verify the metadata passed to it
         use_case._create_data_report = Mock(wraps=use_case._create_data_report)
-
-        reports = use_case.execute(
-            source='/path/to/data.xlsx',
-            is_url=False,
-            metadata=metadata
-        )
 
         # Verify the original metadata dictionary wasn't mutated
         assert len(metadata['dataset_description']) == 1200
@@ -342,9 +332,9 @@ class TestProcessDatasetUseCase:
         passed_metadata = args[5]
 
         assert len(passed_metadata['dataset_description']) == 1000
-        assert passed_metadata['dataset_description'] == "a" * 1000
+        assert passed_metadata['dataset_description'] == 'a' * 1000
         assert len(passed_metadata['resource_description']) == 1000
-        assert passed_metadata['resource_description'] == "a" * 1000
+        assert passed_metadata['resource_description'] == 'a' * 1000
         assert passed_metadata['dataset_title'] == 'short title'
 
     def test_execute_metadata_location_cleaning(self, use_case, mock_data_loader, mock_llm_provider):
@@ -353,19 +343,7 @@ class TestProcessDatasetUseCase:
         mock_data_loader.load_from_file.return_value = {'Sheet1': df}
         mock_data_loader.sample_dataframe.return_value = {'col1': ['1', '2', '3', '', '']}
         mock_llm_provider.generate.return_value = ('NONE', 10, 20)
-
-        metadata = {
-            'dataset_location': 'Nepal, Netherlands, Nicaragua, New Zealand, Sudan, Yemen',
-            'dataset_title': 'short title'
-        }
-
         use_case._create_data_report = Mock(wraps=use_case._create_data_report)
-
-        reports = use_case.execute(
-            source='/path/to/data.xlsx',
-            is_url=False,
-            metadata=metadata
-        )
 
         use_case._create_data_report.assert_called_once()
         args, _ = use_case._create_data_report.call_args
@@ -373,6 +351,3 @@ class TestProcessDatasetUseCase:
 
         # Verified metadata passed down has None for dataset_location (omitted)
         assert passed_metadata['dataset_location'] is None
-
-
-

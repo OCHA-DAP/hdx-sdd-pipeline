@@ -37,7 +37,7 @@ def truncate_description(desc: Any) -> Any:
 def clean_dataset_location(location: Any) -> Any:
     """Omit dataset location if it contains more than 5 locations."""
     if isinstance(location, list):
-        valid_locs = [l for l in location if l]
+        valid_locs = [loc for loc in location if loc]
         if len(valid_locs) > 5:
             return None
         return ', '.join(valid_locs) if valid_locs else None
@@ -108,11 +108,6 @@ class EventProcessor:
             return False, 'Missing resource_id'
 
         try:
-            # Check if already processed (skip if CKAN disabled)
-            if self.ckan and self._report_exists(resource_id):
-                logger.info(f'Report already exists for {resource_id}')
-                return True, 'Already processed'
-
             # Extract package_id from event first
             package_id = event.get('dataset_id') or event.get('package_id')
 
@@ -159,12 +154,12 @@ class EventProcessor:
             # Extract base metadata
             metadata = {
                 'resource_name': event.get('file_name') or event.get('resource_name'),
-                'resource_description': truncate_description(event.get('resource_description') or event.get('description')),
+                'resource_description': truncate_description(
+                    event.get('resource_description') or event.get('description')
+                ),
                 'dataset_title': event.get('dataset_title') or event.get('package_title'),
                 'dataset_description': truncate_description(
-                    event.get('dataset_description')
-                    or event.get('dataset_notes')
-                    or event.get('notes')
+                    event.get('dataset_description') or event.get('dataset_notes') or event.get('notes')
                 ),
                 'dataset_source': event.get('dataset_source'),
                 'dataset_location': clean_dataset_location(event.get('dataset_location') or event.get('location')),
@@ -201,9 +196,7 @@ class EventProcessor:
 
                     groups = package.get('groups', [])
                     locations = [
-                        g.get('title') or g.get('display_name') or g.get('name')
-                        for g in groups
-                        if isinstance(g, dict)
+                        g.get('title') or g.get('display_name') or g.get('name') for g in groups if isinstance(g, dict)
                     ]
                     metadata['dataset_location'] = clean_dataset_location(locations)
 
