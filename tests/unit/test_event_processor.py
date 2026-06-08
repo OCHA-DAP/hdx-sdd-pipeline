@@ -48,16 +48,6 @@ def test_process_event_missing_resource_id(mock_config, mock_pipeline_factory):
     assert 'Missing resource_id' in message
 
 
-# def test_process_event_report_exists(mock_config, mock_pipeline_factory, mock_ckan_client):
-#     processor = EventProcessor()
-#     processor.ckan.resource_show.return_value = {'sdd_report': 'some report'}
-
-#     event = {'resource_id': '123'}
-#     success, message = processor.process_event(event)
-#     assert success
-#     assert 'Already processed' in message
-
-
 def test_process_event_no_download_url(mock_config, mock_pipeline_factory, mock_ckan_client):
     processor = EventProcessor()
     processor.ckan.resource_show.return_value = {}  # No download_url inside CKAN resource
@@ -383,7 +373,6 @@ def test_process_event_package_show_with_resources(mock_config, mock_pipeline_fa
     processor.isp_retriever.get_isp_rules = MagicMock(return_value={})
     processor.pipeline.execute.return_value = []
     processor._save_to_ckan = MagicMock()
-    processor._report_exists = MagicMock(return_value=False)
 
     event = {'resource_id': 'res-123', 'dataset_id': 'ds-123'}
     success, _ = processor.process_event(event)
@@ -397,7 +386,6 @@ def test_process_event_package_show_with_resources(mock_config, mock_pipeline_fa
 
 def test_process_event_package_show_exception(mock_config, mock_pipeline_factory, mock_ckan_client):
     processor = EventProcessor()
-    processor._report_exists = MagicMock(return_value=False)
 
     processor.ckan.package_show.side_effect = Exception('Package error')
     processor.ckan.resource_show.return_value = {
