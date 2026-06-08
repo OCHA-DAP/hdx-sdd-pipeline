@@ -113,12 +113,37 @@ class EventProcessor:
                 logger.info(f'Report already exists for {resource_id}')
                 return True, 'Already processed'
 
-            # Get resource info from CKAN
+            # Extract package_id from event first
+            package_id = event.get('dataset_id') or event.get('package_id')
+
+            # Get package and resource info from CKAN
+            package = None
             resource = None
             resource_name = None
+
             if self.ckan:
-                resource = self.ckan.resource_show(resource_id)
-                download_url = resource.get('download_url') if resource else None
+                if package_id:
+                    try:
+                        package = self.ckan.package_show(package_id)
+                        if package and package.get('resources'):
+                            for res in package.get('resources', []):
+                                if res.get('id') == resource_id:
+                                    resource = res
+                                    break
+                    except Exception as e:
+                        logger.warning(f'Error fetching package metadata from CKAN for package {package_id}: {e}')
+
+                # Fallback to resource_show if package or resource not found
+                if not resource:
+                    try:
+                        resource = self.ckan.resource_show(resource_id)
+                        # Ensure package_id is populated if missing
+                        if not package_id and resource:
+                            package_id = resource.get('package_id')
+                    except Exception as e:
+                        logger.warning(f'Error fetching resource metadata from CKAN for resource {resource_id}: {e}')
+
+                download_url = resource.get('download_url') or resource.get('url') if resource else None
                 resource_name = resource.get('name', 'unknown_dataset.csv') if resource else 'unknown_dataset.csv'
             else:
                 # When CKAN is disabled, expect download_url in event
@@ -131,7 +156,7 @@ class EventProcessor:
                 logger.error(f'No download URL for resource {resource_id}')
                 return False, 'No download URL'
 
-            # Extract metadata
+            # Extract base metadata
             metadata = {
                 'resource_name': event.get('file_name') or event.get('resource_name'),
                 'resource_description': truncate_description(event.get('resource_description') or event.get('description')),
@@ -152,42 +177,41 @@ class EventProcessor:
                 if resource.get('description'):
                     metadata['resource_description'] = truncate_description(resource.get('description'))
 
-            # Get dataset location for ISP rules
-            package_id = (
-                event.get('dataset_id') or event.get('package_id') or (resource.get('package_id') if resource else None)
-            )
+            # Get ISP rules
             isp_rules = self.isp_retriever.get_isp_rules(package_id, resource_name, self.ckan)
 
-            # Fetch package metadata if CKAN is enabled and package_id is available
+            # Fetch package metadata if CKAN is enabled, but try to reuse the package already fetched
             if self.ckan and package_id:
-                try:
-                    package = self.ckan.package_show(package_id)
-                    if package:
-                        if package.get('title'):
-                            metadata['dataset_title'] = package.get('title')
-                        if package.get('notes'):
-                            metadata['dataset_description'] = truncate_description(package.get('notes'))
-                        elif package.get('description'):
-                            metadata['dataset_description'] = truncate_description(package.get('description'))
+                if not package:
+                    try:
+                        package = self.ckan.package_show(package_id)
+                    except Exception as e:
+                        logger.warning(f'Error fetching package metadata from CKAN for package {package_id}: {e}')
 
-                        if package.get('dataset_source'):
-                            metadata['dataset_source'] = package.get('dataset_source')
+                if package:
+                    if package.get('title'):
+                        metadata['dataset_title'] = package.get('title')
+                    if package.get('notes'):
+                        metadata['dataset_description'] = truncate_description(package.get('notes'))
+                    elif package.get('description'):
+                        metadata['dataset_description'] = truncate_description(package.get('description'))
 
-                        groups = package.get('groups', [])
-                        locations = [
-                            g.get('title') or g.get('display_name') or g.get('name')
-                            for g in groups
-                            if isinstance(g, dict)
-                        ]
-                        metadata['dataset_location'] = clean_dataset_location(locations)
+                    if package.get('dataset_source'):
+                        metadata['dataset_source'] = package.get('dataset_source')
 
-                        org = package.get('organization')
-                        if isinstance(org, dict):
-                            org_title = org.get('title') or org.get('name')
-                            if org_title:
-                                metadata['organization_title'] = org_title
-                except Exception as e:
-                    logger.warning(f'Error fetching package metadata from CKAN for package {package_id}: {e}')
+                    groups = package.get('groups', [])
+                    locations = [
+                        g.get('title') or g.get('display_name') or g.get('name')
+                        for g in groups
+                        if isinstance(g, dict)
+                    ]
+                    metadata['dataset_location'] = clean_dataset_location(locations)
+
+                    org = package.get('organization')
+                    if isinstance(org, dict):
+                        org_title = org.get('title') or org.get('name')
+                        if org_title:
+                            metadata['organization_title'] = org_title
 
             # Check if there is a local metadata file in research/metadata
             meta_filename = resource_name or (Path(download_url).name if download_url else None)
