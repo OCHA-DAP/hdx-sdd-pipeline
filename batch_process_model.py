@@ -23,35 +23,35 @@ from src.shared.utils.ckan import CKANClient
 
 # Non-sensitive resource IDs
 NON_SENSITIVE_RESOURCE_IDS = {
-    "1a13db39-bce9-4565-845c-ad3299206dfd",
-    "ba40c81d-ad3a-465e-9851-c916d9a2e38f",
-    "87b89f79-d096-4b8a-b142-d27041202d8b",
+    '1a13db39-bce9-4565-845c-ad3299206dfd',
+    'ba40c81d-ad3a-465e-9851-c916d9a2e38f',
+    '87b89f79-d096-4b8a-b142-d27041202d8b',
     # "1e10fb4e-0670-435e-b788-9edd633f9d1a",
-    "5e812b48-eef4-4600-890c-0a3e47a44b4c",
-    "0ae0101c-dcf2-4228-80f4-4d9c9cc2f448",
-    "e1c0902c-0c6c-4d08-8db4-388e68b5a3d6",
-    "d669fd25-9e1b-4d37-aab7-9049970cc207",
-    "5f489493-363c-4516-ac85-bd87de860117",
-    "68b7d855-add3-4705-8afb-1df65b4a2d65",
-    "83cfb940-b848-4e26-a9e3-7f318de51b39",
-    "7b7331a2-304a-42ff-ac46-8e72e7434c1d",
-    "58451add-37e2-4228-8e78-677a65407169",
-    "59ae2ec0-0f33-4654-ac5f-ff10061da8d5",
-    "8ec923c2-1287-490f-954f-ccf0057714b7",
-    "bcf66afc-b2c2-43ce-b355-5424898548aa",
-    "daf46c0a-a7a3-4e05-b057-72d78fa4226f",
-    "d40af4ec-39bc-4dbb-afa2-100b14faebcd",
-    "d6629f7a-4417-4b47-8e50-439b49547d24",
-    "13899e52-5d6e-4b05-b8a1-2b378b5b2cda",
-    "f1a0e86a-5615-4c07-9595-b1413e0089eb",
-    "d68f4008-938a-4d13-be3d-0ea2f833b62b",
-    "8c9ea9cb-0184-402f-b596-a49aa38e3706",
-    "5d382ae2-d52e-457c-a98c-040eb4f42421"
+    '5e812b48-eef4-4600-890c-0a3e47a44b4c',
+    '0ae0101c-dcf2-4228-80f4-4d9c9cc2f448',
+    'e1c0902c-0c6c-4d08-8db4-388e68b5a3d6',
+    'd669fd25-9e1b-4d37-aab7-9049970cc207',
+    '5f489493-363c-4516-ac85-bd87de860117',
+    '68b7d855-add3-4705-8afb-1df65b4a2d65',
+    '83cfb940-b848-4e26-a9e3-7f318de51b39',
+    '7b7331a2-304a-42ff-ac46-8e72e7434c1d',
+    '58451add-37e2-4228-8e78-677a65407169',
+    '59ae2ec0-0f33-4654-ac5f-ff10061da8d5',
+    '8ec923c2-1287-490f-954f-ccf0057714b7',
+    'bcf66afc-b2c2-43ce-b355-5424898548aa',
+    'daf46c0a-a7a3-4e05-b057-72d78fa4226f',
+    'd40af4ec-39bc-4dbb-afa2-100b14faebcd',
+    'd6629f7a-4417-4b47-8e50-439b49547d24',
+    '13899e52-5d6e-4b05-b8a1-2b378b5b2cda',
+    'f1a0e86a-5615-4c07-9595-b1413e0089eb',
+    'd68f4008-938a-4d13-be3d-0ea2f833b62b',
+    '8c9ea9cb-0184-402f-b596-a49aa38e3706',
+    '5d382ae2-d52e-457c-a98c-040eb4f42421',
 }
 
 # Fallback mapping for private or missing resources on CKAN to their local filenames
 RESOURCE_ID_TO_LOCAL_FILE = {
-    "ba40c81d-ad3a-465e-9851-c916d9a2e38f": "Event Data UKR.csv",
+    'ba40c81d-ad3a-465e-9851-c916d9a2e38f': 'Event Data UKR.csv',
 }
 
 # Setup logging
@@ -184,7 +184,7 @@ def process_dataset(
                 download_url = resource.get('download_url')
                 file_name = resource.get('name') or dataset_name
         except Exception as e:
-            logger.warning(f"Could not fetch metadata from CKAN for {dataset_name}: {e}")
+            logger.warning(f'Could not fetch metadata from CKAN for {dataset_name}: {e}')
 
         # Fallback to local file if CKAN fails or if we have a hardcoded local file mapping
         if not download_url:
@@ -194,10 +194,12 @@ def process_dataset(
                 if source_file.exists():
                     download_url = str(source_file)
                     file_name = local_name
-                    logger.info(f"Using local fallback file for {dataset_name}: {source_file}")
+                    logger.info(f'Using local fallback file for {dataset_name}: {source_file}')
 
         if not download_url:
-            logger.error(f'❌ Cannot process {dataset_name}: failed to get download URL from CKAN and no local fallback available')
+            logger.error(
+                f'❌ Cannot process {dataset_name}: failed to get download URL from CKAN and no local fallback'
+            )
             return False
     else:
         # Sensitive dataset (local file)
