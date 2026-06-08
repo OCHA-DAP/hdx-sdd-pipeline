@@ -181,7 +181,7 @@ def process_dataset(
         try:
             resource = ckan.resource_show(dataset_name)
             if resource:
-                download_url = resource.get('download_url')
+                download_url = resource.get('download_url') or resource.get('url')
                 file_name = resource.get('name') or dataset_name
         except Exception as e:
             logger.warning(f'Could not fetch metadata from CKAN for {dataset_name}: {e}')

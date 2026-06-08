@@ -132,7 +132,7 @@ Any new feature request for this project must follow this order:
 - [x] FR-SDD-049: Omission of dataset location when containing more than 5 locations.
   - Expected behavior: If dataset location (`dataset_location`) in the metadata payload contains more than 5 comma-separated locations, it must be omitted (set to `None`/null) from the metadata passed to LLM prompts, as many locations are not considered to add value.
 
-- [x] FR-SDD-050: Optimize CKAN metadata retrieval to minimize API calls.
+- [x] FR-SDD-054: Optimize CKAN metadata retrieval to minimize API calls.
   - Expected behavior: When processing events, the pipeline should fetch package metadata via `package_show` first and extract resource-level details from the nested `resources` array, avoiding a separate `resource_show` API call unless the resource is missing from the package.
 
 

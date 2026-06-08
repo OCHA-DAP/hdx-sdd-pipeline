@@ -1279,7 +1279,7 @@ To improve classification accuracy, the PII reflection and non-PII classificatio
 
 ### SDD Pipeline Flow Updates
 
-1.  **Extraction**: The `EventProcessor` extracts metadata from the incoming event payload. If CKAN update is enabled, it queries `resource_show` and `package_show` to retrieve enriched dataset and resource fields.
+1.  **Extraction**: The `EventProcessor` extracts metadata from the incoming event payload. If CKAN update is enabled, it queries `package_show` first (extracting the resource details from the package resources array) and falls back to `resource_show` only if the resource is missing from the package. This retrieves enriched dataset and resource fields with minimized API calls.
 2.  **Propagation**: The extracted metadata dictionary is passed to the pipeline use case via the `metadata` argument on `execute()`.
 3.  **Rendering**: The pipeline rendering layer injects these values into the Jinja template context. To prevent errors, all metadata keys default to `None` if they are missing or unavailable.
 
@@ -1289,7 +1289,7 @@ The following templates are used when rendering metadata-aware prompts:
 
 *   **PII Reflection**: `src/prompts/pii_reflection/v4.jinja` (automatically selected as the latest version)
 *   **Standard Non-PII**: `src/prompts/non_pii_classification/v3.jinja` (automatically selected as the latest version)
-*   **Default Non-PII**: `src/prompts/non_pii_classification/v4.jinja` (selected when country is `'default'`)
+*   **Default Non-PII**: `src/prompts/non_pii_classification/default/v1.jinja` (automatically selected as the latest version in the dedicated `default` subdirectory when country is `'default'`)
 
 ### Example Rendered Metadata Snippet
 
