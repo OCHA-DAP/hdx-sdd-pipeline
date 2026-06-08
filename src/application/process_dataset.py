@@ -410,7 +410,7 @@ class ProcessDatasetUseCase:
                 'resource_description': None,
             }
             if metadata:
-                metadata_context.update({k: v for k, v in metadata.items() if v is not None})
+                metadata_context.update({k: metadata[k] for k in metadata_context if metadata.get(k) is not None})
 
             # Render prompt with table context (use latest version)
             prompt = self.prompt_manager.get_prompt(
@@ -489,7 +489,7 @@ class ProcessDatasetUseCase:
                 'resource_description': None,
             }
             if metadata:
-                metadata_context.update({k: v for k, v in metadata.items() if v is not None})
+                metadata_context.update({k: metadata[k] for k in metadata_context if metadata.get(k) is not None})
 
             # Determine prompt category and version based on ISP
             prompt_name = 'non_pii_classification'
@@ -509,7 +509,7 @@ class ProcessDatasetUseCase:
                 },
             )
             # Log prompt for debugging
-            logger.info(f"[Non-PII Classification] Prompt for table '{report.sheet_name}':\n{prompt}\n")
+            logger.debug(f"[Non-PII Classification] Prompt for table '{report.sheet_name}':\n{prompt}\n")
 
             # Call LLM
             result, comp_tokens, prompt_tokens = self.non_pii_llm.generate_json(prompt, max_tokens=1024)

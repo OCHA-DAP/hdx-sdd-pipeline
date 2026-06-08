@@ -212,11 +212,6 @@ class EventProcessor:
                 basename = Path(meta_filename).name
                 metadata_dir = Path(__file__).parent.parent / 'research' / 'metadata'
                 local_metadata_path = metadata_dir / f'{basename}.json'
-                if not local_metadata_path.exists():
-                    local_metadata_path = (
-                        Path('/Users/liangtelkamp/Documents/GitHub/hdx-ssd-pipeline/research/metadata')
-                        / f'{basename}.json'
-                    )
                 if local_metadata_path.exists():
                     try:
                         with open(local_metadata_path, 'r', encoding='utf-8') as f:
@@ -278,14 +273,6 @@ class EventProcessor:
             f'package={package_id} event_type={event_type}: {error}'
         )
         self.slack.post_to_slack_channel(message)
-
-    def _report_exists(self, resource_id: str) -> bool:
-        """Check if report already exists in CKAN."""
-        if self.ckan is None:
-            return False
-
-        resource = self.ckan.resource_show(resource_id)
-        return 'sdd_report' in resource and resource['sdd_report']
 
     def _determine_sensitivity(self, reports: list) -> str:
         """Determine overall sensitivity from reports."""

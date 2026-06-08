@@ -109,30 +109,30 @@ Any new feature request for this project must follow this order:
   - Expected behavior: SmartDataLoader loads datasets in chunks (100, 1000, 10000, 25000, 50000, and 100000 rows) using pandas. If all columns have at least 5 unique non-empty/non-null values, it stops loading. If not, it tries the next chunk size until the end of the file or max chunk size is reached. Unique values for each column are randomly sampled (5 values) with a random seed of 42.
 
 
-- [x] FR-SDD-043: Risk level scoring, hierarchical maximum risk propagation, and pii_reflection prompt alignment.
-  - Expected behavior: Every sheet report receives `personal_data_risk_level` (0-3) and `non_personal_data_risk_level` (0-3) keys serialized right after `non_personal_data_sensitive`. Every resource (file) report receives a `sensitive_level` (0-3) key serialized right after `sensitive`. Risk scoring follows a hierarchical "maximum risk propagation" model where the worst-case sensitivity propagates upward:
+- [x] FR-SDD-044: Risk level scoring, hierarchical maximum risk propagation, and pii_reflection prompt alignment.
+  - Expected behavior: Every sheet report receives `personal_data_risk_level` (0-3) and `non_personal_data_risk_level` (0-3) keys serialized right after `non_personal_data_sensitive`. Every resource (file) report receives a `sensitivity_level` (0-3) key serialized right after `sensitive`. Risk scoring follows a hierarchical "maximum risk propagation" model where the worst-case sensitivity propagates upward:
     - PD Score: NON_SENSITIVE/UNDETERMINED -> 0; HIGH_SENSITIVE -> 2; SEVERE_SENSITIVE -> 3.
     - NPD Score: NONE/LOW/UNDETERMINED -> 0; MEDIUM -> 1; HIGH -> 2; SEVERE -> 3.
     - Sheet Risk: max(PD Score, NPD Score).
     - Resource/File Risk: max(all Sheet Risks).
   - The `pii_reflection` prompt (specifically the latest version `v2.jinja`) must be updated to use the new PD classification scale (NON_SENSITIVE, HIGH_SENSITIVE, SEVERE_SENSITIVE) instead of the old MODERATE_SENSITIVE.
 
-- [x] FR-SDD-044: Metadata-aware prompts for PII reflection and non-PII classification.
-  - Expected behavior: New Jinja prompt templates `pii_reflection/v4.jinja` (reflection), `non_pii_classification/v3.jinja` (standard non-PII), and `non_pii_classification/v4.jinja` (default non-PII) include dataset metadata (`dataset_title`, `dataset_description`, `dataset_source`, `dataset_location`, `organization_title`) and resource metadata (`resource_name`, `resource_description`), handling missing/null metadata fields gracefully without rendering empty entries.
+- [x] FR-SDD-045: Metadata-aware prompts for PII reflection and non-PII classification.
+  - Expected behavior: New Jinja prompt templates `pii_reflection/v4.jinja` (reflection), `non_pii_classification/v3.jinja` (standard non-PII), and `non_pii_classification/default/v1.jinja` (default non-PII) include dataset metadata (`dataset_title`, `dataset_description`, `dataset_source`, `dataset_location`, `organization_title`) and resource metadata (`resource_name`, `resource_description`), handling missing/null metadata fields gracefully without rendering empty entries.
 
-- [x] FR-SDD-045: Dataset and resource metadata extraction and propagation.
+- [x] FR-SDD-046: Dataset and resource metadata extraction and propagation.
   - Expected behavior: The event processor extracts metadata fields from events and/or CKAN (via resource_show and package_show), maps them to a context payload, and passes them to the processing pipeline in a backward-compatible manner.
 
-- [x] FR-SDD-046: Separate folder for default non-PII classification prompts.
+- [x] FR-SDD-047: Separate folder for default non-PII classification prompts.
   - Expected behavior: The default non-PII classification prompts are stored in a dedicated `src/prompts/non_pii_classification/default/` folder. The former non-PII default templates (`v2.jinja` without metadata and `v4.jinja` with metadata) are relocated to this directory and versioned as `v0.jinja` and `v1.jinja` respectively. When default ISP country rules are applied, the pipeline resolves these templates from `non_pii_classification/default` using auto-detection for the latest version.
 
-- [x] FR-SDD-047: Truncation of dataset and resource descriptions.
+- [x] FR-SDD-048: Truncation of dataset and resource descriptions.
   - Expected behavior: When extracting or passing dataset description (`dataset_description`) or resource description (`resource_description`) in the metadata payload, they must be truncated/cut off at 1000 characters if their length exceeds 1000 characters.
 
-- [x] FR-SDD-048: Omission of dataset location when containing more than 5 locations.
+- [x] FR-SDD-049: Omission of dataset location when containing more than 5 locations.
   - Expected behavior: If dataset location (`dataset_location`) in the metadata payload contains more than 5 comma-separated locations, it must be omitted (set to `None`/null) from the metadata passed to LLM prompts, as many locations are not considered to add value.
 
-- [x] FR-SDD-049: Optimize CKAN metadata retrieval to minimize API calls.
+- [x] FR-SDD-050: Optimize CKAN metadata retrieval to minimize API calls.
   - Expected behavior: When processing events, the pipeline should fetch package metadata via `package_show` first and extract resource-level details from the nested `resources` array, avoiding a separate `resource_show` API call unless the resource is missing from the package.
 
 
