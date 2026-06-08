@@ -348,3 +348,52 @@ def test_process_event_metadata_truncation(mock_config, mock_pipeline_factory, m
     assert len(metadata['dataset_description']) == 1000
     assert metadata['dataset_description'] == "a" * 1000
 
+
+def test_clean_dataset_location():
+    from src.event_processor import clean_dataset_location
+    # Test string with <= 5 locations
+    assert clean_dataset_location("Nepal, Netherlands, Nicaragua") == "Nepal, Netherlands, Nicaragua"
+    # Test string with > 5 locations
+    assert clean_dataset_location("Nepal, Netherlands, Nicaragua, New Zealand, Sudan, Yemen") is None
+    # Test list with <= 5 locations
+    assert clean_dataset_location(["Nepal", "Netherlands", "Nicaragua"]) == "Nepal, Netherlands, Nicaragua"
+    # Test list with > 5 locations
+    assert clean_dataset_location(["Nepal", "Netherlands", "Nicaragua", "New Zealand", "Sudan", "Yemen"]) is None
+    # Test invalid / empty inputs
+    assert clean_dataset_location(None) is None
+    assert clean_dataset_location([]) is None
+
+
+def test_process_event_metadata_location_cleaning(mock_config, mock_pipeline_factory, mock_ckan_client):
+    processor = EventProcessor()
+
+    # Test event with too many locations
+    processor.ckan.resource_show.return_value = {'download_url': 'http://example.com/data.csv', 'name': 'data.csv'}
+    # Mock package metadata with > 5 groups (locations)
+    groups = [
+        {'title': 'Nepal'},
+        {'title': 'Netherlands'},
+        {'title': 'Nicaragua'},
+        {'title': 'New Zealand'},
+        {'title': 'Sudan'},
+        {'title': 'Yemen'}
+    ]
+    processor.ckan.package_show.return_value = {
+        'title': 'Test Dataset',
+        'groups': groups
+    }
+    processor.isp_retriever.get_isp_rules = MagicMock(return_value={})
+    processor.pipeline.execute.return_value = []
+    processor._save_to_ckan = MagicMock()
+
+    event = {'resource_id': 'res-123', 'dataset_id': 'ds-123'}
+    success, _ = processor.process_event(event)
+    assert success
+
+    processor.pipeline.execute.assert_called_once()
+    _, kwargs = processor.pipeline.execute.call_args
+    metadata = kwargs['metadata']
+    # locations should be omitted (None) because count > 5
+    assert metadata['dataset_location'] is None
+
+

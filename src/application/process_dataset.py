@@ -94,6 +94,12 @@ class ProcessDatasetUseCase:
                     val = metadata[key]
                     if isinstance(val, str) and len(val) > 1000:
                         metadata[key] = val[:1000]
+            if 'dataset_location' in metadata:
+                loc = metadata['dataset_location']
+                if isinstance(loc, str):
+                    parts = [p.strip() for p in loc.split(',') if p.strip()]
+                    if len(parts) > 5:
+                        metadata['dataset_location'] = None
 
         import time
 

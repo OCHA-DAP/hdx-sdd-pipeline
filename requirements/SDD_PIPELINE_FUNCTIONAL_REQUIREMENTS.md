@@ -129,6 +129,10 @@ Any new feature request for this project must follow this order:
 - [x] FR-SDD-047: Truncation of dataset and resource descriptions.
   - Expected behavior: When extracting or passing dataset description (`dataset_description`) or resource description (`resource_description`) in the metadata payload, they must be truncated/cut off at 1000 characters if their length exceeds 1000 characters.
 
+- [x] FR-SDD-048: Omission of dataset location when containing more than 5 locations.
+  - Expected behavior: If dataset location (`dataset_location`) in the metadata payload contains more than 5 comma-separated locations, it must be omitted (set to `None`/null) from the metadata passed to LLM prompts, as many locations are not considered to add value.
+
+
 
 ### Persistence and outputs
 

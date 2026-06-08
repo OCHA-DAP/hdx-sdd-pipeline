@@ -34,6 +34,20 @@ def truncate_description(desc: Any) -> Any:
     return desc
 
 
+def clean_dataset_location(location: Any) -> Any:
+    """Omit dataset location if it contains more than 5 locations."""
+    if isinstance(location, list):
+        valid_locs = [l for l in location if l]
+        if len(valid_locs) > 5:
+            return None
+        return ', '.join(valid_locs) if valid_locs else None
+    elif isinstance(location, str):
+        parts = [p.strip() for p in location.split(',') if p.strip()]
+        if len(parts) > 5:
+            return None
+    return location
+
+
 class EventProcessor:
     """
     Processes HDX resource events from Redis streams.
@@ -128,7 +142,7 @@ class EventProcessor:
                     or event.get('notes')
                 ),
                 'dataset_source': event.get('dataset_source'),
-                'dataset_location': event.get('dataset_location') or event.get('location'),
+                'dataset_location': clean_dataset_location(event.get('dataset_location') or event.get('location')),
                 'organization_title': event.get('organization_title') or event.get('org_title'),
             }
 
@@ -165,9 +179,7 @@ class EventProcessor:
                             for g in groups
                             if isinstance(g, dict)
                         ]
-                        loc_str = ', '.join([loc for loc in locations if loc])
-                        if loc_str:
-                            metadata['dataset_location'] = loc_str
+                        metadata['dataset_location'] = clean_dataset_location(locations)
 
                         org = package.get('organization')
                         if isinstance(org, dict):
@@ -206,6 +218,8 @@ class EventProcessor:
                                     val = local_meta[key]
                                     if key in ('dataset_description', 'resource_description'):
                                         val = truncate_description(val)
+                                    elif key == 'dataset_location':
+                                        val = clean_dataset_location(val)
                                     metadata[key] = val
                     except Exception as e:
                         logger.warning(f'Failed to read local metadata from {local_metadata_path}: {e}')
