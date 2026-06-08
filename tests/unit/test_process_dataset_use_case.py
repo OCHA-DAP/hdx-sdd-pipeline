@@ -323,6 +323,8 @@ class TestProcessDatasetUseCase:
         # We patch _create_data_report to verify the metadata passed to it
         use_case._create_data_report = Mock(wraps=use_case._create_data_report)
 
+        use_case.execute(source='/path/to/data.xlsx', is_url=False, metadata=metadata)
+
         # Verify the original metadata dictionary wasn't mutated
         assert len(metadata['dataset_description']) == 1200
 
@@ -344,6 +346,9 @@ class TestProcessDatasetUseCase:
         mock_data_loader.sample_dataframe.return_value = {'col1': ['1', '2', '3', '', '']}
         mock_llm_provider.generate.return_value = ('NONE', 10, 20)
         use_case._create_data_report = Mock(wraps=use_case._create_data_report)
+
+        metadata = {'dataset_location': 'loc1, loc2, loc3, loc4, loc5, loc6'}
+        use_case.execute(source='/path/to/data.xlsx', is_url=False, metadata=metadata)
 
         use_case._create_data_report.assert_called_once()
         args, _ = use_case._create_data_report.call_args
