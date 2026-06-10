@@ -413,9 +413,9 @@ export default function AnalyticsTab() {
       renderTable('Overall File-Level Performance', overallPerformance, 'Files');
       renderTable('File-Level Personal Sensitive Data Detection', personalSensitive, 'Files');
       renderTable('File-Level Non Personal Sensitive Data Detection', nonPersonalSensitive, 'Files');
-      renderTable('Overall Sheet-Level Performance', sheetOverallSensitive, 'Sheets');
-      renderTable('Sheet-Level Personal Sensitive Data Detection', sheetPersonalSensitive, 'Sheets');
-      renderTable('Sheet-Level Non Personal Sensitive Data Detection', sheetNonPersonalSensitive, 'Sheets');
+      // renderTable('Overall Sheet-Level Performance', sheetOverallSensitive, 'Sheets');
+      // renderTable('Sheet-Level Personal Sensitive Data Detection', sheetPersonalSensitive, 'Sheets');
+      // renderTable('Sheet-Level Non Personal Sensitive Data Detection', sheetNonPersonalSensitive, 'Sheets');
       
       // Cost Analysis
       if (costAnalysis.length > 0) {
@@ -551,9 +551,9 @@ export default function AnalyticsTab() {
             {renderPerformanceTable("📁 Overall File-Level Performance", overallPerformance, "Files Tested")}
             {renderPerformanceTable("👤 File-Level Personal Sensitive Data Detection", personalSensitive, "Files Tested")}
             {renderPerformanceTable("🔒 File-Level Non Personal Sensitive Data Detection", nonPersonalSensitive, "Files Tested")}
-            {renderPerformanceTable("📋 Overall Sheet-Level Performance", sheetOverallSensitive, "Sheets Tested")}
+            {/* {renderPerformanceTable("📋 Overall Sheet-Level Performance", sheetOverallSensitive, "Sheets Tested")}
             {renderPerformanceTable("👤 Sheet-Level Personal Sensitive Data Detection", sheetPersonalSensitive, "Sheets Tested")}
-            {renderPerformanceTable("🔒 Sheet-Level Non Personal Sensitive Data Detection", sheetNonPersonalSensitive, "Sheets Tested")}
+            {renderPerformanceTable("🔒 Sheet-Level Non Personal Sensitive Data Detection", sheetNonPersonalSensitive, "Sheets Tested")} */}
             {renderCostTable()}
           </div>
         )}

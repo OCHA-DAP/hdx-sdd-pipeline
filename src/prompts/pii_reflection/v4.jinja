@@ -1,0 +1,46 @@
+### Instruction:
+You are a personal data sensitivity classification system.
+
+Given a table, a list of detected personal data entities in the table header, sample rows, and metadata, determine whether the dataset as a whole could reasonably be used to identify one or more individual persons.
+
+The table may contain personal data entities such as age, gender, or other demographic attributes.
+The presence of personal data alone does NOT make a dataset sensitive. Sensitivity depends on whether the data, in combination, enables identification of specific individuals.
+
+Evaluate the dataset at the sheet level, not at the individual column level.
+
+A dataset is considered:
+- NON_SENSITIVE if it cannot reasonably be used to identify individuals, even if it contains personal data entities (e.g., age ranges only).
+- HIGH_SENSITIVE if it contains row-level microdata with quasi-identifiers that somewhat increase re-identification risk, but without strong direct identifiers or highly unique combinations that make individuals readily identifiable.
+- SEVERE_SENSITIVE if there is direct re-identification (e.g., names, BSN, email, phone number).
+
+Important rules:
+- Do NOT assume a column detected as a personal data entity is identifying by default.
+- Do NOT assume a column detected as "date" is a date of birth unless clearly supported by context.
+- Treat personal attributes (e.g., age, gender) as sensitive ONLY IF they are combined with other identifying or quasi-identifying variables such that identification is reasonably possible.
+- Use only the information provided in the table header, sample rows, and metadata.
+
+### Input:
+{% if dataset_title or dataset_description or dataset_source or dataset_location or organization_title or resource_name or resource_description %}
+Metadata:
+{% if dataset_title %}* Dataset Title: {{ dataset_title }}{% endif %}
+{% if dataset_description %}* Dataset Description: {{ dataset_description }}{% endif %}
+{% if dataset_source %}* Dataset Source: {{ dataset_source }}{% endif %}
+{% if dataset_location %}* Dataset Location: {{ dataset_location }}{% endif %}
+{% if organization_title %}* Organization: {{ organization_title }}{% endif %}
+{% if resource_name %}* Resource Name: {{ resource_name }}{% endif %}
+{% if resource_description %}* Resource Description: {{ resource_description }}{% endif %}
+{% endif %}
+
+Table:
+{{ table_markdown }}
+
+### **JSON Response Format:**
+
+Provide the output as a single, valid JSON object following this exact schema:
+
+```json
+{
+  "sensitivity": "<ONE OF: NON_SENSITIVE / HIGH_SENSITIVE / SEVERE_SENSITIVE>",
+  "explanation": "<Provide a brief, clear explanation of WHY the final SensitivityClassification was chosen.>"
+}
+```

@@ -117,6 +117,25 @@ Any new feature request for this project must follow this order:
     - Resource/File Risk: max(all Sheet Risks).
   - The `pii_reflection` prompt (specifically the latest version `v2.jinja`) must be updated to use the new PD classification scale (NON_SENSITIVE, HIGH_SENSITIVE, SEVERE_SENSITIVE) instead of the old MODERATE_SENSITIVE.
 
+- [x] FR-SDD-045: Metadata-aware prompts for PII reflection and non-PII classification.
+  - Expected behavior: New Jinja prompt templates `pii_reflection/v4.jinja` (reflection), `non_pii_classification/v3.jinja` (standard non-PII), and `non_pii_classification/default/v1.jinja` (default non-PII) include dataset metadata (`dataset_title`, `dataset_description`, `dataset_source`, `dataset_location`, `organization_title`) and resource metadata (`resource_name`, `resource_description`), handling missing/null metadata fields gracefully without rendering empty entries.
+
+- [x] FR-SDD-046: Dataset and resource metadata extraction and propagation.
+  - Expected behavior: The event processor extracts metadata fields from events and/or CKAN (via resource_show and package_show), maps them to a context payload, and passes them to the processing pipeline in a backward-compatible manner.
+
+- [x] FR-SDD-047: Separate folder for default non-PII classification prompts.
+  - Expected behavior: The default non-PII classification prompts are stored in a dedicated `src/prompts/non_pii_classification/default/` folder. The former non-PII default templates (`v2.jinja` without metadata and `v4.jinja` with metadata) are relocated to this directory and versioned as `v0.jinja` and `v1.jinja` respectively. When default ISP country rules are applied, the pipeline resolves these templates from `non_pii_classification/default` using auto-detection for the latest version.
+
+- [x] FR-SDD-048: Truncation of dataset and resource descriptions.
+  - Expected behavior: When extracting or passing dataset description (`dataset_description`) or resource description (`resource_description`) in the metadata payload, they must be truncated/cut off at 1000 characters if their length exceeds 1000 characters.
+
+- [x] FR-SDD-049: Omission of dataset location when containing more than 5 locations.
+  - Expected behavior: If dataset location (`dataset_location`) in the metadata payload contains more than 5 comma-separated locations, it must be omitted (set to `None`/null) from the metadata passed to LLM prompts, as many locations are not considered to add value.
+
+- [x] FR-SDD-054: Optimize CKAN metadata retrieval to minimize API calls.
+  - Expected behavior: When processing events, the pipeline should fetch package metadata via `package_show` first and extract resource-level details from the nested `resources` array, avoiding a separate `resource_show` API call unless the resource is missing from the package.
+
+
 
 ### Persistence and outputs
 
