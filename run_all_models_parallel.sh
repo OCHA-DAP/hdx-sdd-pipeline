@@ -5,12 +5,10 @@ echo "Starting parallel batch processing for all models..."
 echo "===================================================="
 
 models=(
-    # "gpt-4.1-nano"
-    # "gpt-4.1-mini" 
-    # "gpt-5-nano"
+    "gpt-5.4"
     # "gpt-5-mini"
     # "DeepSeek-V3.1"
-    "DeepSeek-V4-Flash"
+    # "DeepSeek-V4-Flash"
 )
 
 # Function to process a single model
