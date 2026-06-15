@@ -328,7 +328,7 @@ class EventProcessor:
             {
                 'sdd_report': json.dumps(reports_dict, indent=2),
                 'sensitive': sensitivity,
-                'sensitivity_level': sensitivity_level,
+                # 'sensitivity_level': sensitivity_level,
             },
         )
 
