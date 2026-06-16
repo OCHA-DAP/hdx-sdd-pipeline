@@ -52,38 +52,6 @@ class TestSheetReport:
 
         assert report.has_pii_columns() is False
 
-    def test_has_sensitive_pii_true(self):
-        """Test has_sensitive_pii returns True for sensitive PII."""
-        report = SheetReport(file_name='test.csv', sheet_name='Sheet1')
-        column = Column(name='email', sample_values=['test@example.com'])
-        column.pii_classification.entity_type = PIIEntityType.EMAIL_ADDRESS
-        column.pii_classification.sensitive = True
-        report.add_column(column)
-
-        assert report.has_sensitive_pii() is True
-
-    def test_has_sensitive_pii_false(self):
-        """Test has_sensitive_pii returns False for non-sensitive."""
-        report = SheetReport(file_name='test.csv', sheet_name='Sheet1')
-        column = Column(name='age', sample_values=['25'])
-        column.pii_classification.entity_type = PIIEntityType.AGE
-        column.pii_classification.sensitive = False
-        report.add_column(column)
-
-        assert report.has_sensitive_pii() is False
-
-    def test_update_pii_sensitivity(self):
-        """Test updating PII sensitivity flag."""
-        report = SheetReport(file_name='test.csv', sheet_name='Sheet1')
-        column = Column(name='email', sample_values=['test@example.com'])
-        column.pii_classification.entity_type = PIIEntityType.EMAIL_ADDRESS
-        column.pii_classification.sensitive = True
-        report.add_column(column)
-
-        report.update_pii_sensitivity()
-
-        assert report.personal_data_sensitive is True
-
     def test_update_non_pii_sensitivity(self):
         """Test updating non-PII sensitivity flag."""
         report = SheetReport(file_name='test.csv', sheet_name='Sheet1')
@@ -132,20 +100,6 @@ class TestSheetReport:
         report.prompt_tokens = 200
 
         assert report.total_tokens() == 300
-
-    def test_has_error_true(self):
-        """Test has_error returns True when error exists."""
-        report = SheetReport(file_name='test.csv', sheet_name='Sheet1')
-        report.error_source = 'PII_CLASSIFICATION'
-        report.error_message = 'API error'
-
-        assert report.has_error() is True
-
-    def test_has_error_false(self):
-        """Test has_error returns False when no error."""
-        report = SheetReport(file_name='test.csv', sheet_name='Sheet1')
-
-        assert report.has_error() is False
 
     def test_to_dict_basic(self):
         """Test converting report to dictionary."""
@@ -383,3 +337,57 @@ class TestSheetReport:
         # Should have default personal_data_classification
         assert report.personal_data_classification.sensitivity == SensitivityLevel.UNDETERMINED
         assert report.personal_data_classification.explanation is None
+
+    def test_update_risk_levels(self):
+        """Test mapping and propagation of risk levels."""
+        report = SheetReport(file_name='test.csv', sheet_name='Sheet1')
+
+        # Test Case A: PD=NON_SENSITIVE (0), NPD=HIGH_SENSITIVE (2)
+        report.personal_data_classification.sensitivity = SensitivityLevel.NON_SENSITIVE
+        report.non_pii_classification.sensitivity = SensitivityLevel.HIGH_SENSITIVE
+        report.update_risk_levels()
+        assert report.personal_data_risk_level == 0
+        assert report.non_personal_data_risk_level == 2
+
+        # Test Case B: PD=SEVERE_SENSITIVE (3), NPD=MEDIUM/MODERATE (1)
+        report.personal_data_classification.sensitivity = SensitivityLevel.SEVERE_SENSITIVE
+        report.non_pii_classification.sensitivity = SensitivityLevel.MODERATE_SENSITIVE
+        report.update_risk_levels()
+        assert report.personal_data_risk_level == 3
+        assert report.non_personal_data_risk_level == 1
+
+        # Test Case C: PD=HIGH_SENSITIVE (2), NPD=SEVERE_SENSITIVE (3)
+        report.personal_data_classification.sensitivity = SensitivityLevel.HIGH_SENSITIVE
+        report.non_pii_classification.sensitivity = SensitivityLevel.SEVERE_SENSITIVE
+        report.update_risk_levels()
+        assert report.personal_data_risk_level == 2
+        assert report.non_personal_data_risk_level == 3
+
+        # Test Case D: PD=UNDETERMINED (0), NPD=UNDETERMINED (0)
+        report.personal_data_classification.sensitivity = SensitivityLevel.UNDETERMINED
+        report.non_pii_classification.sensitivity = SensitivityLevel.UNDETERMINED
+        report.update_risk_levels()
+        assert report.personal_data_risk_level == 0
+        assert report.non_personal_data_risk_level == 0
+
+    def test_to_dict_includes_risk_levels(self):
+        """Test that to_dict includes risk level fields."""
+        report = SheetReport(file_name='test.csv', sheet_name='Sheet1')
+        report.personal_data_risk_level = 2
+        report.non_personal_data_risk_level = 3
+
+        result = report.to_dict()
+        assert result['personal_data_risk_level'] == 2
+        assert result['non_personal_data_risk_level'] == 3
+
+    def test_from_dict_restores_risk_levels(self):
+        """Test that from_dict restores risk level fields."""
+        data = {
+            'file_name': 'test.csv',
+            'sheet_name': 'Sheet1',
+            'personal_data_risk_level': 2,
+            'non_personal_data_risk_level': 3,
+        }
+        report = SheetReport.from_dict(data)
+        assert report.personal_data_risk_level == 2
+        assert report.non_personal_data_risk_level == 3

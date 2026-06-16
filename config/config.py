@@ -27,6 +27,8 @@ class Config:
     # CKAN
     HDX_URL: str = os.getenv('HDX_URL', '')
     HDX_KEY: str = os.getenv('HDX_KEY', '')
+    HDX_URL_PROD: str = os.getenv('HDX_URL_PROD', '')
+    HDX_KEY_PROD: str = os.getenv('HDX_KEY_PROD', '')
     SDD_USER_AGENT: str = os.getenv('SDD_USER_AGENT', f'HDXINTERNAL:SDDPipeline/{__version__}')
 
     # Processing / Models
@@ -47,9 +49,11 @@ class Config:
     OUTPUT_DIR: str = os.getenv('OUTPUT_DIR', '/tmp/reports')
     DOWNLOAD_DIR: str = os.getenv('DOWNLOAD_DIR', '/tmp/download')
 
-    # Azure endpoints
-    AZURE_OPENAI_ENDPOINT: str = os.getenv('AZURE_OPENAI_ENDPOINT', '')
-    AZURE_OPENAI_API_KEY: str = os.getenv('AZURE_OPENAI_API_KEY', '')
+    # OpenAI
+    OPENAI_ENDPOINT: str = os.getenv(
+        'OPENAI_ENDPOINT', 'https://hdx-azurellm-classification.services.ai.azure.com/openai/v1'
+    )
+    OPENAI_API_KEY: str = os.getenv('OPENAI_API_KEY') or os.getenv('AZURE_OPENAI_API_KEY', '')
 
     # Slack
     HDX_SDD_SLACK_CHANNEL: str = os.getenv('HDX_SDD_SLACK_CHANNEL', 'topic-sensitive-data-alerts')

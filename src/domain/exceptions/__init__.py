@@ -7,26 +7,8 @@ class DomainException(Exception):
     pass
 
 
-class ValidationError(DomainException):
-    """Raised when domain validation fails."""
-
-    pass
-
-
-class ClassificationError(DomainException):
-    """Raised when classification process fails."""
-
-    pass
-
-
 class DataProcessingError(DomainException):
     """Raised when data processing fails."""
-
-    pass
-
-
-class ConfigurationError(DomainException):
-    """Raised when configuration is invalid."""
 
     pass
 

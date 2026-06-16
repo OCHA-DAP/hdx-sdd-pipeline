@@ -62,6 +62,12 @@ Any new feature request for this project must follow this order:
 - [x] FR-EVAL-024: Scripted batch execution must support single-model override for all pipeline stages.
   - Implemented behavior: CLI batch script sets one model for PII detection, PII reflection, and non-PII detection while disabling CKAN update.
 
+- [x] FR-EVAL-025: Batch processing must support processing by a list of HDX resource IDs.
+  - Implemented behavior: Scripted batch execution can accept a list of resource IDs, fetch their metadata from CKAN, and save reports to a specific research directory (e.g., research/results/false_positives_prod).
+
+- [x] FR-EVAL-026: Batch processing must support resource IDs for non-sensitive datasets.
+  - Expected behavior: When processing datasets using `batch_process_model.py`, non-sensitive datasets are resolved using their real HDX resource IDs (e.g., from CKAN download URLs, with local fallback for private/404/403 resources) instead of local files. Sensitive datasets are still processed as local files in `research/data/`. Groundtruth files in `groundtruth2` are updated accordingly (named as resource IDs for the non-sensitive datasets).
+
 ### Results and analytics
 
 - [x] FR-EVAL-030: Results must be persisted in model-scoped directories using JSON per dataset.
@@ -77,7 +83,13 @@ Any new feature request for this project must follow this order:
   - Implemented behavior: Ground-truth normalization converts recognized boolean-like values and treats unknown placeholders (for example TODO) as false.
 
 - [x] FR-EVAL-034: Cost analytics must be derived from stored token usage and model pricing map.
-  - Implemented behavior: Prompt/completion tokens are aggregated per model and converted to total and per-report cost estimates.
+  - Implemented behavior: Prompt/completion tokens are aggregated per model and converted to total and per-report cost estimates using separate input (prompt) and output (completion) prices and appropriate currencies (e.g. USD, EUR).
+
+- [x] FR-EVAL-035: Performance analytics and report views must handle the new dict-based report format.
+  - Implemented behavior: Data extraction logic for analytics and report details handles both legacy list-based and new dict-based (sdd_report) formats, correctly identifying overall and sheet-level sensitivity flags.
+
+- [x] FR-EVAL-036: Batch processing in the router must save results in the standard dict-based format.
+  - Implemented behavior: The batch-process endpoint saves model results as a dictionary containing resource_id, overall sensitivity, timestamp, and the sdd_report list, matching the EventProcessor output format.
 
 ### Operational safeguards
 

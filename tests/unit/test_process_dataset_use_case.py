@@ -3,7 +3,7 @@
 import pytest
 from unittest.mock import Mock
 
-from src.application.use_cases.process_dataset import ProcessDatasetUseCase
+from src.application.process_dataset import ProcessDatasetUseCase
 from src.domain.entities import SheetReport, Column
 from src.domain.value_objects import PIIEntityType, SensitivityLevel
 from src.domain.exceptions import DataProcessingError
@@ -119,6 +119,22 @@ class TestProcessDatasetUseCase:
 
         assert result.columns[0].pii_classification.entity_type == PIIEntityType.NONE
 
+    def test_classify_pii_heuristic_geo_coordinates(self, use_case):
+        """Test heuristic classification for latitude and longitude."""
+        report = SheetReport(file_name='test.csv', sheet_name='Sheet1')
+        lat_col = Column(name='Latitude', sample_values=['40.7128'])
+        lon_col = Column(name='longitude ', sample_values=['-74.0060'])  # test strip and case
+        report.add_column(lat_col)
+        report.add_column(lon_col)
+
+        # Should not call LLM
+        result = use_case._classify_pii(report)
+
+        assert result.columns[0].pii_classification.entity_type == PIIEntityType.GEO_COORDINATES
+        assert result.columns[1].pii_classification.entity_type == PIIEntityType.GEO_COORDINATES
+        assert result.completion_tokens == 0
+        assert result.prompt_tokens == 0
+
     def test_classify_pii_error_handling(self, use_case, mock_llm_provider):
         """Test PII classification handles errors."""
         report = SheetReport(file_name='test.csv', sheet_name='Sheet1')
@@ -129,8 +145,9 @@ class TestProcessDatasetUseCase:
 
         result = use_case._classify_pii(report)
 
-        # Should mark as UNDETERMINED on error
-        assert result.columns[0].pii_classification.entity_type == PIIEntityType.UNDETERMINED
+        # Should mark as UNKNOWN and sensitive on error
+        assert result.columns[0].pii_classification.entity_type == PIIEntityType.UNKNOWN
+        assert result.columns[0].pii_classification.sensitive is True
 
     def test_classify_pii_sensitivity(self, use_case, mock_llm_provider):
         """Test PII sensitivity classification with sensitive PII entities (should skip LLM)."""
@@ -170,12 +187,14 @@ class TestProcessDatasetUseCase:
         column.pii_classification.entity_type = PIIEntityType.ID_NUMBER  # Use non-sensitive PII type
         report.add_column(column)
 
-        mock_llm_provider.generate.side_effect = Exception('API error')
+        mock_llm_provider.generate_json.side_effect = Exception('API error')
 
         result = use_case._classify_pii_sensitivity(report)
 
-        # Should default to sensitive on error (err on side of caution)
+        # Should default to sensitive on error (err on side of caution) and add explanation
         assert result.columns[0].pii_classification.sensitive is True
+        assert result.personal_data_sensitive is True
+        assert result.personal_data_classification.explanation == 'Classification failed due to an error: API error'
 
     def test_classify_non_pii(self, use_case, mock_llm_provider):
         """Test non-PII classification."""
@@ -219,39 +238,9 @@ class TestProcessDatasetUseCase:
 
         result = use_case._classify_non_pii(report, isp_rules=None)
 
-        # Should mark as UNDETERMINED on error
-        assert result.non_pii_classification.sensitivity == SensitivityLevel.UNDETERMINED
-
-    def test_create_table_summary(self, use_case):
-        """Test table summary creation."""
-        report = SheetReport(file_name='test.csv', sheet_name='TestSheet', n_records=100, n_columns=5)
-
-        for i in range(5):
-            column = Column(name=f'col{i}', sample_values=['value'])
-            report.add_column(column)
-
-        summary = use_case._create_table_summary(report)
-
-        assert 'TestSheet' in summary
-        assert '100' in summary
-        assert '5' in summary
-        assert 'col0' in summary
-
-    def test_create_table_summary_many_columns(self, use_case):
-        """Test table summary with many columns."""
-        report = SheetReport(file_name='test.csv', sheet_name='Sheet1')
-
-        # Add 15 columns
-        for i in range(15):
-            column = Column(name=f'col{i}', sample_values=['value'])
-            report.add_column(column)
-
-        summary = use_case._create_table_summary(report)
-
-        # Should show first 10 and mention "more"
-        assert 'col0' in summary
-        assert 'col9' in summary
-        assert 'more columns' in summary
+        # Should mark as SEVERE_SENSITIVE on error and include exception details in explanation
+        assert result.non_pii_classification.sensitivity == SensitivityLevel.SEVERE_SENSITIVE
+        assert 'Classification failed due to an error: API error' in result.non_pii_classification.explanation
 
     def test_execute_from_url(self, use_case, mock_data_loader, mock_llm_provider):
         """Test execute with URL source."""
@@ -321,67 +310,49 @@ class TestProcessDatasetUseCase:
         assert reports[0].sheet_name == 'Sheet1'
         assert reports[1].sheet_name == 'Sheet2'
 
-    def test_extract_sensitivity_from_text_empty(self, use_case):
-        """Test _extract_sensitivity_from_text with empty text."""
-        result = use_case._extract_sensitivity_from_text('')
-        assert result == SensitivityLevel.UNDETERMINED
+    def test_execute_metadata_truncation(self, use_case, mock_data_loader, mock_llm_provider):
+        """Test that execute truncates long dataset and resource descriptions in metadata."""
+        df = pd.DataFrame({'col1': [1, 2, 3]})
+        mock_data_loader.load_from_file.return_value = {'Sheet1': df}
+        mock_data_loader.sample_dataframe.return_value = {'col1': ['1', '2', '3', '', '']}
+        mock_llm_provider.generate.return_value = ('NONE', 10, 20)
 
-        result = use_case._extract_sensitivity_from_text(None)
-        assert result == SensitivityLevel.UNDETERMINED
+        long_desc = 'a' * 1200
+        metadata = {'dataset_description': long_desc, 'resource_description': long_desc, 'dataset_title': 'short title'}
 
-    def test_extract_sensitivity_from_text_classification_format(self, use_case):
-        """Test _extract_sensitivity_from_text with 'Classification:' format."""
-        text = 'Classification: MODERATE_SENSITIVE\n\nExplanation: This data is moderately sensitive.'
-        result = use_case._extract_sensitivity_from_text(text)
-        assert result == SensitivityLevel.MODERATE_SENSITIVE
+        # We patch _create_data_report to verify the metadata passed to it
+        use_case._create_data_report = Mock(wraps=use_case._create_data_report)
 
-        text = 'Classification: HIGH_SENSITIVE\n\nDetails here.'
-        result = use_case._extract_sensitivity_from_text(text)
-        assert result == SensitivityLevel.HIGH_SENSITIVE
+        use_case.execute(source='/path/to/data.xlsx', is_url=False, metadata=metadata)
 
-    def test_extract_sensitivity_from_text_severe_sensitive(self, use_case):
-        """Test _extract_sensitivity_from_text with SEVERE_SENSITIVE."""
-        text = 'The data is SEVERE_SENSITIVE because it contains critical information.'
-        result = use_case._extract_sensitivity_from_text(text)
-        assert result == SensitivityLevel.SEVERE_SENSITIVE
+        # Verify the original metadata dictionary wasn't mutated
+        assert len(metadata['dataset_description']) == 1200
 
-        text = 'SEVERE-SENSITIVE data detected'
-        result = use_case._extract_sensitivity_from_text(text)
-        assert result == SensitivityLevel.SEVERE_SENSITIVE
+        # Verify the metadata passed to _create_data_report has truncated descriptions
+        use_case._create_data_report.assert_called_once()
+        args, _ = use_case._create_data_report.call_args
+        passed_metadata = args[5]
 
-    def test_extract_sensitivity_from_text_medium_sensitive(self, use_case):
-        """Test _extract_sensitivity_from_text with MEDIUM_SENSITIVE."""
-        text = 'This is MEDIUM_SENSITIVE data.'
-        result = use_case._extract_sensitivity_from_text(text)
-        assert result == SensitivityLevel.MEDIUM_SENSITIVE
+        assert len(passed_metadata['dataset_description']) == 1000
+        assert passed_metadata['dataset_description'] == 'a' * 1000
+        assert len(passed_metadata['resource_description']) == 1000
+        assert passed_metadata['resource_description'] == 'a' * 1000
+        assert passed_metadata['dataset_title'] == 'short title'
 
-        text = 'MEDIUM-SENSITIVE classification'
-        result = use_case._extract_sensitivity_from_text(text)
-        assert result == SensitivityLevel.MEDIUM_SENSITIVE
+    def test_execute_metadata_location_cleaning(self, use_case, mock_data_loader, mock_llm_provider):
+        """Test that execute omits dataset_location when there are > 5 locations."""
+        df = pd.DataFrame({'col1': [1, 2, 3]})
+        mock_data_loader.load_from_file.return_value = {'Sheet1': df}
+        mock_data_loader.sample_dataframe.return_value = {'col1': ['1', '2', '3', '', '']}
+        mock_llm_provider.generate.return_value = ('NONE', 10, 20)
+        use_case._create_data_report = Mock(wraps=use_case._create_data_report)
 
-    def test_extract_sensitivity_from_text_non_sensitive(self, use_case):
-        """Test _extract_sensitivity_from_text with NON_SENSITIVE."""
-        text = 'This data is NON_SENSITIVE.'
-        result = use_case._extract_sensitivity_from_text(text)
-        assert result == SensitivityLevel.NON_SENSITIVE
+        metadata = {'dataset_location': 'loc1, loc2, loc3, loc4, loc5, loc6'}
+        use_case.execute(source='/path/to/data.xlsx', is_url=False, metadata=metadata)
 
-        text = 'NON-SENSITIVE information'
-        result = use_case._extract_sensitivity_from_text(text)
-        assert result == SensitivityLevel.NON_SENSITIVE
+        use_case._create_data_report.assert_called_once()
+        args, _ = use_case._create_data_report.call_args
+        passed_metadata = args[5]
 
-    def test_extract_sensitivity_from_text_all_levels(self, use_case):
-        """Test _extract_sensitivity_from_text with all sensitivity levels."""
-        # Test HIGH_SENSITIVE
-        text = 'HIGH_SENSITIVE data'
-        result = use_case._extract_sensitivity_from_text(text)
-        assert result == SensitivityLevel.HIGH_SENSITIVE
-
-        # Test with hyphen
-        text = 'HIGH-SENSITIVE data'
-        result = use_case._extract_sensitivity_from_text(text)
-        assert result == SensitivityLevel.HIGH_SENSITIVE
-
-        # Test MODERATE_SENSITIVE
-        text = 'MODERATE-SENSITIVE classification'
-        result = use_case._extract_sensitivity_from_text(text)
-        assert result == SensitivityLevel.MODERATE_SENSITIVE
+        # Verified metadata passed down has None for dataset_location (omitted)
+        assert passed_metadata['dataset_location'] is None

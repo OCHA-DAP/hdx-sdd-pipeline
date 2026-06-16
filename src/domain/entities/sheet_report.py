@@ -49,6 +49,10 @@ class SheetReport:
     personal_data_sensitive: bool = False
     non_personal_data_sensitive: bool = False
 
+    # Risk levels (0-3)
+    personal_data_risk_level: int = 0
+    non_personal_data_risk_level: int = 0
+
     # Error handling
     error_source: Optional[str] = None
     error_message: Optional[str] = None
@@ -76,14 +80,6 @@ class SheetReport:
         """Check if any column contains PII."""
         return any(col.has_pii() for col in self.columns)
 
-    def has_sensitive_pii(self) -> bool:
-        """Check if any column contains sensitive PII."""
-        return any(col.is_sensitive() for col in self.columns)
-
-    def update_pii_sensitivity(self) -> None:
-        """Update the personal_data_sensitive flag based on column classifications."""
-        self.personal_data_sensitive = self.has_sensitive_pii()
-
     def update_non_pii_sensitivity(self) -> None:
         """Update the non_personal_data_sensitive flag based on non-PII classification."""
         self.non_personal_data_sensitive = self.non_pii_classification.is_sensitive()
@@ -92,13 +88,33 @@ class SheetReport:
         """Check if the sheet is sensitive (PII or non-PII)."""
         return self.personal_data_sensitive or self.non_personal_data_sensitive
 
+    def update_risk_levels(self) -> None:
+        """Update risk levels based on classification sensitivity."""
+        from src.domain.value_objects.sensitivity import SensitivityLevel
+
+        # Personal Data (PD) risk level
+        pd_sens = self.personal_data_classification.sensitivity
+        if pd_sens == SensitivityLevel.SEVERE_SENSITIVE:
+            self.personal_data_risk_level = 3
+        elif pd_sens == SensitivityLevel.HIGH_SENSITIVE:
+            self.personal_data_risk_level = 2
+        else:
+            self.personal_data_risk_level = 0
+
+        # Non-Personal Data (NPD) risk level
+        npd_sens = self.non_pii_classification.sensitivity
+        if npd_sens == SensitivityLevel.SEVERE_SENSITIVE:
+            self.non_personal_data_risk_level = 3
+        elif npd_sens == SensitivityLevel.HIGH_SENSITIVE:
+            self.non_personal_data_risk_level = 2
+        elif npd_sens in (SensitivityLevel.MODERATE_SENSITIVE, SensitivityLevel.MEDIUM_SENSITIVE):
+            self.non_personal_data_risk_level = 1
+        else:
+            self.non_personal_data_risk_level = 0
+
     def total_tokens(self) -> int:
         """Calculate total tokens used."""
         return self.completion_tokens + self.prompt_tokens
-
-    def has_error(self) -> bool:
-        """Check if processing encountered an error."""
-        return self.error_source is not None
 
     def to_dict(self) -> Dict[str, Any]:
         """Convert report to dictionary representation."""
@@ -115,6 +131,8 @@ class SheetReport:
             'prompt_tokens': self.prompt_tokens,
             'personal_data_sensitive': self.personal_data_sensitive,
             'non_personal_data_sensitive': self.non_personal_data_sensitive,
+            'personal_data_risk_level': self.personal_data_risk_level,
+            'non_personal_data_risk_level': self.non_personal_data_risk_level,
             'personal_data': self.personal_data_classification.to_dict(),
             'columns': [col.to_dict() for col in self.columns],
             'non_personal_data': self.non_pii_classification.to_dict(),
@@ -181,6 +199,8 @@ class SheetReport:
             personal_data_classification=personal_data_classification,
             personal_data_sensitive=data.get('personal_data_sensitive', False),
             non_personal_data_sensitive=data.get('non_personal_data_sensitive', False),
+            personal_data_risk_level=data.get('personal_data_risk_level', 0),
+            non_personal_data_risk_level=data.get('non_personal_data_risk_level', 0),
             error_source=data.get('error_source'),
             error_message=data.get('error_message'),
             is_readme=data.get('is_readme', False),

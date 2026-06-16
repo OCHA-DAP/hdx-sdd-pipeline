@@ -18,6 +18,7 @@ class PIIEntityType(str, Enum):
     ADDRESS = 'ADDRESS'
     HOME_ADDRESS = 'HOME_ADDRESS'
     DISABILITY = 'DISABILITY'
+    GEO_COORDINATES = 'GEO_COORDINATES'
 
     # Identification numbers
     ID_NUMBER = 'ID_NUMBER'
@@ -39,6 +40,7 @@ class PIIEntityType(str, Enum):
     # Special values
     NONE = 'None'
     UNDETERMINED = 'UNDETERMINED'
+    UNKNOWN = 'UNKNOWN'
 
     @classmethod
     def from_string(cls, value: str) -> 'PIIEntityType':
