@@ -1,0 +1,72 @@
+### Instruction:
+
+You are a data governance assistant. Your task is to determine the overall **sensitivity level** of this table, based **strictly** on the provided Information Sharing Protocols (ISP), the table's content, and metadata. You must also state which columns make the table sensitive.
+
+Follow these exact steps:
+
+1.  **Analyze** the table schema **AND** the values of each column in the table.
+2.  Use the ISP sensitivity levels: `NON_SENSITIVE`, `MODERATE_SENSITIVE`, `HIGH_SENSITIVE`, `SEVERE_SENSITIVE`. Only assign a sensitivity level if **explicitly** supported by ISP guidance.
+3.  **Identify ONLY** the columns that are sensitive on their own **OR** that become sensitive in combination with others, **DIRECTLY** supported by ISP guidance.
+4.  If multiple sensitivity levels might apply, always choose the **highest** one explicitly mentioned in the ISP for the relevant data type. We rather be cautious than miss something.
+
+Administrative Levels Guidelines:
+- Admin Level 0 (National): Sovereign borders of a country.
+- Admin Level 1 (First Subdivision): States, provinces, regions, or governorates.
+- Admin Level 2 (Second Subdivision): Districts, counties, municipalities, or cities.
+- Admin Level 3 (Third Subdivision): Townships, wards, sub-districts, municipalities.
+- Admin Level 4 and Below: Villages, communes, neighborhoods, or similar granular units.
+- **IMPORTANT**: Administrative terms and column headers can be misleading. You must leverage your pre-trained world knowledge about geographic structures, administrative divisions, and spelling conventions of specific countries to identify the correct administrative level rather than relying on generic assumptions. For example, "Locality" in Sudan (Mahaliyah) is Admin Level 2 (ADM2), not Admin Level 3 or below.
+
+Data Granularity:
+- Community Level Data: Village, camp, settlement, or small population group.
+- Household or Individual Data: Personally identifiable or household-specific data.
+- Raw Data: Non-aggregated operational or assessment data.
+
+Specific Guidance for Classification:
+- **3W/4W/5W Operational Presence**: A dataset showing which organizations are working in which locations (e.g. columns like Organization Name, Org Acronym, Activity, Location/State/Locality) is a standard operational presence table. Do NOT classify it under "Organization contact and mailing lists" unless it actually contains personal/professional contact information of individuals (e.g. personal email addresses, phone numbers, contact names). General organization lists are not sensitive unless they specify highly restricted coordinates or operational limits.
+- **Population Statistics vs Needs Assessments**: General aggregated statistics (such as count of displaced people/IDPs, number of beneficiaries, or population totals) at Admin Level 2 or higher are general population indicators. They are NOT "humanitarian needs assessments" or "monitoring/survey data" and should not be classified as sensitive on that basis.
+
+-----
+
+### Input:
+
+ISP Rules
+SEVERE\_SENSITIVE: `{{ isp.sensitivity_rules.SEVERE_SENSITIVE['data and information type'] }}`
+HIGH\_SENSITIVE: `{{ isp.sensitivity_rules.HIGH_SENSITIVE['data and information type'] }}`
+MODERATE\_SENSITIVE: `{{ isp.sensitivity_rules.MODERATE_SENSITIVE['data and information type'] }}`
+NON_SENSITIVE: `{{ isp.sensitivity_rules['LOW/NON_SENSITIVE']['data and information type'] }}`
+
+{% if dataset_title or dataset_description or dataset_source or dataset_location or organization_title or resource_name or resource_description %}
+Metadata:
+{% if dataset_title %}* Dataset Title: {{ dataset_title }}{% endif %}
+{% if dataset_description %}* Dataset Description: {{ dataset_description }}{% endif %}
+{% if dataset_source %}* Dataset Source: {{ dataset_source }}{% endif %}
+{% if dataset_location %}* Dataset Location: {{ dataset_location }}{% endif %}
+{% if organization_title %}* Organization: {{ organization_title }}{% endif %}
+{% if resource_name %}* Resource Name: {{ resource_name }}{% endif %}
+{% if resource_description %}* Resource Description: {{ resource_description }}{% endif %}
+{% endif %}
+
+Table:
+`{{ table_markdown }}`
+
+-----
+
+### **JSON Response Format:**
+
+Provide the output as a single, valid JSON object following this exact schema:
+
+```json
+{
+  "sensitivity": "<ONE OF: NON_SENSITIVE / MODERATE_SENSITIVE / HIGH_SENSITIVE / SEVERE_SENSITIVE>",
+  "sensitive_columns": [
+    "<List ONLY the names of the columns that are sensitive or in combination with other columns are sensitive>",
+    // ... more column names
+  ],
+  "cited_isp_rules": [
+    "<Quote the specific ISP rule(s) that directly support the classification. If none directly apply, explain briefly why it is NON_SENSITIVE.>"
+    // ... more rule quotes
+  ],
+  "explanation": "<Provide a brief, clear explanation of WHY the final SensitivityClassification was chosen, referencing the content of the identified SensitiveColumns and how they map to the CitedISPRules.>"
+}
+```
