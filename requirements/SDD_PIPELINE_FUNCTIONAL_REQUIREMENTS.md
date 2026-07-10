@@ -137,7 +137,7 @@ Any new feature request for this project must follow this order:
 
 - [x] FR-SDD-055: General guidelines for Non-PII classification prompts to improve handling of administrative levels, organization operational lists, and population stats.
   - Expected behavior: Prompts must explicitly instruct the model that:
-    1. Geographic administrative levels and column names can be misleading. For instance, terms like "Locality" (e.g., in Sudan) represents Admin Level 2 (ADM2), which is not below ADM2. The model should leverage its pre-trained world knowledge about geographic structures, administrative divisions, and spelling conventions of specific countries to identify the correct administrative level rather than assuming default terms (like assuming "Locality" implies ADM3).
+    1. Geographic administrative levels and column names can be misleading. For instance, terms like "Locality" (e.g., in Sudan) represent Admin Level 2 (ADM2), which is not below ADM2. The model should leverage its pre-trained world knowledge about geographic structures, administrative divisions, and spelling conventions of specific countries to identify the correct administrative level rather than assuming default terms (like assuming "Locality" implies ADM3).
     2. Operational presence datasets (3W/4W/5W data) showing which organizations work in which locations are NOT "organization contact lists" or "mailing lists". Contact/mailing lists must contain personal contact details (names, emails, phone numbers).
     3. Aggregate population counts (such as numbers of displaced persons, IDPs, or beneficiaries) at Admin Level 2 or higher are general population/operational statistics and do not constitute a needs assessment.
 
