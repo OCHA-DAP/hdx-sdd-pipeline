@@ -38,6 +38,7 @@ AVAILABLE_MODELS = [
     'gpt-5.4',
     'DeepSeek-V3.1',
     'DeepSeek-V4-Flash',
+    'DeepSeek-V4-Pro',
 ]
 
 PRICING: dict[str, dict[str, float | str]] = {
@@ -50,7 +51,8 @@ PRICING: dict[str, dict[str, float | str]] = {
     'gpt-5.4-mini': {'prompt': 0.65, 'completion': 3.88, 'currency': '€'},
     'gpt-5.4': {'prompt': 2.37, 'completion': 14.2, 'currency': '€'},
     'DeepSeek-V3.1': {'prompt': 1.05111, 'completion': 4.22151, 'currency': '€'},
-    'DeepSeek-V4-Flash': {'prompt': 0.00, 'completion': 0.00, 'currency': '€'},
+    'DeepSeek-V4-Pro': {'prompt': 1.49659, 'completion': 2.99317, 'currency': '€'},
+    'DeepSeek-V4-Flash': {'prompt': 0.16, 'completion': 0.44, 'currency': '€'},
 }
 
 # ---------------------------------------------------------------------------

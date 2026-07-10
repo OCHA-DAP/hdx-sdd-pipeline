@@ -243,6 +243,7 @@ The dashboard will be available at: `http://localhost:3000`
    - `gpt-5.4-mini`
    - `DeepSeek-V3.1`
    - `DeepSeek-V4-Flash`
+   - `DeepSeek-V4-Pro`
 
 4. **Click "Run Evaluation"**
 
