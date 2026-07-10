@@ -263,9 +263,9 @@ class TestProcessDatasetUseCase:
     def test_classify_non_pii_max_tokens_scaled(self, use_case, mock_llm_provider):
         """Test non-PII classification scales max_tokens when column count * 5 > 2000."""
         report = SheetReport(file_name='test.csv', sheet_name='Sheet1')
+        use_case._generate_table_markdown = Mock(return_value='')  # avoid expensive markdown generation
         for i in range(500):
             report.add_column(Column(name=f'col{i}', sample_values=[f'val{i}']))
-
         mock_llm_provider.generate_json.return_value = (
             {'sensitivity': 'NON_SENSITIVE', 'explanation': 'Test', 'confidence': 0.9},
             10,
