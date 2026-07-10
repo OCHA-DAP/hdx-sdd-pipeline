@@ -3,6 +3,7 @@
 import logging
 from typing import List, Optional, Dict, Any
 from datetime import datetime
+from collections import Counter, defaultdict
 
 from src.domain.entities import SheetReport, Column, NonPIIClassification, PersonalDataClassification
 from src.domain.value_objects import PIIEntityType, SensitivityLevel
@@ -304,6 +305,8 @@ class ProcessDatasetUseCase:
         """Run the GLiNER fast full-table PII pre-scan (FR-SDD-057).
 
         Populates *report* with evidence and sensitivity flags when PII is found.
+        For each flagged column the dominant detected entity label is mapped to a
+        PIIEntityType and stored on the column's pii_classification.
 
         Args:
             df: Full dataframe (all rows, all columns).
@@ -336,23 +339,49 @@ class ProcessDatasetUseCase:
         # Store evidence for auditability.
         report.gliner_scan_evidence = scan_result.evidence
 
-        # Mark all columns as sensitive.
+        # ------------------------------------------------------------------
+        # Group evidence by column and derive the dominant entity label.
+        # ------------------------------------------------------------------
+        # col_name → Counter of label → count
+        col_label_counts: dict[str, Counter] = defaultdict(Counter)
+        for hit in scan_result.evidence:
+            col_label_counts[hit['column']][hit['label']] += 1
+
+        # Build a column-level index for fast lookup.
+        col_by_name = {col.name: col for col in report.columns}
+
+        for col_name, label_counter in col_label_counts.items():
+            column = col_by_name.get(col_name)
+            if column is None:
+                continue
+            dominant_label, _ = label_counter.most_common(1)[0]
+            column.pii_classification.sensitive = True
+            column.pii_classification.entity_type = _gliner_label_to_entity_type(dominant_label)
+
+        # Mark any remaining columns (e.g. from email regex) as sensitive without an entity type change.
         for column in report.columns:
             column.pii_classification.sensitive = True
+
+        # ------------------------------------------------------------------
+        # Build a full, per-column explanation (no truncation).
+        # ------------------------------------------------------------------
+        col_summaries: list[str] = []
+        for col_name, label_counter in col_label_counts.items():
+            parts = ['{} \u00d7{}'.format(label, count) for label, count in label_counter.most_common()]
+            col_summaries.append("'{}': {}".format(col_name, ', '.join(parts)))
+
+        total_hits = len(scan_result.evidence)
+        n_cols = len(col_label_counts)
+        explanation = 'GLiNER pre-scan detected personal data ({} hit(s) across {} column(s)): {}.'.format(
+            total_hits, n_cols, '; '.join(col_summaries)
+        )
 
         # Set sheet-level sensitivity.
         report.personal_data_sensitive = True
         report.personal_data_classification.sensitivity = SensitivityLevel.SEVERE_SENSITIVE
-        top_hits = ', '.join(
-            '{} in column \'{}\' at row {}'.format(h['label'], h['column'], h['row_idx'])
-            for h in scan_result.evidence[:5]
-        )
-        extra = ' \u2026 and {} more'.format(len(scan_result.evidence) - 5) if len(scan_result.evidence) > 5 else ''
-        report.personal_data_classification.explanation = (
-            f'GLiNER pre-scan detected personal data ' f'({len(scan_result.evidence)} hit(s): {top_hits}{extra}).'
-        )
+        report.personal_data_classification.explanation = explanation
         report.pii_reflection_model = 'skipped - GLiNER pre-scan detected personal data'
-        report.pii_classifier_model = f'gliner:{self.gliner_scanner.model_name}'
+        report.pii_classifier_model = 'gliner:{}'.format(self.gliner_scanner.model_name)
 
         return True
 
@@ -759,3 +788,34 @@ class ProcessDatasetUseCase:
         except Exception as e:
             logger.error(f'Failed to process README for PII: {e}')
             return {'personal_data_sensitive': False, 'personal_data_entities': [], 'evidence': [], 'error': str(e)}
+
+
+# ---------------------------------------------------------------------------
+# Module-level helpers
+# ---------------------------------------------------------------------------
+
+# Mapping from GLiNER entity label (lowercase) to PIIEntityType.
+_GLINER_LABEL_MAP: dict[str, PIIEntityType] = {
+    'person name': PIIEntityType.PERSON_NAME,
+    'street address': PIIEntityType.ADDRESS,
+    'email address': PIIEntityType.EMAIL_ADDRESS,
+    'email': PIIEntityType.EMAIL_ADDRESS,
+    'phone number': PIIEntityType.PHONE_NUMBER,
+    'phone': PIIEntityType.PHONE_NUMBER,
+    'address': PIIEntityType.ADDRESS,
+    'location': PIIEntityType.LOCATION,
+    'id number': PIIEntityType.ID_NUMBER,
+    'date of birth': PIIEntityType.DATE_OF_BIRTH,
+}
+
+
+def _gliner_label_to_entity_type(label: str) -> PIIEntityType:
+    """Map a GLiNER entity label string to the closest PIIEntityType.
+
+    Args:
+        label: The entity label returned by GLiNER (e.g. 'person name').
+
+    Returns:
+        The matching PIIEntityType, or UNDETERMINED if no match found.
+    """
+    return _GLINER_LABEL_MAP.get(label.lower().strip(), PIIEntityType.UNDETERMINED)

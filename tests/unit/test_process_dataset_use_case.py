@@ -510,9 +510,14 @@ class TestGliNERScanIntegration:
         assert report.personal_data_classification.sensitivity == SensitivityLevel.SEVERE_SENSITIVE
         assert len(report.gliner_scan_evidence) == 1
         assert report.gliner_scan_evidence[0]['label'] == 'person name'
+        # Explanation must be full and grouped per column (no '… and N more').
         assert 'GLiNER' in report.personal_data_classification.explanation
+        assert '…' not in report.personal_data_classification.explanation
+        assert "'Name'" in report.personal_data_classification.explanation
         assert report.pii_reflection_model == 'skipped - GLiNER pre-scan detected personal data'
         assert 'gliner:' in report.pii_classifier_model
+        # Column entity type must be set from the dominant GLiNER label.
+        assert report.columns[0].pii_classification.entity_type == PIIEntityType.PERSON_NAME
 
     def test_run_gliner_scan_marks_columns_sensitive(
         self, mock_data_loader, mock_llm_provider, mock_prompt_manager, mock_gliner_scanner_flagged

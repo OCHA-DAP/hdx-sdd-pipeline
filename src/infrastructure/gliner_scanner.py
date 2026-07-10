@@ -1,18 +1,24 @@
 """GLiNER-based fast full-table PII pre-scan (FR-SDD-057).
 
 Loads the model once at construction time and reuses it across all scans.
-Processes the entire dataframe — all rows, all columns — in configurable
-row-batches so that very large datasets are handled with bounded memory.
+Scans column-by-column: unique values per column are concatenated into
+text chunks of at most _MAX_CHUNK_CHARS characters and fed to GLiNER one
+chunk at a time. As soon as a hit is detected in a column the column is
+marked and scanning moves on to the next one (early-exit).
 
-A regex fast-path handles obvious email addresses without consuming GLiNER
-inference time. GLiNER covers personal names and exact street addresses,
-including non-Western scripts (Arabic, Chinese, Cyrillic, etc.) via the
-multilingual mGLiNER architecture of the bundled small model.
+For very wide tables, at most `batch_size` unique values per column are
+sampled (deterministic seed) to bound total inference time.
+
+A regex fast-path handles obvious email addresses without any model call.
+GLiNER covers personal names and exact street addresses, including
+non-Western scripts (Arabic, Chinese, Cyrillic, etc.) via the multilingual
+mGLiNER architecture of the bundled small model.
 """
 
 from __future__ import annotations
 
 import logging
+import random
 import re
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any
@@ -29,8 +35,12 @@ _GLINER_LABELS = ['person name', 'street address']
 _EMAIL_RE = re.compile(r'\b[A-Za-z0-9._%+\-]+@[A-Za-z0-9.\-]+\.[A-Za-z]{2,}\b')
 
 # Maximum character length of a single text chunk sent to GLiNER.
-# The small model handles ~512 tokens; 1 000 characters is a safe proxy.
-_MAX_CHUNK_CHARS = 1000
+# The small model handles ~512 tokens; 2 000 characters is a safe proxy that
+# keeps context rich while staying well within the model limit.
+_MAX_CHUNK_CHARS = 2000
+
+# Deterministic seed for reproducible value sampling.
+_SAMPLE_SEED = 42
 
 
 @dataclass
@@ -67,10 +77,17 @@ class GliNERScanResult:
 class GliNERScanner:
     """Singleton-style wrapper that loads GLiNER once and exposes a scan API.
 
+    Scanning strategy (column-level):
+      For each column the unique non-empty values are collected, optionally
+      capped at *batch_size* (random sample with fixed seed), then fed to the
+      model in text chunks of at most *_MAX_CHUNK_CHARS* characters. The column
+      scan exits as soon as the first PII entity is detected, so clean columns
+      are cheap and only suspicious columns spend extra inference time.
+
     Args:
         model_name: HuggingFace model ID to load.
         threshold: Minimum confidence score to flag an entity (0–1).
-        batch_size: Number of dataframe rows processed per GLiNER call.
+        batch_size: Max unique values sampled per column before chunking.
     """
 
     def __init__(
@@ -83,13 +100,17 @@ class GliNERScanner:
         self.threshold = threshold
         self.batch_size = batch_size
         self._model: Any = None  # lazy-loaded
+        self._rng = random.Random(_SAMPLE_SEED)
 
     # ------------------------------------------------------------------
     # Public API
     # ------------------------------------------------------------------
 
     def scan_dataframe(self, df: 'pd.DataFrame') -> GliNERScanResult:
-        """Scan every cell in *df* for personal names, emails, and addresses.
+        """Scan every column in *df* for personal names, emails, and addresses.
+
+        Uses a column-level strategy: unique values per column are joined into
+        text chunks and passed to GLiNER, rather than one call per row.
 
         Args:
             df: The full dataframe to inspect (all rows, all columns).
@@ -102,12 +123,10 @@ class GliNERScanner:
         if df.empty:
             return result
 
-        # Phase 1 — regex fast-path for emails (no model load needed).
+        # Phase 1 — vectorized regex fast-path for emails.
         self._scan_emails_regex(df, result)
 
-        # Phase 2 — GLiNER scan for names and addresses in batches.
-        # We skip loading the model if already flagged? No — we still scan
-        # because the caller needs full evidence for auditability.
+        # Phase 2 — GLiNER column-level scan for names and addresses.
         self._scan_with_gliner(df, result)
 
         return result
@@ -124,7 +143,7 @@ class GliNERScanner:
         try:
             from gliner import GLiNER  # type: ignore[import]
         except ImportError as exc:
-            raise ImportError("GLiNER is not installed. Run: pip install 'gliner[tokenizers]'") from exc
+            raise ImportError('GLiNER is not installed. Run: pip install gliner') from exc
 
         logger.info('Loading GLiNER model: %s', self.model_name)
         self._model = GLiNER.from_pretrained(self.model_name)
@@ -132,106 +151,121 @@ class GliNERScanner:
         return self._model
 
     def _scan_emails_regex(self, df: 'pd.DataFrame', result: GliNERScanResult) -> None:
-        """Fast-path: detect email addresses via regex, no model needed."""
+        """Vectorized regex fast-path: detect email addresses per column."""
         for col in df.columns:
             col_str = str(col)
-            for row_idx, cell in enumerate(df[col]):
-                cell_str = _cell_to_str(cell)
-                if not cell_str:
+            # fillna('') ensures str.findall never receives NaN and never returns float NaN.
+            series = df[col].fillna('').astype(str)
+
+            # Quick column-level skip: no '@' means no emails.
+            if not series.str.contains('@', na=False).any():
+                continue
+
+            # findall returns a list of matches per cell (empty list when none found).
+            matches_per_cell = series.str.findall(_EMAIL_RE.pattern)
+            for row_idx, matches in enumerate(matches_per_cell):
+                if not isinstance(matches, list):
+                    # Guard: findall may still return NaN on certain mixed-type columns.
                     continue
-                for match in _EMAIL_RE.finditer(cell_str):
+                for email in matches:
                     result.add_hit(
                         column=col_str,
                         row_idx=row_idx,
-                        text=match.group(),
+                        text=email,
                         label='email address',
                         score=1.0,
                         method='regex',
                     )
 
     def _scan_with_gliner(self, df: 'pd.DataFrame', result: GliNERScanResult) -> None:
-        """GLiNER scan for names and addresses, processed in row-batches."""
+        """Column-level GLiNER scan for person names and street addresses.
+
+        For each column:
+          1. Collect unique, non-empty string values.
+          2. Sample at most *batch_size* values (reproducible seed).
+          3. Pack values into text chunks ≤ *_MAX_CHUNK_CHARS* characters.
+          4. Call predict_entities on each chunk; stop at the first hit.
+        """
         model = self._load_model()
-        columns = list(df.columns)
-        n_rows = len(df)
 
-        for batch_start in range(0, n_rows, self.batch_size):
-            batch_end = min(batch_start + self.batch_size, n_rows)
-            batch_df = df.iloc[batch_start:batch_end]
+        for col in df.columns:
+            col_str = str(col)
 
-            # Build one text chunk per row, joining non-empty string cells.
-            texts: list[str] = []
-            row_indices: list[int] = []
-            col_maps: list[list[tuple[str, int, int]]] = []  # (col_name, start, end)
+            # Unique non-empty string values (fillna to avoid 'nan' strings from float NaN).
+            series = df[col].fillna('').astype(str)
+            values: list[str] = [
+                v.strip() for v in series.unique() if v.strip().lower() not in ('nan', 'none', 'null', '')
+            ]
 
-            for local_idx, (abs_idx, row) in enumerate(
-                zip(range(batch_start, batch_end), batch_df.itertuples(index=False))
-            ):
-                parts: list[tuple[str, str]] = []  # (col_name, cell_text)
-                for col in columns:
-                    cell_str = _cell_to_str(getattr(row, _safe_attr(col), None))
-                    if cell_str:
-                        parts.append((str(col), cell_str))
-
-                if not parts:
-                    continue
-
-                # Concatenate with separator, track char offsets per column.
-                sep = ' | '
-                combined = ''
-                col_map: list[tuple[str, int, int]] = []
-                for col_name, cell_text in parts:
-                    start = len(combined)
-                    end = start + len(cell_text)
-                    # Truncate oversized rows to stay within model token limit.
-                    if end > _MAX_CHUNK_CHARS:
-                        cell_text = cell_text[: _MAX_CHUNK_CHARS - start]
-                        end = _MAX_CHUNK_CHARS
-                    col_map.append((col_name, start, end))
-                    combined += cell_text
-                    if end < _MAX_CHUNK_CHARS:
-                        combined += sep
-                    if len(combined) >= _MAX_CHUNK_CHARS:
-                        break
-
-                combined = combined.rstrip(' |').strip()
-                if combined:
-                    texts.append(combined)
-                    row_indices.append(abs_idx)
-                    col_maps.append(col_map)
-
-            if not texts:
+            if not values:
                 continue
 
-            for row_idx, text, col_map in zip(row_indices, texts, col_maps):
-                try:
-                    entities = model.predict_entities(
-                        text,
-                        _GLINER_LABELS,
-                        threshold=self.threshold,
-                    )
-                except Exception:
-                    # Graceful fallback: log and skip this single row.
-                    logger.exception('GLiNER prediction failed for row %d', row_idx)
-                    continue
+            # Cap to batch_size to bound inference time on high-cardinality columns.
+            if len(values) > self.batch_size:
+                values = self._rng.sample(values, self.batch_size)
 
-                for entity in entities:
-                    e_start: int = entity['start']
-                    e_end: int = entity['end']
-                    label: str = entity['label']
-                    score: float = entity['score']
-                    matched_text: str = entity['text']
+            # Pack values into text chunks and scan each chunk.
+            hit_found = False
+            chunk_parts: list[str] = []
+            chunk_len = 0
 
-                    # Map entity back to the originating column.
-                    matched_col = _find_column(col_map, e_start, e_end)
-                    result.add_hit(
-                        column=matched_col,
-                        row_idx=row_idx,
-                        text=matched_text,
-                        label=label,
-                        score=score,
-                        method='gliner',
-                    )
+            for val in values:
+                entry = val + '\n'
+                if chunk_len + len(entry) > _MAX_CHUNK_CHARS:
+                    if chunk_parts:
+                        hit_found = self._predict_column_chunk(model, col_str, ''.join(chunk_parts), result)
+                        if hit_found:
+                            break
+                    # Start a new chunk with the current value (truncated if huge).
+                    chunk_parts = [entry[:_MAX_CHUNK_CHARS]]
+                    chunk_len = len(chunk_parts[0])
+                else:
+                    chunk_parts.append(entry)
+                    chunk_len += len(entry)
+
+            # Flush the last chunk unless a hit was already found.
+            if not hit_found and chunk_parts:
+                self._predict_column_chunk(model, col_str, ''.join(chunk_parts), result)
+
+    def _predict_column_chunk(
+        self,
+        model: Any,
+        col_str: str,
+        text: str,
+        result: GliNERScanResult,
+    ) -> bool:
+        """Run predict_entities on one text chunk.
+
+        Args:
+            model: Loaded GLiNER model instance.
+            col_str: Column name (for evidence recording).
+            text: Concatenated unique cell values to scan.
+            result: Mutable result object to append hits to.
+
+        Returns:
+            True if at least one entity was detected, False otherwise.
+        """
+        try:
+            entities = model.predict_entities(
+                text.strip(),
+                _GLINER_LABELS,
+                threshold=self.threshold,
+            )
+        except Exception:
+            logger.exception('GLiNER prediction failed for column %s', col_str)
+            return False
+
+        for entity in entities:
+            result.add_hit(
+                column=col_str,
+                row_idx=-1,  # row position not tracked in column-level scan
+                text=entity['text'],
+                label=entity['label'],
+                score=entity['score'],
+                method='gliner',
+            )
+
+        return bool(entities)
 
 
 # ------------------------------------------------------------------
@@ -247,18 +281,6 @@ def _cell_to_str(value: Any) -> str:
     if s.lower() in ('nan', 'none', 'null', ''):
         return ''
     return s
-
-
-def _safe_attr(col_name: Any) -> str:
-    """Convert a column name to a safe pandas NamedTuple attribute name."""
-    import re
-
-    name = str(col_name)
-    # pandas replaces non-alphanumeric chars with underscore in namedtuple attrs
-    name = re.sub(r'[^A-Za-z0-9]', '_', name)
-    if name and name[0].isdigit():
-        name = '_' + name
-    return name
 
 
 def _find_column(col_map: list[tuple[str, int, int]], e_start: int, e_end: int) -> str:

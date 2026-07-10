@@ -48,7 +48,7 @@ class Config:
     # GLiNER fast PII pre-scan (FR-SDD-057)
     GLINER_SCAN: bool = os.getenv('GLINER_SCAN', 'true').lower() == 'true'
     GLINER_MODEL: str = os.getenv('GLINER_MODEL', 'gliner-community/gliner_small-v2.5')
-    GLINER_THRESHOLD: float = float(os.getenv('GLINER_THRESHOLD', '0.5'))
+    GLINER_THRESHOLD: float = float(os.getenv('GLINER_THRESHOLD', '0.7'))
     GLINER_BATCH_SIZE: int = int(os.getenv('GLINER_BATCH_SIZE', '256'))
 
     # Directories
