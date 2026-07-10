@@ -324,7 +324,7 @@ class ProcessDatasetUseCase:
             scan_result = self.gliner_scanner.scan_dataframe(df)
         except Exception as e:
             # Do not block the pipeline on scanner failure — fall through to LLM.
-            logger.error(f'GLiNER pre-scan failed for sheet \'{report.sheet_name}\': {e}', exc_info=True)
+            logger.error(f"GLiNER pre-scan failed for sheet '{report.sheet_name}': {e}", exc_info=True)
             return False
 
         if not scan_result.flagged:
