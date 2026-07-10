@@ -60,13 +60,13 @@ Provide the output as a single, valid JSON object following this exact schema:
 {
   "sensitivity": "<ONE OF: NON_SENSITIVE / MODERATE_SENSITIVE / HIGH_SENSITIVE / SEVERE_SENSITIVE>",
   "sensitive_columns": [
-    "<List ONLY the names of the columns that are sensitive or in combination with other columns are sensitive>",
-    // ... more column names
+    "<Sensitive column name 1>",
+    "<Sensitive column name 2>"
   ],
   "cited_isp_rules": [
-    "<Quote the specific ISP rule(s) that directly support the classification. If none directly apply, explain briefly why it is NON_SENSITIVE.>"
-    // ... more rule quotes
+    "<Quoted ISP rule 1>",
+    "<Quoted ISP rule 2>"
   ],
-  "explanation": "<Provide a brief, clear explanation of WHY the final SensitivityClassification was chosen, referencing the content of the identified SensitiveColumns and how they map to the CitedISPRules.>"
+  "explanation": "<Brief explanation referencing the sensitive columns and the cited ISP rules.>"
 }
 ```
