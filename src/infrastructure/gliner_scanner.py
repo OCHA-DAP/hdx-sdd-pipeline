@@ -203,31 +203,31 @@ class GliNERScanner:
             if not texts:
                 continue
 
-            try:
-                batch_results = model.predict_entities_batch(
-                    texts,
-                    _GLINER_LABELS,
-                    threshold=self.threshold,
-                )
-            except Exception:
-                # Graceful fallback: log and skip this batch.
-                logger.exception('GLiNER batch prediction failed for batch starting at row %d', batch_start)
-                continue
+            for row_idx, text, col_map in zip(row_indices, texts, col_maps):
+                try:
+                    entities = model.predict_entities(
+                        text,
+                        _GLINER_LABELS,
+                        threshold=self.threshold,
+                    )
+                except Exception:
+                    # Graceful fallback: log and skip this single row.
+                    logger.exception('GLiNER prediction failed for row %d', row_idx)
+                    continue
 
-            for row_idx, entities, col_map in zip(row_indices, batch_results, col_maps):
                 for entity in entities:
                     e_start: int = entity['start']
                     e_end: int = entity['end']
                     label: str = entity['label']
                     score: float = entity['score']
-                    text: str = entity['text']
+                    matched_text: str = entity['text']
 
                     # Map entity back to the originating column.
                     matched_col = _find_column(col_map, e_start, e_end)
                     result.add_hit(
                         column=matched_col,
                         row_idx=row_idx,
-                        text=text,
+                        text=matched_text,
                         label=label,
                         score=score,
                         method='gliner',

@@ -159,7 +159,8 @@ class TestGliNERScannerGliNER:
 
     def test_clean_dataframe_not_flagged(self, scanner_with_model):
         scanner, model = scanner_with_model
-        model.predict_entities_batch.return_value = [[], []]
+        # predict_entities returns an empty list for each row → no hits
+        model.predict_entities.return_value = []
         df = pd.DataFrame({'City': ['Nairobi', 'Kabul'], 'Count': [100, 200]})
 
         result = scanner.scan_dataframe(df)
@@ -169,9 +170,9 @@ class TestGliNERScannerGliNER:
 
     def test_person_name_detected(self, scanner_with_model):
         scanner, model = scanner_with_model
-        # Simulate GLiNER returning a person name hit on row 0
-        model.predict_entities_batch.return_value = [
-            [{'start': 0, 'end': 10, 'text': 'John Smith', 'label': 'person name', 'score': 0.92}],
+        # Simulate GLiNER returning a person name hit
+        model.predict_entities.return_value = [
+            {'start': 0, 'end': 10, 'text': 'John Smith', 'label': 'person name', 'score': 0.92}
         ]
         df = pd.DataFrame({'Name': ['John Smith']})
 
@@ -182,8 +183,8 @@ class TestGliNERScannerGliNER:
 
     def test_address_detected(self, scanner_with_model):
         scanner, model = scanner_with_model
-        model.predict_entities_batch.return_value = [
-            [{'start': 0, 'end': 20, 'text': '15 Baker Street', 'label': 'street address', 'score': 0.87}],
+        model.predict_entities.return_value = [
+            {'start': 0, 'end': 20, 'text': '15 Baker Street', 'label': 'street address', 'score': 0.87}
         ]
         df = pd.DataFrame({'Address': ['15 Baker Street, London']})
 
@@ -195,8 +196,8 @@ class TestGliNERScannerGliNER:
     def test_non_western_name_detected(self, scanner_with_model):
         """Non-Western names are returned by the (mocked) model exactly as any other name."""
         scanner, model = scanner_with_model
-        model.predict_entities_batch.return_value = [
-            [{'start': 0, 'end': 9, 'text': '张伟', 'label': 'person name', 'score': 0.88}],
+        model.predict_entities.return_value = [
+            {'start': 0, 'end': 2, 'text': '张伟', 'label': 'person name', 'score': 0.88}
         ]
         df = pd.DataFrame({'Recipient': ['张伟']})
 
@@ -211,7 +212,7 @@ class TestGliNERScannerGliNER:
         scanner, model = scanner_with_model
         # GLiNER is called with the threshold; we simulate it filtering internally.
         # The scanner respects whatever entities GLiNER returns — here none.
-        model.predict_entities_batch.return_value = [[]]
+        model.predict_entities.return_value = []
         df = pd.DataFrame({'Name': ['Ali']})
 
         result = scanner.scan_dataframe(df)
@@ -225,24 +226,25 @@ class TestGliNERScannerGliNER:
         result = scanner.scan_dataframe(df)
 
         assert result.flagged is False
-        model.predict_entities_batch.assert_not_called()
+        model.predict_entities.assert_not_called()
 
     def test_batching_calls_model_multiple_times(self, scanner_with_model):
         scanner, model = scanner_with_model
         scanner.batch_size = 3  # small batch to force multiple calls
-        model.predict_entities_batch.return_value = [[], [], []]  # per-batch
+        # Each row call returns no entities
+        model.predict_entities.return_value = []
 
         df = pd.DataFrame({'col': [f'value{i}' for i in range(7)]})
 
         scanner.scan_dataframe(df)
 
-        # 7 rows with batch_size=3 → 3 batches (3+3+1)
-        assert model.predict_entities_batch.call_count == 3
+        # predict_entities is called once per non-empty row: 7 rows
+        assert model.predict_entities.call_count == 7
 
     def test_model_failure_falls_through(self, scanner_with_model):
-        """Batch prediction failure must not crash the scanner — returns clean result."""
+        """Per-row prediction failure must not crash the scanner — returns clean result."""
         scanner, model = scanner_with_model
-        model.predict_entities_batch.side_effect = RuntimeError('model error')
+        model.predict_entities.side_effect = RuntimeError('model error')
         df = pd.DataFrame({'Name': ['Fatima']})
 
         result = scanner.scan_dataframe(df)
@@ -273,9 +275,9 @@ class TestScanDataframeIntegration:
         """scan_dataframe combines regex and model hits."""
         scanner = GliNERScanner(model_name='dummy', threshold=0.5, batch_size=256)
         mock_model = MagicMock()
-        # Model returns a name hit on the same row
-        mock_model.predict_entities_batch.return_value = [
-            [{'start': 0, 'end': 10, 'text': 'John Smith', 'label': 'person name', 'score': 0.9}],
+        # Model returns a name hit for every row it inspects
+        mock_model.predict_entities.return_value = [
+            {'start': 0, 'end': 10, 'text': 'John Smith', 'label': 'person name', 'score': 0.9}
         ]
         scanner._model = mock_model
 
