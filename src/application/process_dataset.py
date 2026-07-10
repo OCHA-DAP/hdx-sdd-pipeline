@@ -8,6 +8,7 @@ from src.domain.entities import SheetReport, Column, NonPIIClassification, Perso
 from src.domain.value_objects import PIIEntityType, SensitivityLevel
 from src.domain.exceptions import DataProcessingError
 from src.infrastructure.data_loader import SmartDataLoader
+from src.infrastructure.gliner_scanner import GliNERScanner
 from src.infrastructure.openai_provider import OpenAIProvider
 from src.shared.utils.prompt_manager import PromptManager
 
@@ -36,6 +37,7 @@ class ProcessDatasetUseCase:
         readme_llm_provider: Optional[OpenAIProvider] = None,
         prompt_manager: Optional[PromptManager] = None,
         sample_size: int = 5,
+        gliner_scanner: Optional[GliNERScanner] = None,
     ):
         """
         Initialize use case with dependencies.
@@ -48,6 +50,7 @@ class ProcessDatasetUseCase:
             readme_llm_provider: Optional LLM for README PII scanning (None to skip)
             prompt_manager: Prompt template manager
             sample_size: Number of samples per column
+            gliner_scanner: Optional GLiNER scanner for fast full-table PII pre-scan (None to skip)
         """
         self.data_loader = data_loader
         self.pii_llm = pii_llm_provider
@@ -56,6 +59,7 @@ class ProcessDatasetUseCase:
         self.readme_llm = readme_llm_provider
         self.prompt_manager = prompt_manager or PromptManager()
         self.sample_size = sample_size
+        self.gliner_scanner = gliner_scanner
 
     def execute(
         self,
@@ -252,6 +256,26 @@ class ProcessDatasetUseCase:
 
         logger.debug(f'Starting classification pipeline for {len(report.columns)} columns')
 
+        # Step 2.5: GLiNER fast full-table PII pre-scan (FR-SDD-057)
+        # Runs over all rows/columns before the LLM steps. If PII is found,
+        # the expensive LLM PII steps are skipped.
+        if self._run_gliner_scan(df, report):
+            logger.info(
+                f"GLiNER pre-scan flagged sheet '{sheet_name}' as personal-data-sensitive — "
+                'skipping LLM PII classification and reflection'
+            )
+            # Non-PII classification still runs.
+            report = self._classify_non_pii(report, isp_rules, metadata)
+            report.update_non_pii_sensitivity()
+            report.update_risk_levels()
+
+            logger.debug(
+                f"Data report complete for '{sheet_name}' (GLiNER early exit): "
+                f'personal_data_sensitive={report.personal_data_sensitive}, '
+                f'non_pii_sensitivity={report.non_pii_classification.sensitivity}'
+            )
+            return report
+
         # Step 3: Classify PII
         report = self._classify_pii(report)
 
@@ -275,6 +299,62 @@ class ProcessDatasetUseCase:
         )
 
         return report
+
+    def _run_gliner_scan(self, df: Any, report: SheetReport) -> bool:
+        """Run the GLiNER fast full-table PII pre-scan (FR-SDD-057).
+
+        Populates *report* with evidence and sensitivity flags when PII is found.
+
+        Args:
+            df: Full dataframe (all rows, all columns).
+            report: SheetReport to populate with results.
+
+        Returns:
+            True if PII was detected and LLM steps should be skipped,
+            False if clean or scanner is disabled.
+        """
+        if self.gliner_scanner is None:
+            return False
+
+        logger.info(f"Running GLiNER pre-scan on sheet '{report.sheet_name}' ({len(df)} rows)")
+        try:
+            scan_result = self.gliner_scanner.scan_dataframe(df)
+        except Exception as e:
+            # Do not block the pipeline on scanner failure — fall through to LLM.
+            logger.error(f'GLiNER pre-scan failed for sheet \'{report.sheet_name}\': {e}', exc_info=True)
+            return False
+
+        if not scan_result.flagged:
+            logger.info(f"GLiNER pre-scan: no PII detected in sheet '{report.sheet_name}'")
+            return False
+
+        logger.info(
+            f"GLiNER pre-scan: PII detected in sheet '{report.sheet_name}' "
+            f'({len(scan_result.evidence)} hit(s)) — flagging as sensitive'
+        )
+
+        # Store evidence for auditability.
+        report.gliner_scan_evidence = scan_result.evidence
+
+        # Mark all columns as sensitive.
+        for column in report.columns:
+            column.pii_classification.sensitive = True
+
+        # Set sheet-level sensitivity.
+        report.personal_data_sensitive = True
+        report.personal_data_classification.sensitivity = SensitivityLevel.SEVERE_SENSITIVE
+        top_hits = ', '.join(
+            '{} in column \'{}\' at row {}'.format(h['label'], h['column'], h['row_idx'])
+            for h in scan_result.evidence[:5]
+        )
+        extra = ' \u2026 and {} more'.format(len(scan_result.evidence) - 5) if len(scan_result.evidence) > 5 else ''
+        report.personal_data_classification.explanation = (
+            f'GLiNER pre-scan detected personal data ' f'({len(scan_result.evidence)} hit(s): {top_hits}{extra}).'
+        )
+        report.pii_reflection_model = 'skipped - GLiNER pre-scan detected personal data'
+        report.pii_classifier_model = f'gliner:{self.gliner_scanner.model_name}'
+
+        return True
 
     def _classify_pii(self, report: SheetReport) -> SheetReport:
         """Classify PII for all columns."""
