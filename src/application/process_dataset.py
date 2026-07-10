@@ -512,7 +512,9 @@ class ProcessDatasetUseCase:
             logger.debug(f"[Non-PII Classification] Prompt for table '{report.sheet_name}':\n{prompt}\n")
 
             # Call LLM
-            result, comp_tokens, prompt_tokens = self.non_pii_llm.generate_json(prompt, max_tokens=1024)
+            # Minimum of 2000 output tokens, or number of columns * 5 if larger
+            max_tokens = max(2000, len(report.columns) * 5)
+            result, comp_tokens, prompt_tokens = self.non_pii_llm.generate_json(prompt, max_tokens=max_tokens)
 
             report.non_pii_classification = NonPIIClassification.from_dict(result)
 
