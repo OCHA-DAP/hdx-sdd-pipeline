@@ -61,26 +61,3 @@ class SDDReport(BaseModel):
 # API response shapes
 # ---------------------------------------------------------------------------
 
-
-class UploadResponse(BaseModel):
-    message: str
-    filename: str
-    size: int
-    template_path: str
-    dataset_path: str
-
-
-class BatchStartResponse(BaseModel):
-    message: str
-    datasets_count: int
-    models_count: int
-    skip_existing: bool
-
-
-class BatchStatus(BaseModel):
-    is_running: bool
-    current_model: str | None
-    completed_models: list[str]
-    failed_models: list[str]
-    started_at: str | None
-    progress: int
