@@ -518,6 +518,7 @@ class TestGliNERScanIntegration:
         assert 'gliner:' in report.pii_classifier_model
         # Column entity type must be set from the dominant GLiNER label.
         assert report.columns[0].pii_classification.entity_type == PIIEntityType.PERSON_NAME
+        assert report.columns[0].pii_classification.sensitive is True
 
     def test_run_gliner_scan_marks_columns_sensitive(
         self, mock_data_loader, mock_llm_provider, mock_prompt_manager, mock_gliner_scanner_flagged
@@ -532,7 +533,9 @@ class TestGliNERScanIntegration:
 
         use_case._run_gliner_scan(df, report)
 
-        assert all(col.pii_classification.sensitive for col in report.columns)
+        assert report.columns[0].pii_classification.sensitive is True  # Name
+        assert report.columns[1].pii_classification.sensitive is False  # City
+        assert report.columns[2].pii_classification.sensitive is False  # Age
 
     def test_run_gliner_scan_exception_falls_through(self, mock_data_loader, mock_llm_provider, mock_prompt_manager):
         """Scanner exception must not crash the pipeline; returns False."""

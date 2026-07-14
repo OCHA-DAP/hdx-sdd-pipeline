@@ -358,9 +358,9 @@ class ProcessDatasetUseCase:
             column.pii_classification.sensitive = True
             column.pii_classification.entity_type = _gliner_label_to_entity_type(dominant_label)
 
-        # Mark any remaining columns (e.g. from email regex) as sensitive without an entity type change.
+        # Mark only columns with a non-NONE entity type as sensitive.
         for column in report.columns:
-            column.pii_classification.sensitive = True
+            column.pii_classification.sensitive = column.pii_classification.entity_type != PIIEntityType.NONE
 
         # ------------------------------------------------------------------
         # Build a full, per-column explanation (no truncation).

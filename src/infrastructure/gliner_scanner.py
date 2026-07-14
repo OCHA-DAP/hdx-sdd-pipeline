@@ -94,7 +94,7 @@ class GliNERScanner:
         self,
         model_name: str = 'gliner-community/gliner_small-v2.5',
         threshold: float = 0.5,
-        batch_size: int = 256,
+        batch_size: int = 0,
     ) -> None:
         self.model_name = model_name
         self.threshold = threshold
@@ -200,8 +200,8 @@ class GliNERScanner:
             if not values:
                 continue
 
-            # Cap to batch_size to bound inference time on high-cardinality columns.
-            if len(values) > self.batch_size:
+            # Cap to batch_size to bound inference time on high-cardinality columns if batch_size > 0.
+            if self.batch_size and self.batch_size > 0 and len(values) > self.batch_size:
                 values = self._rng.sample(values, self.batch_size)
 
             # Pack values into text chunks and scan each chunk.
