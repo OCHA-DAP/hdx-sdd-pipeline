@@ -49,6 +49,8 @@ addopts = """
 [tool.coverage.run]
 omit = [
     "*/__init__.py",
+    "src/prompts/*",
+    "**/*.jinja",
 ]
 
 [tool.coverage.report]
