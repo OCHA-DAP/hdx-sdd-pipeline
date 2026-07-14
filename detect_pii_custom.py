@@ -52,12 +52,8 @@ def main():
         print(f'Failed to initialize prompt manager: {e}')
         sys.exit(1)
 
-    column_name = ' Unnamed_Column_20'
+    column_name = ' test'
     sample_values = ['Siribala', 'Hamzakoma', 'Kerena', 'Adjelhoc', 'Tonka']
-    column_name = 'Settlement Name - #adm2+code'
-    sample_values = ['Raama Cadey', 'Koban Dheere', 'Madawarabe', 'Mahad Alle-3', 'Moori Dhir']
-    column_name = 'Please specify if other'
-    sample_values = ['-', 'Tchinhungue', 'Nharingas', 'Chiute', 'Nharinga']
 
     print(f"Column name:   '{column_name}'")
     print(f'Sample values: {sample_values}')
