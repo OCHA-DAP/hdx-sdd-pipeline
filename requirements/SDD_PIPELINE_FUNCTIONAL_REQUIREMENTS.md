@@ -160,6 +160,9 @@ Any new feature request for this project must follow this order:
 - [x] FR-SDD-052: Processing failures must be logged with diagnostic context and returned as failure status.
   - Implemented behavior: Exceptions are logged with stack details and caller receives structured failure result.
 
+- [x] FR-SDD-056: Output tokens for non-PII classification configuration.
+  - Expected behavior: The output tokens (`max_tokens`) used for non-PII classification must be a minimum of 2000 output tokens. If the number of columns in the resource (sheet report) multiplied by 5 is greater than 2000, then use that number (`n_columns * 5`) as the output tokens (`max_tokens`).
+
 ## Notes for implementers
 
 - Do not change startup logging order without explicit requirement update.

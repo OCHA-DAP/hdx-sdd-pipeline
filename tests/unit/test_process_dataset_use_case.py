@@ -242,6 +242,42 @@ class TestProcessDatasetUseCase:
         assert result.non_pii_classification.sensitivity == SensitivityLevel.SEVERE_SENSITIVE
         assert 'Classification failed due to an error: API error' in result.non_pii_classification.explanation
 
+    def test_classify_non_pii_max_tokens_minimum(self, use_case, mock_llm_provider):
+        """Test non-PII classification uses 2000 output tokens when column count * 5 <= 2000."""
+        report = SheetReport(file_name='test.csv', sheet_name='Sheet1')
+        for i in range(10):
+            report.add_column(Column(name=f'col{i}', sample_values=[f'val{i}']))
+
+        mock_llm_provider.generate_json.return_value = (
+            {'sensitivity': 'NON_SENSITIVE', 'explanation': 'Test', 'confidence': 0.9},
+            10,
+            20,
+        )
+
+        use_case._classify_non_pii(report, isp_rules=None)
+
+        mock_llm_provider.generate_json.assert_called_once()
+        args, kwargs = mock_llm_provider.generate_json.call_args
+        assert kwargs.get('max_tokens') == 2000
+
+    def test_classify_non_pii_max_tokens_scaled(self, use_case, mock_llm_provider):
+        """Test non-PII classification scales max_tokens when column count * 5 > 2000."""
+        report = SheetReport(file_name='test.csv', sheet_name='Sheet1')
+        use_case._generate_table_markdown = Mock(return_value='')  # avoid expensive markdown generation
+        for i in range(500):
+            report.add_column(Column(name=f'col{i}', sample_values=[f'val{i}']))
+        mock_llm_provider.generate_json.return_value = (
+            {'sensitivity': 'NON_SENSITIVE', 'explanation': 'Test', 'confidence': 0.9},
+            10,
+            20,
+        )
+
+        use_case._classify_non_pii(report, isp_rules=None)
+
+        mock_llm_provider.generate_json.assert_called_once()
+        args, kwargs = mock_llm_provider.generate_json.call_args
+        assert kwargs.get('max_tokens') == 2500
+
     def test_execute_from_url(self, use_case, mock_data_loader, mock_llm_provider):
         """Test execute with URL source."""
         # Setup mocks
