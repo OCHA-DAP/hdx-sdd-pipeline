@@ -165,13 +165,13 @@ Any new feature request for this project must follow this order:
 
 - [x] FR-SDD-057: GLiNER fast PII pre-scan.
   - Expected behavior: Before the LLM-based PII classification step, the pipeline must run a fast, local GLiNER model scan over **all columns** of every data sheet to detect personal names, email addresses, and exact street addresses. If any are found, the sheet is immediately flagged as `personal_data_sensitive=True` with `personal_data_classification.sensitivity=SEVERE_SENSITIVE`, column-level sensitive flags are set, and the LLM PII classification and reflection steps are **skipped** (reusing the existing early-exit pattern). Non-PII classification continues normally. The scan must:
-    - Load the GLiNER model (`gliner-community/gliner_small-v2.5` by default) once at application startup and reuse it for all subsequent scans.
+    - Load the GLiNER model (`gliner-community/gliner_small-v2.5` by default) once on first use and reuse it for all subsequent scans.
     - Process columns by extracting unique non-empty values (capped at `GLINER_BATCH_SIZE` to bound inference time), concatenating them into text chunks of at most 2000 characters, and running GLiNER prediction on each chunk.
     - Stop scanning a column as soon as a PII entity is detected in that column (early-exit).
     - Map the dominant detected entity label in a column to a `PIIEntityType` and assign it to the column's `pii_classification.entity_type` field.
     - Apply an email regex fast-path to detect email addresses without invoking the GLiNER model.
     - Support non-Western (Arabic, Chinese, Cyrillic, etc.) names via the multilingual mGLiNER architecture.
-    - Be individually switchable via a `GLINER_SCAN` configuration flag (default `true`).
+    - Be individually switchable via a `GLINER_SCAN` configuration flag (default `false`).
     - Expose `GLINER_THRESHOLD` (default `0.7`), `GLINER_MODEL`, and `GLINER_BATCH_SIZE` as environment-driven configuration settings.
     - Record GLiNER scan evidence (column, row index, matched text, label, score) in the sheet report for auditability.
     - Provide a complete, non-truncated explanation detailing the hits grouped by column (e.g. `'col': label ×count`).

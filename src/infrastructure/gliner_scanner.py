@@ -1,6 +1,6 @@
 """GLiNER-based fast full-table PII pre-scan (FR-SDD-057).
 
-Loads the model once at construction time and reuses it across all scans.
+Loads the model once on first use (lazy-loaded) and reuses it across all scans.
 Scans column-by-column: unique values per column are concatenated into
 text chunks of at most _MAX_CHUNK_CHARS characters and fed to GLiNER one
 chunk at a time. As soon as a hit is detected in a column the column is

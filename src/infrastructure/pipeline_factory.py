@@ -68,7 +68,7 @@ class PipelineFactory:
         non_pii_llm = self._create_non_pii_llm() if self.config.NON_PERSONAL_DATA_DETECTION else None
         readme_llm = self._create_readme_llm() if self.config.README_SCAN else None
 
-        # Create GLiNER scanner if enabled (model loaded once here)
+        # Create GLiNER scanner if enabled (lazy-loaded on first scan)
         gliner_scanner = self._create_gliner_scanner() if self.config.GLINER_SCAN else None
 
         # Create prompt manager
@@ -106,7 +106,7 @@ class PipelineFactory:
         return self._get_llm_provider(self.config.README_SCAN_MODEL)
 
     def _create_gliner_scanner(self) -> GliNERScanner:
-        """Create and warm-up the GLiNER PII pre-scanner."""
+        """Create the GLiNER PII pre-scanner."""
         logger.info(
             f'Creating GliNERScanner (model={self.config.GLINER_MODEL}, '
             f'threshold={self.config.GLINER_THRESHOLD}, '
