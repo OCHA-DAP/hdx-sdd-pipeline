@@ -175,6 +175,7 @@ def process_dataset(
 
     download_url = None
     file_name = dataset_name
+    resource = None
 
     if is_resource_id:
         # Try to resolve metadata from CKAN

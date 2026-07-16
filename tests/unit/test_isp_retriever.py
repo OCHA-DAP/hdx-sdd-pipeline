@@ -144,15 +144,15 @@ def test_isp_retriever_no_resource_name_fallback(mock_ckan_client):
     assert rules == {'rule': 'default'}
 
 
-def test_isp_retriever_ckan_disabled_no_fallback():
-    """Test ISP retriever does NOT use resource name when CKAN is disabled."""
+def test_isp_retriever_ckan_disabled_uses_fallback():
+    """Test ISP retriever uses resource name fallback when CKAN is disabled."""
     retriever = ISPRetriever()
     mock_isps = {'default': {'rule': 'default'}, 'some_isp': {'country': 'tst', 'rule': 'custom'}}
 
     with patch('builtins.open', mock_open(read_data=json.dumps(mock_isps))):
         rules = retriever.get_isp_rules(None, 'tst.csv')
 
-    assert rules == {'rule': 'default'}
+    assert rules == {'country': 'tst', 'rule': 'custom'}
 
 
 def test_isp_retriever_caching():
@@ -241,15 +241,57 @@ def test_isp_retriever_location_metadata_unmatched_stops():
     assert rules == {'rule': 'default'}
 
 
-def test_isp_retriever_no_title_fallback():
-    """Test that title fallback is disabled and does not match."""
+def test_isp_retriever_no_title_fallback(mock_ckan_client):
+    """Test that title fallback is disabled for CKAN/cloud runs."""
     retriever = ISPRetriever()
     mock_isps = {'default': {'rule': 'default'}, 'venezuela_isp': {'country': 'ven', 'rule': 'venezuela_rules'}}
 
     with patch('builtins.open', mock_open(read_data=json.dumps(mock_isps))):
-        # Even if title specifies Venezuela, we do not check title
-        rules = retriever.get_isp_rules(None, dataset_location=None, dataset_title='This dataset is for Venezuela')
+        # When ckan_client and package_id are present, title fallback is disabled
+        rules = retriever.get_isp_rules(
+            'pkg123',
+            dataset_location=None,
+            dataset_title='This dataset is for Venezuela',
+            ckan_client=mock_ckan_client.return_value
+        )
     assert rules == {'rule': 'default'}
+
+
+def test_isp_retriever_local_title_fallback():
+    """Test that title fallback is enabled for local runs where CKAN is not present."""
+    retriever = ISPRetriever()
+    mock_isps = {
+        'default': {'rule': 'default'},
+        'venezuela_isp': {'country': 'ven', 'rule': 'venezuela_rules'},
+        'afghanistan_isp': {'country': 'afg', 'rule': 'afghan_rules'}
+    }
+
+    with patch('builtins.open', mock_open(read_data=json.dumps(mock_isps))):
+        # 1. Matches dataset_title when present
+        rules = retriever.get_isp_rules(
+            None,
+            dataset_location=None,
+            dataset_title='This dataset is for Venezuela'
+        )
+        assert rules == {'country': 'ven', 'rule': 'venezuela_rules'}
+
+        # 2. Falls back to resource_name if dataset_title is None
+        rules = retriever.get_isp_rules(
+            None,
+            resource_name='Venezuela data file.csv',
+            dataset_location=None,
+            dataset_title=None
+        )
+        assert rules == {'country': 'ven', 'rule': 'venezuela_rules'}
+
+        # 3. Correctly resolves country adjectives (e.g. Afghan -> afg)
+        rules = retriever.get_isp_rules(
+            None,
+            resource_name='Afghan Refugee Returnee 2026.csv',
+            dataset_location=None,
+            dataset_title=None
+        )
+        assert rules == {'country': 'afg', 'rule': 'afghan_rules'}
 
 
 def test_isp_retriever_groups_as_strings(mock_ckan_client):

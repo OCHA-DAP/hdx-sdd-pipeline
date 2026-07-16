@@ -39,6 +39,22 @@ ALT_NAMES = {
     'occupied palestinian territory': 'pse',
     'opt': 'pse',
     'syrian arab republic': 'syr',
+    'afghan': 'afg',
+    'burundian': 'bdi',
+    'cameroonian': 'cmr',
+    'congolese': 'cod',
+    'iraqi': 'irq',
+    'mozambican': 'moz',
+    'myanma': 'mmr',
+    'burmese': 'mmr',
+    'nigerien': 'ner',
+    'palestinian': 'pse',
+    'somali': 'som',
+    'sudanese': 'sdn',
+    'syrian': 'syr',
+    'ukrainian': 'ukr',
+    'venezuelan': 'ven',
+    'yemeni': 'yem',
 }
 
 
@@ -126,6 +142,17 @@ class ISPRetriever:
             # Location is known from metadata, but no specific ISP. Stop and use default.
             logger.info(f'Location specified as {dataset_location}, but no specific ISP found. Using default ISP.')
             return default_isp
+
+        # Try dataset title fallback if running locally/offline (no package_id or ckan_client)
+        if not package_id or not ckan_client:
+            title_to_check = dataset_title or resource_name
+            if title_to_check:
+                iso3 = self._resolve_iso3(title_to_check, isps)
+                if iso3:
+                    matched_isp = self.match_country(iso3, isps)
+                    if matched_isp:
+                        logger.info(f'Using title fallback for local run: {title_to_check}')
+                        return matched_isp
 
         # Fallback to default
         logger.info('No location specified - using ISP: default')

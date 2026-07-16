@@ -116,7 +116,12 @@ class EventProcessor:
             resource = None
             resource_name = None
 
-            if self.ckan:
+            # If resource_id is a file name (ends with common extensions), do not use CKAN
+            is_local_file = False
+            if resource_id:
+                is_local_file = any(resource_id.lower().endswith(ext) for ext in ('.csv', '.xlsx', '.xls', '.json'))
+
+            if self.ckan and not is_local_file:
                 if package_id:
                     try:
                         package = self.ckan.package_show(package_id)
@@ -322,9 +327,10 @@ class EventProcessor:
         # Convert reports to dict
         reports_dict = [report.to_dict() if isinstance(report, SheetReport) else report for report in reports]
 
-        # Check if CKAN updates are enabled
-        if self.ckan is None:
-            logger.warning('CKAN_UPDATE is disabled - saving to dev.json instead')
+        # Check if CKAN updates are enabled or if it is a local file
+        is_local_file = any(resource_id.lower().endswith(ext) for ext in ('.csv', '.xlsx', '.xls', '.json'))
+        if not self.config.CKAN_UPDATE or self.ckan is None or is_local_file:
+            logger.info('Saving to local file instead of CKAN')
             self._save_to_local_file(resource_id, reports_dict, sensitivity, sensitivity_level)
             return
 
