@@ -129,8 +129,8 @@ def test_isp_retriever_general_exception(mock_ckan_client):
     assert rules == {'rule': 'default'}
 
 
-def test_isp_retriever_resource_name_fallback(mock_ckan_client):
-    """Test ISP retriever falls back to resource name matching."""
+def test_isp_retriever_no_resource_name_fallback(mock_ckan_client):
+    """Test ISP retriever does NOT fall back to resource name matching."""
     retriever = ISPRetriever()
     mock_isps = {'default': {'rule': 'default'}, 'some_isp': {'country': 'tst', 'rule': 'custom'}}
 
@@ -138,30 +138,19 @@ def test_isp_retriever_resource_name_fallback(mock_ckan_client):
     mock_ckan_client.return_value.package_show.return_value = {'groups': []}
 
     with patch('builtins.open', mock_open(read_data=json.dumps(mock_isps))):
-        # Resource stem should be ISO3 and matched case-insensitively
+        # Even if filename contains the code, fallback is disabled
         rules = retriever.get_isp_rules('pkg123', 'TST.csv', mock_ckan_client.return_value)
 
-    assert rules == {'country': 'tst', 'rule': 'custom'}
+    assert rules == {'rule': 'default'}
 
 
-def test_isp_retriever_ckan_disabled_fallback():
-    """Test ISP retriever uses resource name when CKAN is disabled."""
+def test_isp_retriever_ckan_disabled_no_fallback():
+    """Test ISP retriever does NOT use resource name when CKAN is disabled."""
     retriever = ISPRetriever()
     mock_isps = {'default': {'rule': 'default'}, 'some_isp': {'country': 'tst', 'rule': 'custom'}}
 
     with patch('builtins.open', mock_open(read_data=json.dumps(mock_isps))):
         rules = retriever.get_isp_rules(None, 'tst.csv')
-
-    assert rules == {'country': 'tst', 'rule': 'custom'}
-
-
-def test_isp_retriever_non_iso3_resource_name_falls_back_to_default():
-    """Test ISP retriever falls back when resource stem is not a valid ISO3 match."""
-    retriever = ISPRetriever()
-    mock_isps = {'default': {'rule': 'default'}, 'some_isp': {'country': 'afg', 'rule': 'custom'}}
-
-    with patch('builtins.open', mock_open(read_data=json.dumps(mock_isps))):
-        rules = retriever.get_isp_rules(None, 'dataset_xyz_data.csv')
 
     assert rules == {'rule': 'default'}
 
@@ -230,3 +219,72 @@ def test_match_country_case_insensitive():
 
     result = retriever.match_country('afg', isps)
     assert result == {'country': 'AFG', 'rule': 'custom'}
+
+
+def test_isp_retriever_location_metadata_matched():
+    """Test that if dataset_location matches a custom ISP, we return it."""
+    retriever = ISPRetriever()
+    mock_isps = {
+        'default': {'rule': 'default'},
+        'venezuela_isp': {'country': 'ven', 'rule': 'venezuela_rules'}
+    }
+
+    with patch('builtins.open', mock_open(read_data=json.dumps(mock_isps))):
+        rules = retriever.get_isp_rules(
+            None,
+            dataset_location="Venezuela",
+            dataset_title="zimbabwe_events"
+        )
+    assert rules == {'country': 'ven', 'rule': 'venezuela_rules'}
+
+
+def test_isp_retriever_location_metadata_unmatched_stops():
+    """Test that if dataset_location is known but has no custom ISP (e.g. Zimbabwe), we stop and use default."""
+    retriever = ISPRetriever()
+    mock_isps = {
+        'default': {'rule': 'default'},
+        'venezuela_isp': {'country': 'ven', 'rule': 'venezuela_rules'}
+    }
+
+    with patch('builtins.open', mock_open(read_data=json.dumps(mock_isps))):
+        rules = retriever.get_isp_rules(
+            None,
+            dataset_location="Zimbabwe",
+            dataset_title="venezuela_data"
+        )
+    assert rules == {'rule': 'default'}
+
+
+def test_isp_retriever_no_title_fallback():
+    """Test that title fallback is disabled and does not match."""
+    retriever = ISPRetriever()
+    mock_isps = {
+        'default': {'rule': 'default'},
+        'venezuela_isp': {'country': 'ven', 'rule': 'venezuela_rules'}
+    }
+
+    with patch('builtins.open', mock_open(read_data=json.dumps(mock_isps))):
+        # Even if title specifies Venezuela, we do not check title
+        rules = retriever.get_isp_rules(
+            None,
+            dataset_location=None,
+            dataset_title="This dataset is for Venezuela"
+        )
+    assert rules == {'rule': 'default'}
+
+
+def test_isp_retriever_groups_as_strings(mock_ckan_client):
+    """Test that package groups returned as a list of strings are correctly matched."""
+    retriever = ISPRetriever()
+    mock_isps = {
+        'default': {'rule': 'default'},
+        'somalia_isp': {'country': 'som', 'rule': 'somalia_rules'}
+    }
+
+    mock_ckan_client.return_value.package_show.return_value = {'groups': ['Somalia']}
+
+    with patch('builtins.open', mock_open(read_data=json.dumps(mock_isps))):
+        rules = retriever.get_isp_rules('pkg123', ckan_client=mock_ckan_client.return_value)
+
+    assert rules == {'country': 'som', 'rule': 'somalia_rules'}
+

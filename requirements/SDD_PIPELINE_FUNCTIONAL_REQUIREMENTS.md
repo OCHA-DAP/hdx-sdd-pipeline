@@ -65,8 +65,8 @@ Any new feature request for this project must follow this order:
 - [x] FR-SDD-023: ISP rules must be retrieved and applied during sensitivity analysis.
   - Implemented behavior: Event processor resolves ISP rules from package/resource context before executing classification pipeline.
 
-- [x] FR-SDD-024: ISP matching from resource name must search the entire filename for a match.
-  - Implemented behavior: The system iterates through all configured ISPs and checks if their country ISO3 code is present as a substring (case-insensitive) within the entire resource name string.
+- [x] FR-SDD-024: [DEPRECATED] ISP matching from resource name is disabled.
+  - Implemented behavior: Resource name (filename) matching has been deprecated and disabled in favor of using dataset location only.
 
 - [x] FR-SDD-025: Data loader numeric value normalisation.
   - Implemented behavior: When loading data from CSV or Excel, elements in the preprocessed DataFrame are mapped element-wise to parse string-formatted integers or floats (including cleaning of comma and space thousands separators, supporting multiple and Unicode spaces like NBSP and NNBSP) into real numeric objects, ensuring data consistency across formats.
@@ -172,9 +172,12 @@ Any new feature request for this project must follow this order:
     - Apply an email regex fast-path to detect email addresses without invoking the GLiNER model.
     - Support non-Western (Arabic, Chinese, Cyrillic, etc.) names via the multilingual mGLiNER architecture.
     - Be individually switchable via a `GLINER_SCAN` configuration flag (default `false`).
-    - Expose `GLINER_THRESHOLD` (default `0.7`), `GLINER_MODEL`, and `GLINER_BATCH_SIZE` (default `0` for unlimited) as environment-driven configuration settings.
+    - Expose `GLINER_THRESHOLD` (default `0.9`), `GLINER_MODEL`, and `GLINER_BATCH_SIZE` (default `0` for unlimited) as environment-driven configuration settings.
     - Record GLiNER scan evidence (column, row index, matched text, label, score) in the sheet report for auditability.
     - Provide a complete, non-truncated explanation detailing the hits grouped by column (e.g. `'col': label ×count`).
+
+- [x] FR-SDD-058: ISP country matching from dataset location only.
+  - Expected behavior: ISP country selection must be resolved strictly using dataset location metadata (CKAN package groups or `dataset_location` metadata). Matching from the dataset title or the resource name (filename) is completely disabled. If a location is specified, it is matched against the custom ISPs in `isps.json`. If it does not match a custom ISP, or if no location is specified, the system returns the `default` ISP rules.
 
 ## Notes for implementers
 

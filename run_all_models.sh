@@ -5,12 +5,10 @@ echo "Starting batch processing for all models..."
 echo "=========================================="
 
 models=(
-    "gpt-4.1-nano"
-    "gpt-4.1-mini" 
-    "gpt-4.1"
-    "gpt-5-nano"
-    "gpt-5-mini"
-    "DeepSeek-V3.1"
+    "gpt-5.4-mini"
+    # "gpt-5.4"
+    # "DeepSeek-V3.1"
+    # "DeepSeek-V4-Pro"
 )
 
 for model in "${models[@]}"; do

@@ -172,9 +172,6 @@ class EventProcessor:
                 if resource.get('description'):
                     metadata['resource_description'] = truncate_description(resource.get('description'))
 
-            # Get ISP rules
-            isp_rules = self.isp_retriever.get_isp_rules(package_id, resource_name, self.ckan)
-
             # Fetch package metadata if CKAN is enabled, but try to reuse the package already fetched
             if self.ckan and package_id:
                 if not package:
@@ -235,6 +232,15 @@ class EventProcessor:
                                     metadata[key] = val
                     except Exception as e:
                         logger.warning(f'Failed to read local metadata from {local_metadata_path}: {e}')
+
+            # Get ISP rules
+            isp_rules = self.isp_retriever.get_isp_rules(
+                package_id,
+                resource_name,
+                self.ckan,
+                dataset_location=metadata.get('dataset_location'),
+                dataset_title=metadata.get('dataset_title'),
+            )
 
             # Process dataset using our use case
             logger.info(f'Processing dataset from: {download_url}')

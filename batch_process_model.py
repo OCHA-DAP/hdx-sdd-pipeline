@@ -218,6 +218,8 @@ def process_dataset(
             'download_url': download_url,
             'file_name': file_name,
             'event_type': 'batch-processing',
+            'package_id': resource.get('package_id') if resource else None,
+            'dataset_id': resource.get('package_id') if resource else None,
         }
 
         # Process using EventProcessor - it will write directly to {output_dir}/{dataset_name}.json
@@ -301,6 +303,7 @@ def main():
         api_token=config.HDX_KEY_PROD,
         user_agent=config.SDD_USER_AGENT,
     )
+    event_processor.ckan = ckan
 
     for i, dataset_name in enumerate(datasets, 1):
         print(f'[{i}/{total}] {dataset_name}')
