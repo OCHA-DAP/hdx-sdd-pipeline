@@ -105,12 +105,10 @@ class ISPRetriever:
         default_isp = isps.get('default', {})
 
         # Try package groups from CKAN first
-        logger.info(f'package_id: {package_id}, ckan_client: {ckan_client}')
         if package_id and ckan_client:
             try:
                 package = ckan_client.package_show(package_id)
                 groups = package.get('groups', [])
-                logger.info(f'Groups of package {package_id}: {groups}')
                 if groups:
                     for group in groups:
                         group_name = None
@@ -191,6 +189,7 @@ class ISPRetriever:
 
         # Clean text: replace non-alphanumeric characters with spaces
         cleaned = re.sub(r'[^a-zA-Z0-9\s]', ' ', text).lower()
+        cleaned = re.sub(r'\s+', ' ', cleaned).strip()
         cleaned_spaced = f' {cleaned} '
 
         # 1. Check for specific alternative names first
@@ -257,9 +256,11 @@ class ISPRetriever:
                     group_name = group
 
                 if group_name:
-                    matched_isp = self.match_country(group_name, isps)
-                    if matched_isp:
-                        return matched_isp
+                    iso3 = self._resolve_iso3(group_name, isps)
+                    if iso3:
+                        matched_isp = self.match_country(iso3, isps)
+                        if matched_isp:
+                            return matched_isp
 
         except Exception as e:
             logger.warning('Failed to get groups from CKAN: %s', e)

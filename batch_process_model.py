@@ -119,7 +119,7 @@ def get_groundtruth_datasets() -> List[str]:
     return datasets
 
 
-def get_source_file_path(dataset_name: str) -> Path:
+def get_source_file_path(dataset_name: str) -> Path | None:
     """
     Find the source data file for a given dataset name.
 
@@ -178,6 +178,7 @@ def process_dataset(
     resource = None
 
     if is_resource_id:
+        event_processor.ckan = ckan
         # Try to resolve metadata from CKAN
         try:
             resource = ckan.resource_show(dataset_name)
@@ -203,6 +204,7 @@ def process_dataset(
             )
             return False
     else:
+        event_processor.ckan = None
         # Sensitive dataset (local file)
         source_file = get_source_file_path(dataset_name)
         if source_file is None:
@@ -304,7 +306,6 @@ def main():
         api_token=config.HDX_KEY_PROD,
         user_agent=config.SDD_USER_AGENT,
     )
-    event_processor.ckan = ckan
 
     for i, dataset_name in enumerate(datasets, 1):
         print(f'[{i}/{total}] {dataset_name}')

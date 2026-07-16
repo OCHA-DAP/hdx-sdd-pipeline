@@ -252,7 +252,7 @@ def test_isp_retriever_no_title_fallback(mock_ckan_client):
             'pkg123',
             dataset_location=None,
             dataset_title='This dataset is for Venezuela',
-            ckan_client=mock_ckan_client.return_value
+            ckan_client=mock_ckan_client.return_value,
         )
     assert rules == {'rule': 'default'}
 
@@ -263,33 +263,23 @@ def test_isp_retriever_local_title_fallback():
     mock_isps = {
         'default': {'rule': 'default'},
         'venezuela_isp': {'country': 'ven', 'rule': 'venezuela_rules'},
-        'afghanistan_isp': {'country': 'afg', 'rule': 'afghan_rules'}
+        'afghanistan_isp': {'country': 'afg', 'rule': 'afghan_rules'},
     }
 
     with patch('builtins.open', mock_open(read_data=json.dumps(mock_isps))):
         # 1. Matches dataset_title when present
-        rules = retriever.get_isp_rules(
-            None,
-            dataset_location=None,
-            dataset_title='This dataset is for Venezuela'
-        )
+        rules = retriever.get_isp_rules(None, dataset_location=None, dataset_title='This dataset is for Venezuela')
         assert rules == {'country': 'ven', 'rule': 'venezuela_rules'}
 
         # 2. Falls back to resource_name if dataset_title is None
         rules = retriever.get_isp_rules(
-            None,
-            resource_name='Venezuela data file.csv',
-            dataset_location=None,
-            dataset_title=None
+            None, resource_name='Venezuela data file.csv', dataset_location=None, dataset_title=None
         )
         assert rules == {'country': 'ven', 'rule': 'venezuela_rules'}
 
         # 3. Correctly resolves country adjectives (e.g. Afghan -> afg)
         rules = retriever.get_isp_rules(
-            None,
-            resource_name='Afghan Refugee Returnee 2026.csv',
-            dataset_location=None,
-            dataset_title=None
+            None, resource_name='Afghan Refugee Returnee 2026.csv', dataset_location=None, dataset_title=None
         )
         assert rules == {'country': 'afg', 'rule': 'afghan_rules'}
 
@@ -305,3 +295,13 @@ def test_isp_retriever_groups_as_strings(mock_ckan_client):
         rules = retriever.get_isp_rules('pkg123', ckan_client=mock_ckan_client.return_value)
 
     assert rules == {'country': 'som', 'rule': 'somalia_rules'}
+
+
+def test_match_from_package_groups_resolves_iso3(mock_ckan_client):
+    """Test that _match_from_package_groups resolves string group names via _resolve_iso3."""
+    retriever = ISPRetriever()
+    isps = {'default': {'rule': 'default'}, 'somalia_isp': {'country': 'som', 'rule': 'somalia_rules'}}
+    mock_ckan_client.return_value.package_show.return_value = {'groups': ['Somalia']}
+
+    matched = retriever._match_from_package_groups('pkg123', isps, mock_ckan_client.return_value)
+    assert matched == {'country': 'som', 'rule': 'somalia_rules'}
