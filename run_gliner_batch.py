@@ -19,9 +19,6 @@ from config import get_config
 from src.infrastructure.data_loader import SmartDataLoader
 from src.infrastructure.gliner_scanner import GliNERScanner
 from src.shared.utils.ckan import CKANClient
-from src.domain.value_objects import PIIEntityType
-
-
 
 # Setup logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
@@ -133,33 +130,35 @@ def run_gliner_on_dataset(
         print(f"  Scanning sheet '{sheet_name}'...")
         scan_result = scanner.scan_dataframe(df)
 
-        explanation = ""
+        explanation = ''
         if scan_result.flagged:
             # Group hits by column
             from collections import Counter, defaultdict
+
             col_label_counts = defaultdict(Counter)
             for hit in scan_result.evidence:
                 col_label_counts[hit['column']][hit['label']] += 1
 
             col_summaries = []
             for col_name, label_counter in col_label_counts.items():
-                parts = [f"{label} \u00d7{count}" for label, count in label_counter.most_common()]
+                parts = [f'{label} \u00d7{count}' for label, count in label_counter.most_common()]
                 col_summaries.append(f"'{col_name}': {', '.join(parts)}")
 
-            explanation = f"GLiNER pre-scan detected personal data ({len(scan_result.evidence)} hit(s) across {len(col_label_counts)} column(s)): {'; '.join(col_summaries)}."
+            explanation = (
+                f"GLiNER pre-scan detected personal data ({len(scan_result.evidence)} "
+                f"hit(s) across {len(col_label_counts)} column(s)): {'; '.join(col_summaries)}."
+            )
 
-        gliner_reports.append({
-            "sheet_name": sheet_name,
-            "personal_data_sensitive": scan_result.flagged,
-            "explanation": explanation,
-            "gliner_scan_evidence": scan_result.evidence
-        })
+        gliner_reports.append(
+            {
+                'sheet_name': sheet_name,
+                'personal_data_sensitive': scan_result.flagged,
+                'explanation': explanation,
+                'gliner_scan_evidence': scan_result.evidence,
+            }
+        )
 
-    return {
-        "resource_id": dataset_name,
-        "file_name": file_name,
-        "gliner_reports": gliner_reports
-    }
+    return {'resource_id': dataset_name, 'file_name': file_name, 'gliner_reports': gliner_reports}
 
 
 def main():
@@ -169,7 +168,7 @@ def main():
 
     datasets = get_groundtruth_datasets()
     if not datasets:
-        print("No datasets found in groundtruth2!")
+        print('No datasets found in groundtruth2!')
         return
 
     output_dir = Path('research/results/gliner')
@@ -197,35 +196,35 @@ def main():
     failed = 0
     skipped = 0
 
-    print(f"Running GLiNER scan on {total} datasets...")
+    print(f'Running GLiNER scan on {total} datasets...')
 
     for i, dataset_name in enumerate(datasets, 1):
-        output_file = output_dir / f"{dataset_name}.json"
+        output_file = output_dir / f'{dataset_name}.json'
         if args.skip_existing and output_file.exists():
-            print(f"[{i}/{total}] ⏭️  Skipping {dataset_name} (already exists)")
+            print(f'[{i}/{total}] ⏭️  Skipping {dataset_name} (already exists)')
             skipped += 1
             continue
 
-        print(f"[{i}/{total}] Processing {dataset_name}")
+        print(f'[{i}/{total}] Processing {dataset_name}')
         try:
             report = run_gliner_on_dataset(dataset_name, data_loader, scanner, ckan)
             with output_file.open('w', encoding='utf-8') as f:
                 json.dump(report, f, indent=2, ensure_ascii=False)
-            print(f"  ✅ Saved report to {output_file}")
+            print(f'  ✅ Saved report to {output_file}')
             successful += 1
         except Exception as e:
-            print(f"  ❌ Failed to process {dataset_name}: {e}")
+            print(f'  ❌ Failed to process {dataset_name}: {e}')
             failed += 1
 
-    print("\n" + "="*50)
-    print("GLiNER BATCH PROCESSING COMPLETE")
-    print("="*50)
-    print(f"Total datasets: {total}")
-    print(f"✅ Successful: {successful}")
-    print(f"⏭️  Skipped: {skipped}")
-    print(f"❌ Failed: {failed}")
-    print(f"Reports saved to: {output_dir}")
-    print("="*50)
+    print('\n' + '=' * 50)
+    print('GLiNER BATCH PROCESSING COMPLETE')
+    print('=' * 50)
+    print(f'Total datasets: {total}')
+    print(f'✅ Successful: {successful}')
+    print(f'⏭️  Skipped: {skipped}')
+    print(f'❌ Failed: {failed}')
+    print(f'Reports saved to: {output_dir}')
+    print('=' * 50)
 
 
 if __name__ == '__main__':

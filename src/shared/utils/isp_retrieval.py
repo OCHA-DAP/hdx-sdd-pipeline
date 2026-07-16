@@ -14,31 +14,31 @@ logger = logging.getLogger(__name__)
 
 # Map of country ISO3 codes to lowercase country names for countries with custom ISPs
 CUSTOM_ISP_COUNTRIES = {
-    "afg": "afghanistan",
-    "bdi": "burundi",
-    "cmr": "cameroon",
-    "cod": "democratic republic of the congo",
-    "irq": "iraq",
-    "moz": "mozambique",
-    "mmr": "myanmar",
-    "ner": "niger",
-    "pse": "palestine",
-    "som": "somalia",
-    "ssd": "south sudan",
-    "sdn": "sudan",
-    "syr": "syria",
-    "ukr": "ukraine",
-    "ven": "venezuela",
-    "yem": "yemen"
+    'afg': 'afghanistan',
+    'bdi': 'burundi',
+    'cmr': 'cameroon',
+    'cod': 'democratic republic of the congo',
+    'irq': 'iraq',
+    'moz': 'mozambique',
+    'mmr': 'myanmar',
+    'ner': 'niger',
+    'pse': 'palestine',
+    'som': 'somalia',
+    'ssd': 'south sudan',
+    'sdn': 'sudan',
+    'syr': 'syria',
+    'ukr': 'ukraine',
+    'ven': 'venezuela',
+    'yem': 'yemen',
 }
 
 ALT_NAMES = {
-    "drc": "cod",
-    "democratic republic of congo": "cod",
-    "congo": "cod",
-    "occupied palestinian territory": "pse",
-    "opt": "pse",
-    "syrian arab republic": "syr",
+    'drc': 'cod',
+    'democratic republic of congo': 'cod',
+    'congo': 'cod',
+    'occupied palestinian territory': 'pse',
+    'opt': 'pse',
+    'syrian arab republic': 'syr',
 }
 
 
@@ -89,12 +89,12 @@ class ISPRetriever:
         default_isp = isps.get('default', {})
 
         # Try package groups from CKAN first
-        logger.info(f"package_id: {package_id}, ckan_client: {ckan_client}")
+        logger.info(f'package_id: {package_id}, ckan_client: {ckan_client}')
         if package_id and ckan_client:
             try:
                 package = ckan_client.package_show(package_id)
                 groups = package.get('groups', [])
-                logger.info(f"Groups of package {package_id}: {groups}")
+                logger.info(f'Groups of package {package_id}: {groups}')
                 if groups:
                     for group in groups:
                         group_name = None
@@ -164,22 +164,22 @@ class ISPRetriever:
 
         # Clean text: replace non-alphanumeric characters with spaces
         cleaned = re.sub(r'[^a-zA-Z0-9\s]', ' ', text).lower()
-        cleaned_spaced = f" {cleaned} "
+        cleaned_spaced = f' {cleaned} '
 
         # 1. Check for specific alternative names first
         alt_names_sorted = sorted(ALT_NAMES.keys(), key=len, reverse=True)
         for alt_name in alt_names_sorted:
-            if f" {alt_name} " in cleaned_spaced:
+            if f' {alt_name} ' in cleaned_spaced:
                 return ALT_NAMES[alt_name]
 
         # 2. Check custom ISP country names
         for iso3, country_name in CUSTOM_ISP_COUNTRIES.items():
-            if f" {country_name} " in cleaned_spaced:
+            if f' {country_name} ' in cleaned_spaced:
                 return iso3
 
         # 3. Check custom ISP ISO3 codes
         for iso3 in CUSTOM_ISP_COUNTRIES.keys():
-            if f" {iso3} " in cleaned_spaced:
+            if f' {iso3} ' in cleaned_spaced:
                 return iso3
 
         # 4. Check if any other ISO3 matches a custom ISP country from loaded isps (e.g. mock test country)
@@ -190,7 +190,7 @@ class ISPRetriever:
                 country_iso3 = isp_data.get('country', '')
                 if isinstance(country_iso3, str):
                     normalized_iso3 = country_iso3.strip().lower()
-                    if normalized_iso3 and f" {normalized_iso3} " in cleaned_spaced:
+                    if normalized_iso3 and f' {normalized_iso3} ' in cleaned_spaced:
                         return normalized_iso3
 
         return None

@@ -85,7 +85,8 @@ def test_process_event_uses_dataset_id_for_isp_lookup(mock_config, mock_pipeline
     success, _ = processor.process_event(event)
 
     assert success
-    processor.isp_retriever.get_isp_rules.assert_called_once_with('ds-123', 'data.csv', processor.ckan)
+    args, _ = processor.isp_retriever.get_isp_rules.call_args
+    assert args == ('ds-123', 'data.csv', processor.ckan)
 
 
 def test_determine_sensitivity_sensitive(mock_config, mock_pipeline_factory):
