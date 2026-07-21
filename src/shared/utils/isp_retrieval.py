@@ -62,9 +62,11 @@ class ISPRetriever:
             return matched_isp
 
         # Try matching from resource name (expected ISO3 filename stem)
-        matched_isp = self._match_from_resource_name(resource_name, isps)
-        if matched_isp:
-            return matched_isp
+        # Skip if package metadata is available (package_id is provided)
+        if not package_id:
+            matched_isp = self._match_from_resource_name(resource_name, isps)
+            if matched_isp:
+                return matched_isp
 
         # Fallback to default
         logger.info('No specific ISP found - using ISP: default')

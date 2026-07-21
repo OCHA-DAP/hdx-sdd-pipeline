@@ -71,6 +71,9 @@ Any new feature request for this project must follow this order:
 - [x] FR-SDD-025: Data loader numeric value normalisation.
   - Implemented behavior: When loading data from CSV or Excel, elements in the preprocessed DataFrame are mapped element-wise to parse string-formatted integers or floats (including cleaning of comma and space thousands separators, supporting multiple and Unicode spaces like NBSP and NNBSP) into real numeric objects, ensuring data consistency across formats.
 
+- [x] FR-SDD-058: Disable resource name matching fallback when package metadata is available.
+  - Implemented behavior: When package_id is provided (not None/empty), the pipeline must NOT fall back to matching the country from the resource name if package groups matching fails. It must fall back directly to the default ISP rules.
+
 ### Classification and sensitivity
 
 - [x] FR-SDD-030: The dataset pipeline must execute the implemented multi-stage classification flow.
