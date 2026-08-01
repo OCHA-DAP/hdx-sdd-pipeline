@@ -366,12 +366,12 @@ class TestReadmeScan:
     def test_readme_scan_v1_prompt_rendering(self):
         """Test that the latest v1 readme_scan template renders correctly with organization email instructions."""
         from src.shared.utils.prompt_manager import PromptManager
-        pm = PromptManager()
-        readme_content = "This is a test readme content with contact@ocha.org"
-        prompt = pm.get_prompt('readme_scan', version=None, context={'readme_string': readme_content})
-        
-        # Verify it uses the latest v1 template containing the new instructions
-        assert "excluding general organization contact addresses" in prompt
-        assert "info@unhcr.org" in prompt
-        assert "This is a test readme content with contact@ocha.org" in prompt
 
+        pm = PromptManager()
+        readme_content = 'This is a test readme content with contact@ocha.org'
+        prompt = pm.get_prompt('readme_scan', version=None, context={'readme_string': readme_content})
+
+        # Verify it uses the latest v1 template containing the new instructions
+        assert 'excluding general organization contact addresses' in prompt
+        assert 'info@unhcr.org' in prompt
+        assert 'This is a test readme content with contact@ocha.org' in prompt
