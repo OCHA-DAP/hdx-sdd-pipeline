@@ -150,7 +150,7 @@ def test_isp_retriever_ckan_disabled_fallback():
     mock_isps = {'default': {'rule': 'default'}, 'some_isp': {'country': 'tst', 'rule': 'custom'}}
 
     with patch('builtins.open', mock_open(read_data=json.dumps(mock_isps))):
-        rules = retriever.get_isp_rules(None, 'tst.csv')
+        rules = retriever.get_isp_rules('pkg123', 'tst.csv')
 
     assert rules == {'country': 'tst', 'rule': 'custom'}
 
