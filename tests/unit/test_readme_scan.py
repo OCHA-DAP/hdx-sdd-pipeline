@@ -369,9 +369,9 @@ class TestReadmeScan:
 
         pm = PromptManager()
         readme_content = 'This is a test readme content with contact@ocha.org'
-        prompt = pm.get_prompt('readme_scan', version=None, context={'readme_string': readme_content})
+        prompt = pm.get_prompt('readme_scan', version='v1', context={'readme_string': readme_content})
 
-        # Verify it uses the latest v1 template containing the new instructions
+        # Verify it uses the v1 template containing the new instructions
         assert 'excluding general organization contact addresses' in prompt
         assert 'info@unhcr.org' in prompt
         assert 'This is a test readme content with contact@ocha.org' in prompt
