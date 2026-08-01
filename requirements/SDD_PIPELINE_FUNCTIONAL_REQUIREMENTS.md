@@ -144,6 +144,9 @@ Any new feature request for this project must follow this order:
     2. Operational presence datasets (3W/4W/5W data) showing which organizations work in which locations are NOT "organization contact lists" or "mailing lists". Contact/mailing lists must contain personal contact details (names, emails, phone numbers).
     3. Aggregate population counts (such as numbers of displaced persons, IDPs, or beneficiaries) at Admin Level 2 or higher are general population/operational statistics and do not constitute a needs assessment.
 
+- [x] FR-SDD-059: Exclude organization email addresses from README scan PII detection.
+  - Expected behavior: The README scan prompt instructs the model to ignore organization-level/functional email addresses (such as contact/info/data mailboxes of an organization) and only flag personal/individual email addresses tied to an identifiable individual.
+
 ### Persistence and outputs
 
 - [x] FR-SDD-040: Results must be persisted either to CKAN or local output depending on runtime mode.
