@@ -139,7 +139,7 @@ def test_isp_retriever_no_resource_name_fallback_on_hdx(mock_ckan_client):
 
     with patch('builtins.open', mock_open(read_data=json.dumps(mock_isps))):
         # Even if resource name matches ISO3, it should not fall back to it because package_id is provided
-        rules = retriever.get_isp_rules('pkg123', 'TST.csv', mock_ckan_client.return_value)
+        rules = retriever.get_isp_rules('pkg123', resource_name='TST.csv', ckan_client=mock_ckan_client.return_value)
 
     assert rules == {'rule': 'default'}
 
