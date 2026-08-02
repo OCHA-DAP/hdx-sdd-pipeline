@@ -129,8 +129,8 @@ def test_isp_retriever_general_exception(mock_ckan_client):
     assert rules == {'rule': 'default'}
 
 
-def test_isp_retriever_resource_name_fallback(mock_ckan_client):
-    """Test ISP retriever falls back to resource name matching."""
+def test_isp_retriever_no_resource_name_fallback_on_hdx(mock_ckan_client):
+    """Test ISP retriever does not fall back to resource name matching when package metadata is available."""
     retriever = ISPRetriever()
     mock_isps = {'default': {'rule': 'default'}, 'some_isp': {'country': 'tst', 'rule': 'custom'}}
 
@@ -138,10 +138,10 @@ def test_isp_retriever_resource_name_fallback(mock_ckan_client):
     mock_ckan_client.return_value.package_show.return_value = {'groups': []}
 
     with patch('builtins.open', mock_open(read_data=json.dumps(mock_isps))):
-        # Resource stem should be ISO3 and matched case-insensitively
+        # Even if resource name matches ISO3, it should not fall back to it because package_id is provided
         rules = retriever.get_isp_rules('pkg123', 'TST.csv', mock_ckan_client.return_value)
 
-    assert rules == {'country': 'tst', 'rule': 'custom'}
+    assert rules == {'rule': 'default'}
 
 
 def test_isp_retriever_ckan_disabled_fallback():
@@ -150,7 +150,7 @@ def test_isp_retriever_ckan_disabled_fallback():
     mock_isps = {'default': {'rule': 'default'}, 'some_isp': {'country': 'tst', 'rule': 'custom'}}
 
     with patch('builtins.open', mock_open(read_data=json.dumps(mock_isps))):
-        rules = retriever.get_isp_rules(None, 'tst.csv')
+        rules = retriever.get_isp_rules('pkg123', 'tst.csv')
 
     assert rules == {'country': 'tst', 'rule': 'custom'}
 

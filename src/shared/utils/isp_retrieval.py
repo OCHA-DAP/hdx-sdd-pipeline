@@ -62,9 +62,11 @@ class ISPRetriever:
             return matched_isp
 
         # Try matching from resource name (expected ISO3 filename stem)
-        matched_isp = self._match_from_resource_name(resource_name, isps)
-        if matched_isp:
-            return matched_isp
+        # Skip resource-name fallback only when package metadata can be fetched (CKAN enabled and package_id provided)
+        if not package_id or not ckan_client:
+            matched_isp = self._match_from_resource_name(resource_name, isps)
+            if matched_isp:
+                return matched_isp
 
         # Fallback to default
         logger.info('No specific ISP found - using ISP: default')
