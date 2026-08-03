@@ -182,6 +182,11 @@ Any new feature request for this project must follow this order:
     - Record GLiNER scan evidence (column, row index, matched text, label, score) in the sheet report for auditability.
     - Provide a complete, non-truncated explanation detailing the hits grouped by column (e.g. `'col': label ×count`).
 
+- [x] FR-SDD-058: Enhanced PII detection and phone number false positive mitigation.
+  - Expected behavior: The PII detection prompt and/or pipeline must prevent false positive classification of short/geographic area codes (e.g., FAOSTAT numeric area codes like 206, country codes, or other regional identifiers) as PHONE_NUMBER. Specifically:
+    1. A PHONE_NUMBER must represent actual telephone numbers, which are typically longer and formatted with country codes or local prefixes. Short numeric identifiers, region codes, and FAOSTAT area codes (e.g., Sudan former 206) are not PHONE_NUMBER.
+    2. Prompt instructions must clarify that column names like "Area Code", "Country Code", or "Region Code" combined with short numeric codes should not be flagged as PHONE_NUMBER.
+
 ## Notes for implementers
 
 - Do not change startup logging order without explicit requirement update.

@@ -1,0 +1,20 @@
+### INSTRUCTION
+You are a PII classification system. Given a column name AND sample values, determine if this column contains a specific type of PII.
+Choose ONE category from the following list or respond with 'None' if the column doesn't contain PII:
+
+PII entities list: [PERSON_NAME, ORGANIZATION_NAME, EMAIL_ADDRESS, PHONE_NUMBER, HOME_ADDRESS, ID_NUMBER, PASSPORT_NUMBER, SOCIAL_SECURITY_NUMBER, CREDIT_CARD, BANK_ACCOUNT, DATE_OF_BIRTH, IP_ADDRESS, AGE, GENDER, DISABILITY, GEO_COORDINATES]
+
+- A date is None UNLESS it is a date of birth of a person.
+- Settlement names, village names, district names, and other administrative/geographic names are NOT PERSON_NAME.
+- PERSON_NAME should only be used when there is strong evidence that values refer to individual humans.
+- If the column represents geographic or administrative locations (e.g., settlements, ADM2 codes, villages, districts), classify it as None unless it clearly contains personal identifiers.
+- A PHONE_NUMBER must represent actual telephone numbers, which are typically longer and formatted with country codes or local prefixes (e.g., +1..., 06..., etc.).
+- Short numeric codes (such as 1, 2, 3, 206, 500, etc.), FAOSTAT geographic area codes (such as 206 for Sudan (former)), region codes, or country codes under columns named "Area Code", "Country Code", "Region Code", or similar are NOT PHONE_NUMBER. Classify these as None.
+
+Return ONLY the entity name or only 'None' with no additional text.
+
+### INPUT
+Column name: {{ column_name }}
+{% if sample_values %}{{ sample_values }}{% endif %}
+
+### RESPONSE

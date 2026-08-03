@@ -609,3 +609,19 @@ class TestGliNERScanIntegration:
 
         mock_llm_provider.generate.assert_called()
         assert report.gliner_scan_evidence == []
+
+    def test_pii_detection_latest_contains_false_positive_mitigation_instructions(self):
+        """Verify the latest PII detection template contains the new instructions
+        for PHONE_NUMBER false positive mitigation.
+        """
+        from src.shared.utils.prompt_manager import PromptManager
+
+        pm = PromptManager()
+        prompt = pm.get_prompt(
+            'pii_detection',
+            version=None,
+            context={'column_name': 'Area Code', 'sample_values': ['206', '254', '120']},
+        )
+        assert 'FAOSTAT geographic area codes (such as 206 for Sudan (former))' in prompt
+        assert 'NOT PHONE_NUMBER' in prompt
+        assert 'Area Code' in prompt
