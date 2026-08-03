@@ -611,7 +611,9 @@ class TestGliNERScanIntegration:
         assert report.gliner_scan_evidence == []
 
     def test_pii_detection_latest_contains_false_positive_mitigation_instructions(self):
-        """Verify the latest PII detection template contains the new instructions for PHONE_NUMBER false positive mitigation."""
+        """Verify the latest PII detection template contains the new instructions
+        for PHONE_NUMBER false positive mitigation.
+        """
         from src.shared.utils.prompt_manager import PromptManager
 
         pm = PromptManager()
