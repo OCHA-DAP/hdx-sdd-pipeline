@@ -242,6 +242,42 @@ class TestProcessDatasetUseCase:
         assert result.non_pii_classification.sensitivity == SensitivityLevel.SEVERE_SENSITIVE
         assert 'Classification failed due to an error: API error' in result.non_pii_classification.explanation
 
+    def test_classify_non_pii_max_tokens_minimum(self, use_case, mock_llm_provider):
+        """Test non-PII classification uses 2000 output tokens when column count * 5 <= 2000."""
+        report = SheetReport(file_name='test.csv', sheet_name='Sheet1')
+        for i in range(10):
+            report.add_column(Column(name=f'col{i}', sample_values=[f'val{i}']))
+
+        mock_llm_provider.generate_json.return_value = (
+            {'sensitivity': 'NON_SENSITIVE', 'explanation': 'Test', 'confidence': 0.9},
+            10,
+            20,
+        )
+
+        use_case._classify_non_pii(report, isp_rules=None)
+
+        mock_llm_provider.generate_json.assert_called_once()
+        args, kwargs = mock_llm_provider.generate_json.call_args
+        assert kwargs.get('max_tokens') == 2000
+
+    def test_classify_non_pii_max_tokens_scaled(self, use_case, mock_llm_provider):
+        """Test non-PII classification scales max_tokens when column count * 5 > 2000."""
+        report = SheetReport(file_name='test.csv', sheet_name='Sheet1')
+        use_case._generate_table_markdown = Mock(return_value='')  # avoid expensive markdown generation
+        for i in range(500):
+            report.add_column(Column(name=f'col{i}', sample_values=[f'val{i}']))
+        mock_llm_provider.generate_json.return_value = (
+            {'sensitivity': 'NON_SENSITIVE', 'explanation': 'Test', 'confidence': 0.9},
+            10,
+            20,
+        )
+
+        use_case._classify_non_pii(report, isp_rules=None)
+
+        mock_llm_provider.generate_json.assert_called_once()
+        args, kwargs = mock_llm_provider.generate_json.call_args
+        assert kwargs.get('max_tokens') == 2500
+
     def test_execute_from_url(self, use_case, mock_data_loader, mock_llm_provider):
         """Test execute with URL source."""
         # Setup mocks
@@ -356,3 +392,236 @@ class TestProcessDatasetUseCase:
 
         # Verified metadata passed down has None for dataset_location (omitted)
         assert passed_metadata['dataset_location'] is None
+
+
+# ---------------------------------------------------------------------------
+# GLiNER pre-scan integration tests (FR-SDD-057)
+# ---------------------------------------------------------------------------
+
+
+class TestGliNERScanIntegration:
+    """Tests for the GLiNER fast full-table PII pre-scan wired into ProcessDatasetUseCase."""
+
+    @pytest.fixture
+    def mock_data_loader(self):
+        loader = Mock()
+        loader.load_from_url = Mock()
+        loader.load_from_file = Mock()
+        loader.sample_dataframe = Mock(return_value={'Name': ['John', '', '', '', '']})
+        return loader
+
+    @pytest.fixture
+    def mock_llm_provider(self):
+        llm = Mock()
+        llm.model_name = 'test-model'
+        llm.generate = Mock(return_value=('NONE', 0, 0))
+        llm.generate_json = Mock(
+            return_value=(
+                {'sensitivity': 'NON_SENSITIVE', 'explanation': 'clean', 'confidence': 0.9},
+                0,
+                0,
+            )
+        )
+        return llm
+
+    @pytest.fixture
+    def mock_prompt_manager(self):
+        m = Mock()
+        m.get_prompt = Mock(return_value='prompt')
+        return m
+
+    @pytest.fixture
+    def mock_gliner_scanner_flagged(self):
+        """GLiNER scanner that always reports PII detected."""
+        from src.infrastructure.gliner_scanner import GliNERScanResult
+
+        scanner = Mock()
+        scanner.model_name = 'gliner-community/gliner_small-v2.5'
+        hit_result = GliNERScanResult()
+        hit_result.add_hit(column='Name', row_idx=0, text='Ahmed Al-Rashid', label='person name', score=0.91)
+        scanner.scan_dataframe = Mock(return_value=hit_result)
+        return scanner
+
+    @pytest.fixture
+    def mock_gliner_scanner_clean(self):
+        """GLiNER scanner that reports no PII."""
+        from src.infrastructure.gliner_scanner import GliNERScanResult
+
+        scanner = Mock()
+        scanner.model_name = 'gliner-community/gliner_small-v2.5'
+        scanner.scan_dataframe = Mock(return_value=GliNERScanResult())
+        return scanner
+
+    def _make_use_case(self, data_loader, llm_provider, prompt_manager, gliner_scanner=None):
+        return ProcessDatasetUseCase(
+            data_loader=data_loader,
+            pii_llm_provider=llm_provider,
+            pii_reflection_llm_provider=llm_provider,
+            non_pii_llm_provider=llm_provider,
+            prompt_manager=prompt_manager,
+            sample_size=5,
+            gliner_scanner=gliner_scanner,
+        )
+
+    # ------------------------------------------------------------------
+    # _run_gliner_scan unit
+    # ------------------------------------------------------------------
+
+    def test_run_gliner_scan_none_scanner_returns_false(self, mock_data_loader, mock_llm_provider, mock_prompt_manager):
+        """When gliner_scanner is None, _run_gliner_scan must return False."""
+        use_case = self._make_use_case(mock_data_loader, mock_llm_provider, mock_prompt_manager, gliner_scanner=None)
+        report = SheetReport(file_name='test.csv', sheet_name='Sheet1')
+        df = pd.DataFrame({'col': ['value']})
+
+        result = use_case._run_gliner_scan(df, report)
+
+        assert result is False
+        assert report.personal_data_sensitive is False
+
+    def test_run_gliner_scan_clean_returns_false(
+        self, mock_data_loader, mock_llm_provider, mock_prompt_manager, mock_gliner_scanner_clean
+    ):
+        use_case = self._make_use_case(
+            mock_data_loader, mock_llm_provider, mock_prompt_manager, gliner_scanner=mock_gliner_scanner_clean
+        )
+        report = SheetReport(file_name='test.csv', sheet_name='Sheet1')
+        df = pd.DataFrame({'City': ['Nairobi', 'Kabul']})
+
+        result = use_case._run_gliner_scan(df, report)
+
+        assert result is False
+        assert report.personal_data_sensitive is False
+
+    def test_run_gliner_scan_flagged_populates_report(
+        self, mock_data_loader, mock_llm_provider, mock_prompt_manager, mock_gliner_scanner_flagged
+    ):
+        use_case = self._make_use_case(
+            mock_data_loader, mock_llm_provider, mock_prompt_manager, gliner_scanner=mock_gliner_scanner_flagged
+        )
+        report = SheetReport(file_name='test.csv', sheet_name='Sheet1')
+        col = Column(name='Name', sample_values=['Ahmed'])
+        report.add_column(col)
+        df = pd.DataFrame({'Name': ['Ahmed Al-Rashid']})
+
+        flagged = use_case._run_gliner_scan(df, report)
+
+        assert flagged is True
+        assert report.personal_data_sensitive is True
+        assert report.personal_data_classification.sensitivity == SensitivityLevel.SEVERE_SENSITIVE
+        assert len(report.gliner_scan_evidence) == 1
+        assert report.gliner_scan_evidence[0]['label'] == 'person name'
+        # Explanation must be full and grouped per column (no '… and N more').
+        assert 'GLiNER' in report.personal_data_classification.explanation
+        assert '…' not in report.personal_data_classification.explanation
+        assert "'Name'" in report.personal_data_classification.explanation
+        assert report.pii_reflection_model == 'skipped - GLiNER pre-scan detected personal data'
+        assert 'gliner:' in report.pii_classifier_model
+        # Column entity type must be set from the dominant GLiNER label.
+        assert report.columns[0].pii_classification.entity_type == PIIEntityType.PERSON_NAME
+        assert report.columns[0].pii_classification.sensitive is True
+
+    def test_run_gliner_scan_marks_columns_sensitive(
+        self, mock_data_loader, mock_llm_provider, mock_prompt_manager, mock_gliner_scanner_flagged
+    ):
+        use_case = self._make_use_case(
+            mock_data_loader, mock_llm_provider, mock_prompt_manager, gliner_scanner=mock_gliner_scanner_flagged
+        )
+        report = SheetReport(file_name='test.csv', sheet_name='Sheet1')
+        for name in ['Name', 'City', 'Age']:
+            report.add_column(Column(name=name, sample_values=['val']))
+        df = pd.DataFrame({'Name': ['Ahmed'], 'City': ['Cairo'], 'Age': ['30']})
+
+        use_case._run_gliner_scan(df, report)
+
+        assert report.columns[0].pii_classification.sensitive is True  # Name
+        assert report.columns[1].pii_classification.sensitive is False  # City
+        assert report.columns[2].pii_classification.sensitive is False  # Age
+
+    def test_run_gliner_scan_exception_falls_through(self, mock_data_loader, mock_llm_provider, mock_prompt_manager):
+        """Scanner exception must not crash the pipeline; returns False."""
+        scanner = Mock()
+        scanner.model_name = 'dummy'
+        scanner.scan_dataframe = Mock(side_effect=RuntimeError('GPU OOM'))
+
+        use_case = self._make_use_case(mock_data_loader, mock_llm_provider, mock_prompt_manager, gliner_scanner=scanner)
+        report = SheetReport(file_name='test.csv', sheet_name='Sheet1')
+        df = pd.DataFrame({'Name': ['Ali']})
+
+        result = use_case._run_gliner_scan(df, report)
+
+        assert result is False
+        assert report.personal_data_sensitive is False
+
+    # ------------------------------------------------------------------
+    # End-to-end: create_data_report with GLiNER
+    # ------------------------------------------------------------------
+
+    def test_create_data_report_gliner_skips_llm_pii_steps(
+        self, mock_data_loader, mock_llm_provider, mock_prompt_manager, mock_gliner_scanner_flagged
+    ):
+        """When GLiNER fires, LLM generate() must NOT be called for PII detection."""
+        use_case = self._make_use_case(
+            mock_data_loader, mock_llm_provider, mock_prompt_manager, gliner_scanner=mock_gliner_scanner_flagged
+        )
+        df = pd.DataFrame({'Name': ['Ahmed Al-Rashid', 'Fatima Zahra']})
+
+        report = use_case._create_data_report(
+            sheet_name='Sheet1', source='test.csv', resource_id='r1', df=df, isp_rules=None
+        )
+
+        # LLM PII generate() must not have been called
+        mock_llm_provider.generate.assert_not_called()
+        # Non-PII LLM still runs
+        mock_llm_provider.generate_json.assert_called()
+        assert report.personal_data_sensitive is True
+        assert report.personal_data_classification.sensitivity == SensitivityLevel.SEVERE_SENSITIVE
+
+    def test_create_data_report_clean_gliner_proceeds_to_llm(
+        self, mock_data_loader, mock_llm_provider, mock_prompt_manager, mock_gliner_scanner_clean
+    ):
+        """When GLiNER is clean, LLM PII classification must still run."""
+        use_case = self._make_use_case(
+            mock_data_loader, mock_llm_provider, mock_prompt_manager, gliner_scanner=mock_gliner_scanner_clean
+        )
+        mock_llm_provider.generate.return_value = ('NONE', 5, 10)
+        df = pd.DataFrame({'City': ['Nairobi', 'Kabul']})
+        mock_data_loader.sample_dataframe.return_value = {'City': ['Nairobi', 'Kabul', '', '', '']}
+
+        report = use_case._create_data_report(
+            sheet_name='Sheet1', source='test.csv', resource_id='r1', df=df, isp_rules=None
+        )
+
+        # LLM PII step should have been called
+        mock_llm_provider.generate.assert_called()
+        assert report.gliner_scan_evidence == []
+
+    def test_create_data_report_no_scanner_backward_compat(
+        self, mock_data_loader, mock_llm_provider, mock_prompt_manager
+    ):
+        """Without a scanner, existing behaviour is preserved (backward compat)."""
+        use_case = self._make_use_case(mock_data_loader, mock_llm_provider, mock_prompt_manager, gliner_scanner=None)
+        mock_llm_provider.generate.return_value = ('NONE', 5, 10)
+        df = pd.DataFrame({'City': ['Nairobi']})
+
+        report = use_case._create_data_report(
+            sheet_name='Sheet1', source='test.csv', resource_id='r1', df=df, isp_rules=None
+        )
+
+        mock_llm_provider.generate.assert_called()
+        assert report.gliner_scan_evidence == []
+
+    def test_pii_detection_latest_contains_false_positive_mitigation_instructions(self):
+        """Verify the latest PII detection template contains the new instructions
+        for PHONE_NUMBER false positive mitigation.
+        """
+        from src.shared.utils.prompt_manager import PromptManager
+
+        pm = PromptManager()
+        prompt = pm.get_prompt(
+            'pii_detection',
+            version=None,
+            context={'column_name': 'Area Code', 'sample_values': ['206', '254', '120']},
+        )
+        assert 'FAOSTAT geographic area codes (such as 206 for Sudan (former))' in prompt
+        assert 'NOT PHONE_NUMBER' in prompt
+        assert 'Area Code' in prompt

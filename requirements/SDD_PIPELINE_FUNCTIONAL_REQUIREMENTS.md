@@ -71,6 +71,9 @@ Any new feature request for this project must follow this order:
 - [x] FR-SDD-025: Data loader numeric value normalisation.
   - Implemented behavior: When loading data from CSV or Excel, elements in the preprocessed DataFrame are mapped element-wise to parse string-formatted integers or floats (including cleaning of comma and space thousands separators, supporting multiple and Unicode spaces like NBSP and NNBSP) into real numeric objects, ensuring data consistency across formats.
 
+- [x] FR-SDD-058: Disable resource name matching fallback when package metadata is available.
+  - Implemented behavior: When package_id is provided (not None/empty) and CKAN metadata is fetchable (ckan_client is available), the pipeline must NOT fall back to matching the country from the resource name if package groups matching fails. It must fall back directly to the default ISP rules. If CKAN is disabled/unavailable, resource name matching fallback is still used even if package_id is provided.
+
 ### Classification and sensitivity
 
 - [x] FR-SDD-030: The dataset pipeline must execute the implemented multi-stage classification flow.
@@ -135,7 +138,14 @@ Any new feature request for this project must follow this order:
 - [x] FR-SDD-054: Optimize CKAN metadata retrieval to minimize API calls.
   - Expected behavior: When processing events, the pipeline should fetch package metadata via `package_show` first and extract resource-level details from the nested `resources` array, avoiding a separate `resource_show` API call unless the resource is missing from the package.
 
+- [x] FR-SDD-055: General guidelines for Non-PII classification prompts to improve handling of administrative levels, organization operational lists, and population stats.
+  - Expected behavior: Prompts must explicitly instruct the model that:
+    1. Geographic administrative levels and column names can be misleading. For instance, terms like "Locality" (e.g., in Sudan) represent Admin Level 2 (ADM2), which is not below ADM2. The model should leverage its pre-trained world knowledge about geographic structures, administrative divisions, and spelling conventions of specific countries to identify the correct administrative level rather than assuming default terms (like assuming "Locality" implies ADM3).
+    2. Operational presence datasets (3W/4W/5W data) showing which organizations work in which locations are NOT "organization contact lists" or "mailing lists". Contact/mailing lists must contain personal contact details (names, emails, phone numbers).
+    3. Aggregate population counts (such as numbers of displaced persons, IDPs, or beneficiaries) at Admin Level 2 or higher are general population/operational statistics and do not constitute a needs assessment.
 
+- [x] FR-SDD-059: Exclude organization email addresses from README scan PII detection.
+  - Expected behavior: The README scan prompt instructs the model to ignore organization-level/functional email addresses (such as contact/info/data mailboxes of an organization) and only flag personal/individual email addresses tied to an identifiable individual.
 
 ### Persistence and outputs
 
@@ -155,6 +165,27 @@ Any new feature request for this project must follow this order:
 
 - [x] FR-SDD-052: Processing failures must be logged with diagnostic context and returned as failure status.
   - Implemented behavior: Exceptions are logged with stack details and caller receives structured failure result.
+
+- [x] FR-SDD-056: Output tokens for non-PII classification configuration.
+  - Expected behavior: The output tokens (`max_tokens`) used for non-PII classification must be a minimum of 2000 output tokens. If the number of columns in the resource (sheet report) multiplied by 5 is greater than 2000, then use that number (`n_columns * 5`) as the output tokens (`max_tokens`).
+
+- [x] FR-SDD-057: GLiNER fast PII pre-scan.
+  - Expected behavior: Before the LLM-based PII classification step, the pipeline must run a fast, local GLiNER model scan over **all columns** of every data sheet to detect personal names, email addresses, and exact street addresses. If any are found, the sheet is immediately flagged as `personal_data_sensitive=True` with `personal_data_classification.sensitivity=SEVERE_SENSITIVE`, column-level sensitive flags are set, and the LLM PII classification and reflection steps are **skipped** (reusing the existing early-exit pattern). Non-PII classification continues normally. The scan must:
+    - Load the GLiNER model (`gliner-community/gliner_small-v2.5` by default) once on first use and reuse it for all subsequent scans.
+    - Process columns by extracting unique non-empty values (optionally capped at `GLINER_BATCH_SIZE` if greater than 0, defaulting to 0 for unlimited to scan all unique values), concatenating them into text chunks of at most 2000 characters, and running GLiNER prediction on each chunk.
+    - Stop scanning a column as soon as a PII entity is detected in that column (early-exit).
+    - Map the dominant detected entity label in a column to a `PIIEntityType` and assign it to the column's `pii_classification.entity_type` field.
+    - Apply an email regex fast-path to detect email addresses without invoking the GLiNER model.
+    - Support non-Western (Arabic, Chinese, Cyrillic, etc.) names via the multilingual mGLiNER architecture.
+    - Be individually switchable via a `GLINER_SCAN` configuration flag (default `false`).
+    - Expose `GLINER_THRESHOLD` (default `0.7`), `GLINER_MODEL`, and `GLINER_BATCH_SIZE` (default `0` for unlimited) as environment-driven configuration settings.
+    - Record GLiNER scan evidence (column, row index, matched text, label, score) in the sheet report for auditability.
+    - Provide a complete, non-truncated explanation detailing the hits grouped by column (e.g. `'col': label ×count`).
+
+- [x] FR-SDD-058: Enhanced PII detection and phone number false positive mitigation.
+  - Expected behavior: The PII detection prompt and/or pipeline must prevent false positive classification of short/geographic area codes (e.g., FAOSTAT numeric area codes like 206, country codes, or other regional identifiers) as PHONE_NUMBER. Specifically:
+    1. A PHONE_NUMBER must represent actual telephone numbers, which are typically longer and formatted with country codes or local prefixes. Short numeric identifiers, region codes, and FAOSTAT area codes (e.g., Sudan former 206) are not PHONE_NUMBER.
+    2. Prompt instructions must clarify that column names like "Area Code", "Country Code", or "Region Code" combined with short numeric codes should not be flagged as PHONE_NUMBER.
 
 ## Notes for implementers
 

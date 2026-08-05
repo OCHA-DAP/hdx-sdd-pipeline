@@ -56,8 +56,8 @@ Any new feature request for this project must follow this order:
 - [x] FR-EVAL-022: Batch process must support skip-existing behavior to avoid recomputation.
   - Implemented behavior: Existing model/dataset output files are detected and skipped when skip-existing is enabled.
 
-- [x] FR-EVAL-023: Batch status must be observable via API.
-  - Implemented behavior: Backend tracks running state, current model, completed/failed model lists, start time, and progress percentage.
+- [ ] FR-EVAL-023: Batch status must be observable via API.
+  - Planned behavior: Backend tracks running state, current model, completed/failed model lists, start time, and progress percentage (unused schemas and helper variables were removed since no active routes expose this).
 
 - [x] FR-EVAL-024: Scripted batch execution must support single-model override for all pipeline stages.
   - Implemented behavior: CLI batch script sets one model for PII detection, PII reflection, and non-PII detection while disabling CKAN update.

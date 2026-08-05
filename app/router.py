@@ -8,7 +8,6 @@ from datetime import datetime
 from pathlib import Path
 from fastapi import APIRouter, HTTPException
 from dotenv import load_dotenv
-from .schemas import BatchStatus
 from .sdd_io import load_sdd
 from .metrics_service import compute_performance, compute_cost
 
@@ -38,6 +37,7 @@ AVAILABLE_MODELS = [
     'gpt-5.4',
     'DeepSeek-V3.1',
     'DeepSeek-V4-Flash',
+    'DeepSeek-V4-Pro',
 ]
 
 PRICING: dict[str, dict[str, float | str]] = {
@@ -50,42 +50,9 @@ PRICING: dict[str, dict[str, float | str]] = {
     'gpt-5.4-mini': {'prompt': 0.65, 'completion': 3.88, 'currency': '€'},
     'gpt-5.4': {'prompt': 2.37, 'completion': 14.2, 'currency': '€'},
     'DeepSeek-V3.1': {'prompt': 1.05111, 'completion': 4.22151, 'currency': '€'},
-    'DeepSeek-V4-Flash': {'prompt': 0.00, 'completion': 0.00, 'currency': '€'},
+    'DeepSeek-V4-Pro': {'prompt': 1.49659, 'completion': 2.99317, 'currency': '€'},
+    'DeepSeek-V4-Flash': {'prompt': 0.16, 'completion': 0.44, 'currency': '€'},
 }
-
-# ---------------------------------------------------------------------------
-# Batch state  (replace with Redis / DB in production)
-# ---------------------------------------------------------------------------
-
-_batch_status = BatchStatus(
-    is_running=False,
-    current_model=None,
-    completed_models=[],
-    failed_models=[],
-    started_at=None,
-    progress=0,
-)
-
-
-# ---------------------------------------------------------------------------
-# Internal helpers
-# ---------------------------------------------------------------------------
-
-
-def _safe_filename(filename: str) -> str:
-    if any(sep in filename for sep in ('/', '\\')):
-        raise HTTPException(400, 'Invalid filename')
-    return Path(filename).name
-
-
-def _unique_path(directory: Path, filename: str) -> Path:
-    target = directory / filename
-    if not target.exists():
-        return target
-    stem, suffix = Path(filename).stem, Path(filename).suffix
-    ts = datetime.utcnow().strftime('%Y%m%d%H%M%S%f')
-    return directory / f'{stem}_{ts}{suffix}'
-
 
 # ---------------------------------------------------------------------------
 # Endpoints
