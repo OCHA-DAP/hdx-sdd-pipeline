@@ -175,7 +175,7 @@ class TestProcessDatasetUseCase:
     def test_classify_pii_sensitivity_non_sensitive(self, use_case, mock_llm_provider):
         """Test PII sensitivity classification for non-sensitive."""
         report = SheetReport(file_name='test.csv', sheet_name='Sheet1')
-        column = Column(name='phone', sample_values=['555-1234'])
+        column = Column(name='Area Code', sample_values=['206', '254'])
         column.pii_classification.entity_type = PIIEntityType.PHONE_NUMBER  # Use actual PII type
         report.add_column(column)
 
