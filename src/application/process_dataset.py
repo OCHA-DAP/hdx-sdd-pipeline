@@ -532,7 +532,7 @@ class ProcessDatasetUseCase:
             )
             # Call LLM
             result, comp_tokens, prompt_tokens = self.pii_reflection_llm.generate_json(
-                prompt, max_tokens=1024, reasoning_effort='high'
+                prompt, max_tokens=1024, reasoning_effort='medium'
             )
             logger.debug(f'PII sensitivity classification result: {result}')
 
@@ -626,7 +626,7 @@ class ProcessDatasetUseCase:
             # Minimum of 2000 output tokens, or number of columns * 5 if larger
             max_tokens = max(2000, len(report.columns) * 5)
             result, comp_tokens, prompt_tokens = self.non_pii_llm.generate_json(
-                prompt, max_tokens=max_tokens, reasoning_effort='high'
+                prompt, max_tokens=max_tokens, reasoning_effort='medium'
             )
 
             report.non_pii_classification = NonPIIClassification.from_dict(result)

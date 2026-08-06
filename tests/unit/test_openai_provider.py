@@ -263,7 +263,7 @@ class TestOpenAIProvider:
                 messages=[{'role': 'user', 'content': 'hello'}],
                 temperature=0.7,
                 max_tokens=100,
-                reasoning_effort='high',
+                reasoning_effort='medium',
                 top_p=0.9,
             )
 
