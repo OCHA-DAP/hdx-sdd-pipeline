@@ -191,7 +191,7 @@ Any new feature request for this project must follow this order:
   - Expected behavior:
     1. In the LLM provider, if a model is identified as a reasoning model (any model name containing 'gpt-5'), reasoning_effort should be configurable via standard parameters or kwargs (defaulting to 'minimal').
     2. When reasoning is active (reasoning_effort is not 'none'), standard temperature and top_p parameters must be stripped from the API payload to prevent validation errors. Standard temperature is only configured if reasoning_effort is explicitly 'none'.
-    3. The pipeline must configure reasoning_effort appropriately for each task: set it to 'low' for column-level PII entity detection and README scans, and set it to 'high' for PII reflection and non-PII classification.
+    3. The pipeline must configure reasoning_effort appropriately for each task: set it to 'low' for column-level PII entity detection and README scans, and set it to 'medium' for PII reflection and non-PII classification.
 
 
 

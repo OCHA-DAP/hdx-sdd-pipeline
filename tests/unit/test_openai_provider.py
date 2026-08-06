@@ -268,7 +268,7 @@ class TestOpenAIProvider:
             )
 
             call_kwargs = mock_client.chat.completions.with_raw_response.create.call_args[1]
-            assert call_kwargs['reasoning_effort'] == 'high'
+            assert call_kwargs['reasoning_effort'] == 'medium'
             assert 'temperature' not in call_kwargs
             assert 'top_p' not in call_kwargs
 
