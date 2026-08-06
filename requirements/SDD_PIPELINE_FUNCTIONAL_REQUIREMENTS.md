@@ -187,6 +187,9 @@ Any new feature request for this project must follow this order:
     1. A PHONE_NUMBER must represent actual telephone numbers, which are typically longer and formatted with country codes or local prefixes. Short numeric identifiers, region codes, and FAOSTAT area codes (e.g., Sudan former 206) are not PHONE_NUMBER.
     2. Prompt instructions must clarify that column names like "Area Code", "Country Code", or "Region Code" combined with short numeric codes should not be flagged as PHONE_NUMBER.
 
+- [x] FR-SDD-060: Route all PII entity types (including names, phone numbers, and emails) through table-level reflection.
+  - Expected behavior: Column-level detection of `PERSON_NAME`, `EMAIL_ADDRESS`, or `PHONE_NUMBER` must not bypass reflection or automatically flag the entire sheet as sensitive. Instead, these columns are passed to the table-level reflection step like other PII entity types, letting the reflection LLM determine the sheet-level sensitivity.
+
 ## Notes for implementers
 
 - Do not change startup logging order without explicit requirement update.
