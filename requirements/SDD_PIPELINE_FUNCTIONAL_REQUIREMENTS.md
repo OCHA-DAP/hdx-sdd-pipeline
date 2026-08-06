@@ -187,6 +187,15 @@ Any new feature request for this project must follow this order:
     1. A PHONE_NUMBER must represent actual telephone numbers, which are typically longer and formatted with country codes or local prefixes. Short numeric identifiers, region codes, and FAOSTAT area codes (e.g., Sudan former 206) are not PHONE_NUMBER.
     2. Prompt instructions must clarify that column names like "Area Code", "Country Code", or "Region Code" combined with short numeric codes should not be flagged as PHONE_NUMBER.
 
+- [x] FR-SDD-060: Support for GPT-5.4 reasoning effort and temperature handling.
+  - Expected behavior:
+    1. In the LLM provider, if a model is identified as a reasoning model (any model name containing 'gpt-5'), reasoning_effort should be configurable via standard parameters or kwargs (defaulting to 'minimal').
+    2. When reasoning is active (reasoning_effort is not 'none'), standard temperature and top_p parameters must be stripped from the API payload to prevent validation errors. Standard temperature is only configured if reasoning_effort is explicitly 'none'.
+    3. The pipeline must configure reasoning_effort appropriately for each task: set it to 'low' for column-level PII entity detection and README scans, and set it to 'high' for PII reflection and non-PII classification.
+
+
+
+
 ## Notes for implementers
 
 - Do not change startup logging order without explicit requirement update.
