@@ -88,15 +88,28 @@ class TestEndToEndPipeline:
         )
 
         # Mock the LLM responses
-        with patch.object(mock_llm_provider, 'generate') as mock_generate:
-            # Setup mock responses for PII classification (4 columns) + Reflection (1 call) + Non-PII (1 call)
+        with (
+            patch.object(mock_llm_provider, 'generate') as mock_generate,
+            patch.object(mock_llm_provider, 'generate_json') as mock_generate_json,
+        ):
+            # Setup mock responses for PII classification (4 columns)
             mock_generate.side_effect = [
                 ('PERSON_NAME', 5, 10),  # Name column
                 ('EMAIL_ADDRESS', 5, 10),  # Email column
                 ('AGE', 5, 10),  # Age column
                 ('None', 5, 10),  # Country column
+            ]
+            # Setup mock responses for generate_json (Reflection + Non-PII)
+            mock_generate_json.side_effect = [
                 # PII reflection response (ONE call for table)
-                ('SENSITIVE', 10, 20),
+                (
+                    {
+                        'sensitivity': 'SEVERE_SENSITIVE',
+                        'explanation': 'Contains personal identifiable information',
+                    },
+                    10,
+                    20,
+                ),
                 # Non-PII classification response
                 (
                     {
@@ -210,16 +223,26 @@ class TestEndToEndPipeline:
             sample_size=5,
         )
 
-        with patch.object(mock_llm_provider, 'generate') as mock_generate:
-            # All columns classified as None (3 columns) + Reflection (1 call) + Non-PII (1 call)
+        with (
+            patch.object(mock_llm_provider, 'generate') as mock_generate,
+            patch.object(mock_llm_provider, 'generate_json') as mock_generate_json,
+        ):
+            # All columns classified as None (3 columns)
             mock_generate.side_effect = [
                 ('None', 5, 10),  # Region
                 ('None', 5, 10),  # Population
                 ('None', 5, 10),  # Year
-                # PII Reflection
-                ('NON_SENSITIVE', 10, 20),
-                # Non-PII Classification
-                ('Classification: NON_SENSITIVE\n\nExplanation: Aggregated regional data', 20, 40),
+            ]
+            # Setup mock response for generate_json (Non-PII Classification)
+            mock_generate_json.side_effect = [
+                (
+                    {
+                        'sensitivity': 'NON_SENSITIVE',
+                        'explanation': 'Aggregated regional data',
+                    },
+                    20,
+                    40,
+                ),
             ]
 
             reports = use_case.execute(

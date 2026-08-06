@@ -150,35 +150,46 @@ class TestProcessDatasetUseCase:
         assert result.columns[0].pii_classification.sensitive is True
 
     def test_classify_pii_sensitivity(self, use_case, mock_llm_provider):
-        """Test PII sensitivity classification with sensitive PII entities (should skip LLM)."""
+        """Test PII sensitivity classification with sensitive PII entities (should NOT skip LLM)."""
         report = SheetReport(file_name='test.csv', sheet_name='Sheet1')
         column = Column(name='email', sample_values=['test@example.com'])
         column.pii_classification.entity_type = PIIEntityType.EMAIL_ADDRESS
         report.add_column(column)
 
-        # LLM should not be called due to sensitive PII detection
+        mock_llm_provider.generate_json.return_value = (
+            {'sensitivity': 'SEVERE_SENSITIVE', 'explanation': 'Contains direct email addresses'},
+            15,
+            30,
+        )
+
         result = use_case._classify_pii_sensitivity(report)
 
         assert result.columns[0].pii_classification.sensitive is True
-        assert result.completion_tokens == 0  # No LLM call made
-        assert result.prompt_tokens == 0  # No LLM call made
-        assert (
-            result.pii_reflection_model
-            == 'skipped - sensitive PII entities detected (email, phone number, or person names)'
-        )
+        assert result.completion_tokens == 15
+        assert result.prompt_tokens == 30
+        assert result.personal_data_sensitive is True
+        assert result.personal_data_classification.sensitivity == SensitivityLevel.SEVERE_SENSITIVE
+        assert result.personal_data_classification.explanation == 'Contains direct email addresses'
+        assert result.pii_reflection_model == 'test-model'
 
     def test_classify_pii_sensitivity_non_sensitive(self, use_case, mock_llm_provider):
         """Test PII sensitivity classification for non-sensitive."""
         report = SheetReport(file_name='test.csv', sheet_name='Sheet1')
-        column = Column(name='phone', sample_values=['555-1234'])
+        column = Column(name='Area Code', sample_values=['206', '254'])
         column.pii_classification.entity_type = PIIEntityType.PHONE_NUMBER  # Use actual PII type
         report.add_column(column)
 
-        mock_llm_provider.generate.return_value = ('non_sensitive', 10, 20)
+        mock_llm_provider.generate_json.return_value = (
+            {'sensitivity': 'NON_SENSITIVE', 'explanation': 'Only area codes, not personal phone numbers'},
+            10,
+            20,
+        )
 
         result = use_case._classify_pii_sensitivity(report)
 
-        assert result.columns[0].pii_classification.sensitive is True
+        assert result.columns[0].pii_classification.sensitive is False
+        assert result.personal_data_sensitive is False
+        assert result.personal_data_classification.sensitivity == SensitivityLevel.NON_SENSITIVE
 
     def test_classify_pii_sensitivity_error_handling(self, use_case, mock_llm_provider):
         """Test PII sensitivity handles errors."""
