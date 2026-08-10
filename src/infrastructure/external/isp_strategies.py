@@ -365,15 +365,22 @@ class GoogleSheetsISPStrategy:
             isp_dict[country_name] = data
 
         # Set default key correctly
-        # If 'default' exists in parsed keys, copy it to 'default' key as well, otherwise build hardcoded fallback
-        if 'default' in country_rules:
-            isp_dict['default'] = isp_dict['Default']
-            isp_dict['default']['is_default'] = True
+        # Ensure both 'Default' and 'default' keys are populated with ISO_CODE = 'default' and is_default = True
+        if 'default' in country_rules and 'Default' in isp_dict:
+            default_entry = isp_dict['Default']
+            default_entry['ISO_CODE'] = 'default'
+            default_entry['country'] = 'default'
+            default_entry['is_default'] = True
+            isp_dict['default'] = default_entry
         else:
-            isp_dict['default'] = self._build_default_isp()
+            default_entry = self._build_default_isp()
+            isp_dict['Default'] = default_entry
+            isp_dict['default'] = default_entry
 
-        total_unique_rules = sum(len(d.get('rules', [])) for k, d in isp_dict.items() if k != 'default')
-        logger.info(f'Loaded ISP rules for {len(isp_dict) - 1} countries ({total_unique_rules} total rules)')
+        total_unique_rules = sum(
+            len(d.get('rules', [])) for k, d in isp_dict.items() if k not in ('default', 'Default')
+        )
+        logger.info(f'Loaded ISP rules for {len(isp_dict) - 2} countries ({total_unique_rules} total rules)')
 
         return isp_dict
 
