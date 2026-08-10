@@ -18,6 +18,7 @@ from src.shared.utils.isp_retrieval import ISPRetriever
 
 # Legacy imports for CKAN and Redis (to be refactored later)
 from src.shared.utils.ckan import CKANClient
+from hdx_redis_lib import connect_to_key_value_store_with_env_vars
 
 from config import get_config
 from config.config import SlackClientWrapper
@@ -71,8 +72,36 @@ class EventProcessor:
         factory = PipelineFactory(self.config)
         self.pipeline = factory.create_pipeline(sample_size=5)
 
-        # Initialize ISP retriever
-        self.isp_retriever = ISPRetriever()
+        # Initialize ISP retriever strategy based on configuration
+        isp_strategy_name = self.config.ISP_STRATEGY.lower()
+        if isp_strategy_name == 'google_sheets':
+            from src.infrastructure.external.isp_strategies import GoogleSheetsISPStrategy
+
+            spreadsheet_url = self.config.ISP_GOOGLE_SHEET_URL
+            if not spreadsheet_url or not str(spreadsheet_url).strip():
+                message = (
+                    'ISP_STRATEGY is set to "google_sheets" but ISP_GOOGLE_SHEET_URL is unset or empty. '
+                    'Set ISP_GOOGLE_SHEET_URL to a valid Google Sheets URL or choose a different ISP_STRATEGY.'
+                )
+                logger.error(message)
+                raise ValueError(message)
+            strategy = GoogleSheetsISPStrategy(spreadsheet_url=spreadsheet_url)
+            logger.info(f'Using GoogleSheetsISPStrategy for ISP retrieval ({spreadsheet_url})')
+        else:
+            from src.infrastructure.external.isp_strategies import LocalJSONISPStrategy
+
+            strategy = LocalJSONISPStrategy(json_path=self.config.ISP_LOCAL_JSON_PATH)
+            logger.info(f'Using LocalJSONISPStrategy for ISP retrieval ({self.config.ISP_LOCAL_JSON_PATH})')
+
+        kv_store = None
+        if self.config.WORKER_ENABLED:
+            try:
+                kv_store = connect_to_key_value_store_with_env_vars(expire_in_seconds=60 * 60 * 12)
+                logger.info('Redis KV store connected for ISP caching')
+            except Exception as e:
+                logger.warning(f'Could not initialize Redis KV store for ISP: {e}')
+
+        self.isp_retriever = ISPRetriever(strategy=strategy, store=kv_store)
         self.slack = SlackClientWrapper()
 
         # Setup CKAN client if CKAN_UPDATE is enabled

@@ -188,7 +188,15 @@ Any new feature request for this project must follow this order:
     2. Prompt instructions must clarify that column names like "Area Code", "Country Code", or "Region Code" combined with short numeric codes should not be flagged as PHONE_NUMBER.
 
 - [x] FR-SDD-060: Route all PII entity types (including names, phone numbers, and emails) through table-level reflection.
-  - Expected behavior: After column-level *LLM* detection of `PERSON_NAME`, `EMAIL_ADDRESS`, or `PHONE_NUMBER`, the pipeline must not bypass reflection or automatically flag the entire sheet as sensitive. Instead, these columns are passed to the table-level reflection step like other PII entity types, letting the reflection LLM determine the sheet-level sensitivity. (This requirement does not change the FR-SDD-057 GLiNER early-exit behavior unless explicitly updated there.)
+- [x] FR-SDD-061: Decouple ISP retrieval via IISPStrategy protocol.
+  - Expected behavior: Decouple the ISP retrieval from a static file path by defining an `IISPStrategy` protocol. The pipeline will resolve ISP strategies dynamically, supporting both a local JSON strategy (`LocalJSONISPStrategy`) and a Google Sheets strategy (`GoogleSheetsISPStrategy`).
+  
+- [x] FR-SDD-062: Optionally cache loaded ISP rules in Redis store.
+  - Expected behavior: When running in event-driven worker mode, the loaded ISP rules from the configured strategy should be cached in Redis with a key `isp_rules_cache` expiring after 12 hours, avoiding redundant calls to Google Sheets or disk.
+
+- [x] FR-SDD-063: Sourced Google Sheets ISP rules must be parsed into forward-compatible structures.
+  - Expected behavior: The `GoogleSheetsISPStrategy` will connect to Google Sheets, retrieve rows from the "Data & Information Types Dataset" worksheet, map them using `COUNTRY_MAPPING_ISO` and sensitivity scales, and structure each country's ISP rules to include both the legacy text-blob keys (`low_no_sensitivity`, `medium_sensitivity`, `high_sensitivity`, `severe_sensitivity`) and the modern `sensitivity_rules` dictionary structure required by current prompts.
+
 ## Notes for implementers
 
 - Do not change startup logging order without explicit requirement update.
