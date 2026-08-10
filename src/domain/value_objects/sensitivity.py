@@ -7,7 +7,6 @@ class SensitivityLevel(str, Enum):
     """Enumeration of sensitivity levels for data classification."""
 
     NON_SENSITIVE = 'NON_SENSITIVE'
-    MEDIUM_SENSITIVE = 'MEDIUM_SENSITIVE'
     MEDIUM_SENSITIVE = 'MEDIUM_SENSITIVE'  # Alias for MODERATE
     HIGH_SENSITIVE = 'HIGH_SENSITIVE'
     SEVERE_SENSITIVE = 'SEVERE_SENSITIVE'
