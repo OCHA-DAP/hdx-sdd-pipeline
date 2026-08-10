@@ -513,7 +513,7 @@ class ProcessDatasetUseCase:
                 )
 
             # Update the legacy boolean flag for backward compatibility
-            # True for both MODERATE_SENSITIVE and HIGH_SENSITIVE
+            # True for both MEDIUM_SENSITIVE and HIGH_SENSITIVE
             report.personal_data_sensitive = report.personal_data_classification.sensitivity.is_sensitive()
 
             # Update column sensitivity flags based on the classification result

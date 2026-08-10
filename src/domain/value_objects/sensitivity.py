@@ -7,7 +7,7 @@ class SensitivityLevel(str, Enum):
     """Enumeration of sensitivity levels for data classification."""
 
     NON_SENSITIVE = 'NON_SENSITIVE'
-    MODERATE_SENSITIVE = 'MODERATE_SENSITIVE'
+    MEDIUM_SENSITIVE = 'MEDIUM_SENSITIVE'
     MEDIUM_SENSITIVE = 'MEDIUM_SENSITIVE'  # Alias for MODERATE
     HIGH_SENSITIVE = 'HIGH_SENSITIVE'
     SEVERE_SENSITIVE = 'SEVERE_SENSITIVE'
@@ -27,8 +27,8 @@ class SensitivityLevel(str, Enum):
         Examples:
             >>> SensitivityLevel.from_string("high")
             SensitivityLevel.HIGH_SENSITIVE
-            >>> SensitivityLevel.from_string("MODERATE_SENSITIVE")
-            SensitivityLevel.MODERATE_SENSITIVE
+            >>> SensitivityLevel.from_string("MEDIUM_SENSITIVE")
+            SensitivityLevel.MEDIUM_SENSITIVE
         """
         if not value:
             return cls.UNDETERMINED
@@ -40,9 +40,9 @@ class SensitivityLevel(str, Enum):
             'non_sensitive': cls.NON_SENSITIVE,
             'non-sensitive': cls.NON_SENSITIVE,
             'low': cls.NON_SENSITIVE,
-            'moderate_sensitive': cls.MODERATE_SENSITIVE,
-            'moderate-sensitive': cls.MODERATE_SENSITIVE,
-            'moderate': cls.MODERATE_SENSITIVE,
+            'moderate_sensitive': cls.MEDIUM_SENSITIVE,
+            'moderate-sensitive': cls.MEDIUM_SENSITIVE,
+            'moderate': cls.MEDIUM_SENSITIVE,
             'medium_sensitive': cls.MEDIUM_SENSITIVE,
             'medium-sensitive': cls.MEDIUM_SENSITIVE,
             'medium': cls.MEDIUM_SENSITIVE,
@@ -58,7 +58,7 @@ class SensitivityLevel(str, Enum):
 
     def is_sensitive(self) -> bool:
         """Check if this sensitivity level indicates sensitive data."""
-        return self in {self.MODERATE_SENSITIVE, self.MEDIUM_SENSITIVE, self.HIGH_SENSITIVE, self.SEVERE_SENSITIVE}
+        return self in {self.MEDIUM_SENSITIVE, self.MEDIUM_SENSITIVE, self.HIGH_SENSITIVE, self.SEVERE_SENSITIVE}
 
     def __str__(self) -> str:
         return self.value

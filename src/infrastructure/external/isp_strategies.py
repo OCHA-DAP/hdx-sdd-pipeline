@@ -28,7 +28,7 @@ COUNTRY_MAPPING_ISO = {
     'iraq': 'IRQ',
     'mozambique': 'MOZ',
     'myanmar': 'MMR',
-    'niger': 'NIG',
+    'niger': 'NER',
     'palestin': 'PSE',
     'opt': 'PSE',
     'pakistan': 'PAK',

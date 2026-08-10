@@ -46,7 +46,7 @@ def mock_isp_rules():
             'sensitivity_rules': {
                 'SEVERE_SENSITIVE': {'data and information type': ['Personal data of beneficiaries']},
                 'HIGH_SENSITIVE': {'data and information type': ['Survey data at household level']},
-                'MODERATE_SENSITIVE': {'data and information type': ['Aggregated data']},
+                'MEDIUM_SENSITIVE': {'data and information type': ['Aggregated data']},
                 'LOW/NON_SENSITIVE': {'data and information type': ['Public statistics']},
             }
         }

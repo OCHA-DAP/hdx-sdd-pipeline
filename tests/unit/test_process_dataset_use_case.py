@@ -232,14 +232,14 @@ class TestProcessDatasetUseCase:
         isp_rules = {'country': 'Ukraine', 'rules': {'location_data': 'HIGH_SENSITIVE'}}
 
         mock_llm_provider.generate_json.return_value = (
-            {'sensitivity': 'MODERATE_SENSITIVE', 'explanation': 'Test explanation', 'confidence': 0.8},
+            {'sensitivity': 'MEDIUM_SENSITIVE', 'explanation': 'Test explanation', 'confidence': 0.8},
             10,
             20,
         )
 
         result = use_case._classify_non_pii(report, isp_rules=isp_rules)
 
-        assert result.non_pii_classification.sensitivity == SensitivityLevel.MODERATE_SENSITIVE
+        assert result.non_pii_classification.sensitivity == SensitivityLevel.MEDIUM_SENSITIVE
 
     def test_classify_non_pii_error_handling(self, use_case, mock_llm_provider):
         """Test non-PII classification handles errors."""

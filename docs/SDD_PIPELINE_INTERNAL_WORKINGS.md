@@ -219,7 +219,7 @@ Evaluate the dataset at the sheet level, not at the individual column level.
 
 A dataset is considered:
 - NON_SENSITIVE if it cannot reasonably be used to identify individuals, even if it contains personal data entities (e.g., age ranges, gender, non-unique demographics, aggregate or anonymized microdata).
-- MODERATE_SENSITIVE if it contains row-level microdata with quasi-identifiers that somewhat increase re-identification risk, but without strong direct identifiers or highly unique combinations that make individuals readily identifiable.
+- MEDIUM_SENSITIVE if it contains row-level microdata with quasi-identifiers that somewhat increase re-identification risk, but without strong direct identifiers or highly unique combinations that make individuals readily identifiable.
 - HIGH_SENSITIVE if it could reasonably be used to identify individuals due to row-level microdata combined with direct identifiers (e.g., names, full addresses, IDs) or powerful quasi-identifiers that meaningfully increase re-identification risk.
 
 Important rules:
@@ -238,7 +238,7 @@ Provide the output as a single, valid JSON object following this exact schema:
 
 ```json
 {
-  "sensitivity": "<ONE OF: NON_SENSITIVE / MODERATE_SENSITIVE / HIGH_SENSITIVE>",
+  "sensitivity": "<ONE OF: NON_SENSITIVE / MEDIUM_SENSITIVE / HIGH_SENSITIVE>",
   "explanation": "<Provide a brief, clear explanation of WHY the final SensitivityClassification was chosen.>"
 }
 ````
@@ -274,7 +274,7 @@ Provide the output as a single, valid JSON object following this exact schema:
 **Output**: Sensitivity level classification:
 
 - `NON_SENSITIVE` - Publicly shareable data
-- `MODERATE_SENSITIVE` - Limited risk if disclosed
+- `MEDIUM_SENSITIVE` - Limited risk if disclosed
 - `HIGH_SENSITIVE` - Significant harm if disclosed
 - `SEVERE_SENSITIVE` - Serious harm or legal consequences
 - `UNDETERMINED` - Cannot determine
@@ -290,7 +290,7 @@ the table sensitive.
 
 Follow these exact steps:
 1. Analyze the table schema AND the records of the table.
-2. Use the ISP sensitivity levels: NON_SENSITIVE, MODERATE_SENSITIVE,
+2. Use the ISP sensitivity levels: NON_SENSITIVE, MEDIUM_SENSITIVE,
    HIGH_SENSITIVE, SEVERE_SENSITIVE. Only assign a sensitivity level if
    explicitly supported by ISP guidance.
 3. Identify ONLY the columns that are sensitive on their own OR that become
@@ -302,14 +302,14 @@ Follow these exact steps:
 ISP Rules
 SEVERE_SENSITIVE: {{ isp.sensitivity_rules.SEVERE_SENSITIVE['data and information type'] }}
 HIGH_SENSITIVE: {{ isp.sensitivity_rules.HIGH_SENSITIVE['data and information type'] }}
-MODERATE_SENSITIVE: {{ isp.sensitivity_rules.MODERATE_SENSITIVE['data and information type'] }}
+MEDIUM_SENSITIVE: {{ isp.sensitivity_rules.MEDIUM_SENSITIVE['data and information type'] }}
 NON_SENSITIVE: {{ isp.sensitivity_rules['LOW/NON_SENSITIVE']['data and information type'] }}
 
 Table:
 {{ table_markdown }}
 
 ### Response Format:
-- Sensitivity Classification: <ONE OF: NON_SENSITIVE / MODERATE_SENSITIVE / HIGH_SENSITIVE / SEVERE_SENSITIVE>
+- Sensitivity Classification: <ONE OF: NON_SENSITIVE / MEDIUM_SENSITIVE / HIGH_SENSITIVE / SEVERE_SENSITIVE>
 - List with ONLY the columns that are sensitive or in combination with other columns are sensitive.
 - Cited ISP Rule(s): Quote the specific ISP rule(s) that directly support the classification.
 - No markdown
@@ -733,7 +733,7 @@ class PIIEntityType(Enum):
 ```python
 class SensitivityLevel(Enum):
     NON_SENSITIVE = "NON_SENSITIVE"
-    MODERATE_SENSITIVE = "MODERATE_SENSITIVE"
+    MEDIUM_SENSITIVE = "MEDIUM_SENSITIVE"
     MEDIUM_SENSITIVE = "MEDIUM_SENSITIVE"
     HIGH_SENSITIVE = "HIGH_SENSITIVE"
     SEVERE_SENSITIVE = "SEVERE_SENSITIVE"
@@ -852,7 +852,7 @@ Information Sensitivity Protocols (ISP) are country-specific rules stored in `da
           "3W/4W data (at national and provincial level)"
         ]
       },
-      "MODERATE_SENSITIVE": {
+      "MEDIUM_SENSITIVE": {
         "data and information type": [
           "Survey or needs assessment data aggregated to the district level"
         ]
@@ -926,7 +926,7 @@ The default ISP provides general humanitarian data sensitivity guidelines:
 - Situation reports
 - Generic contact details
 
-**MODERATE_SENSITIVE**:
+**MEDIUM_SENSITIVE**:
 
 - Assessment data at ADM2/ADM3
 - Disaggregated data without personal identifiers

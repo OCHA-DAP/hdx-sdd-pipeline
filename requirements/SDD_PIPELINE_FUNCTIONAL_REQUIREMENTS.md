@@ -118,7 +118,7 @@ Any new feature request for this project must follow this order:
     - NPD Score: NONE/LOW/UNDETERMINED -> 0; MEDIUM -> 1; HIGH -> 2; SEVERE -> 3.
     - Sheet Risk: max(PD Score, NPD Score).
     - Resource/File Risk: max(all Sheet Risks).
-  - The `pii_reflection` prompt (specifically the latest version `v2.jinja`) must be updated to use the new PD classification scale (NON_SENSITIVE, HIGH_SENSITIVE, SEVERE_SENSITIVE) instead of the old MODERATE_SENSITIVE.
+  - The `pii_reflection` prompt (specifically the latest version `v2.jinja`) must be updated to use the new PD classification scale (NON_SENSITIVE, HIGH_SENSITIVE, SEVERE_SENSITIVE) instead of the old MEDIUM_SENSITIVE.
 
 - [x] FR-SDD-045: Metadata-aware prompts for PII reflection and non-PII classification.
   - Expected behavior: New Jinja prompt templates `pii_reflection/v4.jinja` (reflection), `non_pii_classification/v3.jinja` (standard non-PII), and `non_pii_classification/default/v1.jinja` (default non-PII) include dataset metadata (`dataset_title`, `dataset_description`, `dataset_source`, `dataset_location`, `organization_title`) and resource metadata (`resource_name`, `resource_description`), handling missing/null metadata fields gracefully without rendering empty entries.

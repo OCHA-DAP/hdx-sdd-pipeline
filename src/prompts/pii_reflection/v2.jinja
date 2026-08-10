@@ -10,7 +10,7 @@ Evaluate the dataset at the sheet level, not at the individual column level.
 
 A dataset is considered:
 - NON_SENSITIVE if it cannot reasonably be used to identify individuals, even if it contains personal data entities (e.g., age ranges, gender, non-unique demographics, aggregate or anonymized microdata).
-- MODERATE_SENSITIVE if it contains row-level microdata with quasi-identifiers that somewhat increase re-identification risk, but without strong direct identifiers or highly unique combinations that make individuals readily identifiable.
+- MEDIUM_SENSITIVE if it contains row-level microdata with quasi-identifiers that somewhat increase re-identification risk, but without strong direct identifiers or highly unique combinations that make individuals readily identifiable.
 - HIGH_SENSITIVE if it could reasonably be used to identify individuals due to row-level microdata combined with direct identifiers (e.g., names, full addresses, IDs) or powerful quasi-identifiers that meaningfully increase re-identification risk.
 
 Important rules:
@@ -29,7 +29,7 @@ Provide the output as a single, valid JSON object following this exact schema:
 
 ```json
 {
-  "sensitivity": "<ONE OF: NON_SENSITIVE / MODERATE_SENSITIVE / HIGH_SENSITIVE>",
+  "sensitivity": "<ONE OF: NON_SENSITIVE / MEDIUM_SENSITIVE / HIGH_SENSITIVE>",
   "explanation": "<Provide a brief, clear explanation of WHY the final SensitivityClassification was chosen.>"
 }
 ```
