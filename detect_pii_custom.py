@@ -77,7 +77,7 @@ def main():
                 endpoint=endpoint,
                 api_key=api_key,
             )
-            result, comp_tokens, prompt_tokens = provider.generate(prompt, max_tokens=24)
+            result, comp_tokens, prompt_tokens = provider.generate(prompt, max_tokens=24, reasoning_effort='low')
             print(f'Model: {model_name} | Classification: {result.strip()}')
         except Exception as e:
             print(f'Model: {model_name} | Error: {e}')

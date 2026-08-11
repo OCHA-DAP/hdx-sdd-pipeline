@@ -67,13 +67,24 @@ class OpenAIProvider:
 
         try:
             if self._is_reasoning_model():
-                raw_response = self.client.chat.completions.with_raw_response.create(
-                    model=self._model,
-                    messages=messages,
-                    max_completion_tokens=max_tokens + (1024 if response_format else 512),
-                    reasoning_effort='minimal',
+                reasoning_effort = kwargs.pop('reasoning_effort', 'minimal')
+                api_params = {
+                    'model': self._model,
+                    'messages': messages,
                     **extra,
-                )
+                }
+                if reasoning_effort == 'none':
+                    api_params['temperature'] = temperature
+                    api_params['max_tokens'] = max_tokens
+                    api_params.update(kwargs)
+                else:
+                    kwargs.pop('temperature', None)
+                    kwargs.pop('top_p', None)
+                    api_params['reasoning_effort'] = reasoning_effort
+                    api_params['max_completion_tokens'] = max_tokens + (1024 if response_format else 512)
+                    api_params.update(kwargs)
+
+                raw_response = self.client.chat.completions.with_raw_response.create(**api_params)
             else:
                 raw_response = self.client.chat.completions.with_raw_response.create(
                     model=self._model,
