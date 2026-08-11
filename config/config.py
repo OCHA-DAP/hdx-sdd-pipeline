@@ -56,11 +56,8 @@ class Config:
     DOWNLOAD_DIR: str = os.getenv('DOWNLOAD_DIR', '/tmp/download')
 
     # ISP Configuration
-    ISP_STRATEGY: str = os.getenv('ISP_STRATEGY', 'local')  # 'local' or 'google_sheets'
-    ISP_GOOGLE_SHEET_URL: str = os.getenv(
-        'ISP_GOOGLE_SHEET_URL',
-        'https://docs.google.com/spreadsheets/d/1Z5wj6H6WV2E8VN9r6y8AfdgOltTNL-z2KIlbnNzzPok/edit?gid=886310371#gid=886310371',
-    )
+    ISP_STRATEGY: str = os.getenv('ISP_STRATEGY', 'google_sheets')  # 'local' or 'google_sheets'
+    ISP_GOOGLE_SHEET_URL: str = os.getenv('ISP_GOOGLE_SHEET_URL', '')
     ISP_LOCAL_JSON_PATH: str = os.getenv('ISP_LOCAL_JSON_PATH', 'data/isps.json')
     GOOGLE_SHEETS_PRIVATE_KEY: str = os.getenv('GOOGLE_SHEETS_PRIVATE_KEY', '')
     GOOGLE_SHEETS_CLIENT_EMAIL: str = os.getenv('GOOGLE_SHEETS_CLIENT_EMAIL', '')
