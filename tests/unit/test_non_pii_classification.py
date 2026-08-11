@@ -47,11 +47,11 @@ class TestNonPIIClassification:
 
     def test_to_dict_basic(self):
         """Test to_dict with basic fields."""
-        classification = NonPIIClassification(sensitivity=SensitivityLevel.MODERATE_SENSITIVE)
+        classification = NonPIIClassification(sensitivity=SensitivityLevel.MEDIUM_SENSITIVE)
 
         result = classification.to_dict()
 
-        assert result['sensitivity'] == 'MODERATE_SENSITIVE'
+        assert result['sensitivity'] == 'MEDIUM_SENSITIVE'
         assert 'sensitive_columns' not in result
         assert 'cited_isp_rules' not in result
         assert 'explanation' not in result
@@ -80,7 +80,7 @@ class TestNonPIIClassification:
         classification = NonPIIClassification(
             sensitivity=SensitivityLevel.HIGH_SENSITIVE,
             sensitive_columns=['email', 'phone_number'],
-            cited_isp_rules=['Personal identifiers are HIGH_SENSITIVE', 'Contact information is MODERATE_SENSITIVE'],
+            cited_isp_rules=['Personal identifiers are HIGH_SENSITIVE', 'Contact information is MEDIUM_SENSITIVE'],
             explanation='Security-related information',
             confidence=0.95,
         )
@@ -91,18 +91,18 @@ class TestNonPIIClassification:
         assert result['sensitive_columns'] == ['email', 'phone_number']
         assert result['cited_isp_rules'] == [
             'Personal identifiers are HIGH_SENSITIVE',
-            'Contact information is MODERATE_SENSITIVE',
+            'Contact information is MEDIUM_SENSITIVE',
         ]
         assert result['explanation'] == 'Security-related information'
         assert result['confidence'] == 0.95
 
     def test_from_dict_basic(self):
         """Test from_dict with basic fields."""
-        data = {'sensitivity': 'MODERATE_SENSITIVE'}
+        data = {'sensitivity': 'MEDIUM_SENSITIVE'}
 
         classification = NonPIIClassification.from_dict(data)
 
-        assert classification.sensitivity == SensitivityLevel.MODERATE_SENSITIVE
+        assert classification.sensitivity == SensitivityLevel.MEDIUM_SENSITIVE
         assert classification.sensitive_columns is None
         assert classification.cited_isp_rules is None
         assert classification.explanation is None

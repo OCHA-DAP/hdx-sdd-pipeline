@@ -55,6 +55,17 @@ class Config:
     OUTPUT_DIR: str = os.getenv('OUTPUT_DIR', '/tmp/reports')
     DOWNLOAD_DIR: str = os.getenv('DOWNLOAD_DIR', '/tmp/download')
 
+    # ISP Configuration
+    ISP_STRATEGY: str = os.getenv('ISP_STRATEGY', 'local')  # 'local' or 'google_sheets'
+    ISP_GOOGLE_SHEET_URL: str = os.getenv(
+        'ISP_GOOGLE_SHEET_URL',
+        'https://docs.google.com/spreadsheets/d/1Z5wj6H6WV2E8VN9r6y8AfdgOltTNL-z2KIlbnNzzPok/edit?gid=886310371#gid=886310371',
+    )
+    ISP_LOCAL_JSON_PATH: str = os.getenv('ISP_LOCAL_JSON_PATH', 'data/isps.json')
+    GOOGLE_SHEETS_PRIVATE_KEY: str = os.getenv('GOOGLE_SHEETS_PRIVATE_KEY', '')
+    GOOGLE_SHEETS_CLIENT_EMAIL: str = os.getenv('GOOGLE_SHEETS_CLIENT_EMAIL', '')
+    GOOGLE_SHEETS_TOKEN_URI: str = os.getenv('GOOGLE_SHEETS_TOKEN_URI', '')
+
     # OpenAI
     OPENAI_ENDPOINT: str = os.getenv(
         'OPENAI_ENDPOINT', 'https://hdx-azurellm-classification.services.ai.azure.com/openai/v1'

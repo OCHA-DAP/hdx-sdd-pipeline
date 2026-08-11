@@ -118,7 +118,7 @@ Any new feature request for this project must follow this order:
     - NPD Score: NONE/LOW/UNDETERMINED -> 0; MEDIUM -> 1; HIGH -> 2; SEVERE -> 3.
     - Sheet Risk: max(PD Score, NPD Score).
     - Resource/File Risk: max(all Sheet Risks).
-  - The `pii_reflection` prompt (specifically the latest version `v2.jinja`) must be updated to use the new PD classification scale (NON_SENSITIVE, HIGH_SENSITIVE, SEVERE_SENSITIVE) instead of the old MODERATE_SENSITIVE.
+  - The `pii_reflection` prompt (specifically the latest version `v2.jinja`) must be updated to use the new PD classification scale (NON_SENSITIVE, HIGH_SENSITIVE, SEVERE_SENSITIVE) instead of the old MEDIUM_SENSITIVE.
 
 - [x] FR-SDD-045: Metadata-aware prompts for PII reflection and non-PII classification.
   - Expected behavior: New Jinja prompt templates `pii_reflection/v4.jinja` (reflection), `non_pii_classification/v3.jinja` (standard non-PII), and `non_pii_classification/default/v1.jinja` (default non-PII) include dataset metadata (`dataset_title`, `dataset_description`, `dataset_source`, `dataset_location`, `organization_title`) and resource metadata (`resource_name`, `resource_description`), handling missing/null metadata fields gracefully without rendering empty entries.
@@ -194,7 +194,15 @@ Any new feature request for this project must follow this order:
     3. The pipeline must configure reasoning_effort appropriately for each task: set it to 'low' for column-level PII entity detection and README scans, and set it to 'medium' for PII reflection and non-PII classification.
 
 - [x] FR-SDD-060: Route all PII entity types (including names, phone numbers, and emails) through table-level reflection.
-  - Expected behavior: After column-level *LLM* detection of `PERSON_NAME`, `EMAIL_ADDRESS`, or `PHONE_NUMBER`, the pipeline must not bypass reflection or automatically flag the entire sheet as sensitive. Instead, these columns are passed to the table-level reflection step like other PII entity types, letting the reflection LLM determine the sheet-level sensitivity. (This requirement does not change the FR-SDD-057 GLiNER early-exit behavior unless explicitly updated there.)
+- [x] FR-SDD-061: Decouple ISP retrieval via IISPStrategy protocol.
+  - Expected behavior: Decouple the ISP retrieval from a static file path by defining an `IISPStrategy` protocol. The pipeline will resolve ISP strategies dynamically, supporting both a local JSON strategy (`LocalJSONISPStrategy`) and a Google Sheets strategy (`GoogleSheetsISPStrategy`).
+  
+- [x] FR-SDD-062: Optionally cache loaded ISP rules in Redis store.
+  - Expected behavior: When running in event-driven worker mode, the loaded ISP rules from the configured strategy should be cached in Redis with a key `isp_rules_cache` expiring after 12 hours, avoiding redundant calls to Google Sheets or disk.
+
+- [x] FR-SDD-063: Sourced Google Sheets ISP rules must be parsed into forward-compatible structures.
+  - Expected behavior: The `GoogleSheetsISPStrategy` will connect to Google Sheets, retrieve rows from the "Data & Information Types Dataset" worksheet, map them using `COUNTRY_MAPPING_ISO` and sensitivity scales, and structure each country's ISP rules to include both the legacy text-blob keys (`low_no_sensitivity`, `medium_sensitivity`, `high_sensitivity`, `severe_sensitivity`) and the modern `sensitivity_rules` dictionary structure required by current prompts.
+
 ## Notes for implementers
 
 - Do not change startup logging order without explicit requirement update.
