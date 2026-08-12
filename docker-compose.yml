@@ -36,6 +36,11 @@ services:
       HDX_SDD_SLACK_ACCESS_TOKEN: ${HDX_SDD_SLACK_ACCESS_TOKEN:-your-token-here}
       OPENAI_ENDPOINT: ${OPENAI_ENDPOINT:-https://your-resource.openai.azure.com/}
       OPENAI_API_KEY: ${OPENAI_API_KEY:-your-api-key-here}
+      ISP_STRATEGY: ${ISP_STRATEGY:-google_sheets}
+      ISP_GOOGLE_SHEET_URL: ${ISP_GOOGLE_SHEET_URL:-https://docs.google.com/spreadsheets/d/your-spreadsheet-id/edit}
+      GOOGLE_SHEETS_PRIVATE_KEY: ${GOOGLE_SHEETS_PRIVATE_KEY:-your-private-key-here}
+      GOOGLE_SHEETS_CLIENT_EMAIL: ${GOOGLE_SHEETS_CLIENT_EMAIL:-your-service-account-email@example.com}
+      GOOGLE_SHEETS_TOKEN_URI: ${GOOGLE_SHEETS_TOKEN_URI:-https://oauth2.googleapis.com/token}
     entrypoint: [ "tail", "-f", "/dev/null" ]
     networks:
       - redis-network
