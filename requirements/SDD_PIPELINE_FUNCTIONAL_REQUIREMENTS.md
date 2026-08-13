@@ -206,6 +206,14 @@ Any new feature request for this project must follow this order:
 - [x] FR-SDD-064: Require sample-value confirmation for PERSON_NAME, EMAIL_ADDRESS, and PHONE_NUMBER PII classification.
   - Expected behavior: The PII detection prompt (`v3.jinja`) explicitly instructs the model that classification for PERSON_NAME, EMAIL_ADDRESS, and PHONE_NUMBER must not rely on the column name alone. The decision must be confirmed by the presence of actual personal names, email addresses, or phone numbers within the sample values. If sample values do not contain actual matching values (e.g., empty, numeric codes, or generic non-PII entries), classify as None.
 
+- [x] FR-SDD-065: Personal data risk focus and step-by-step evaluation rules in PII reflection prompt.
+  - Expected behavior: The PII reflection prompt (`v4.jinja`) explicitly instructs the model to assess PERSONAL data risk ONLY (identifying an individual human being). Precision of locations/sites/facilities is assessed separately under Information Sharing Protocols and must not influence this decision. The prompt includes a 3-step evaluation process:
+    1. Determine the unit of analysis (person, household, site/place/aggregate).
+    2. Identify individual-level columns.
+    3. Assign sensitivity level based on those columns only.
+
+
+
 
 ## Notes for implementers
 
