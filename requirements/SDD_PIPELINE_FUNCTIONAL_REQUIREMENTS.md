@@ -203,6 +203,9 @@ Any new feature request for this project must follow this order:
 - [x] FR-SDD-063: Sourced Google Sheets ISP rules must be parsed into forward-compatible structures.
   - Expected behavior: The `GoogleSheetsISPStrategy` will connect to Google Sheets, retrieve rows from the "Data & Information Types Dataset" worksheet, map them using `COUNTRY_MAPPING_ISO` and sensitivity scales, and structure each country's ISP rules to include both the legacy text-blob keys (`low_no_sensitivity`, `medium_sensitivity`, `high_sensitivity`, `severe_sensitivity`) and the modern `sensitivity_rules` dictionary structure required by current prompts.
 
+- [x] FR-SDD-064: Increased max completion tokens buffer for reasoning models in OpenAIProvider.
+  - Expected behavior: When invoking reasoning models (e.g., `gpt-5` family) in `OpenAIProvider`, the completion token budget (`max_completion_tokens`) must allocate a larger safety buffer for reasoning models—allocating `max_tokens + 8192`—to prevent token exhaustion during internal model reasoning and ensure valid JSON/text responses are generated.
+
 ## Notes for implementers
 
 - Do not change startup logging order without explicit requirement update.

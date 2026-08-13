@@ -237,7 +237,7 @@ class TestOpenAIProvider:
             call_kwargs = mock_client.chat.completions.with_raw_response.create.call_args[1]
 
             assert call_kwargs['model'] == 'gpt-5-reasoning'
-            assert call_kwargs['max_completion_tokens'] == 612
+            assert call_kwargs['max_completion_tokens'] == 8292
             assert call_kwargs['reasoning_effort'] == 'minimal'
             assert 'temperature' not in call_kwargs
             assert 'top_p' not in call_kwargs
@@ -332,7 +332,7 @@ class TestOpenAIProvider:
 
             call_kwargs = mock_client.chat.completions.with_raw_response.create.call_args[1]
 
-            assert call_kwargs['max_completion_tokens'] == 1124
+            assert call_kwargs['max_completion_tokens'] == 8292
             assert call_kwargs['response_format'] == {'type': 'json_object'}
 
     def test_call_error_with_response(self, provider, mock_client):

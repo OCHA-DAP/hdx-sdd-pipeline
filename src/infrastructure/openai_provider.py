@@ -81,7 +81,7 @@ class OpenAIProvider:
                     kwargs.pop('temperature', None)
                     kwargs.pop('top_p', None)
                     api_params['reasoning_effort'] = reasoning_effort
-                    api_params['max_completion_tokens'] = max_tokens + (1024 if response_format else 512)
+                    api_params['max_completion_tokens'] = max_tokens + 8192
                     api_params.update(kwargs)
 
                 raw_response = self.client.chat.completions.with_raw_response.create(**api_params)
