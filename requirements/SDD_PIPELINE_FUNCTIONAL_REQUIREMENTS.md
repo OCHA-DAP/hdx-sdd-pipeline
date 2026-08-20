@@ -212,8 +212,8 @@ Any new feature request for this project must follow this order:
     2. Identify individual-level columns.
     3. Assign sensitivity level based on those columns only.
 
-
-
+- [x] FR-SDD-066: Increased max completion tokens buffer for reasoning models in OpenAIProvider.
+  - Expected behavior: When invoking reasoning models (e.g., `gpt-5` family) in `OpenAIProvider`, the completion token budget (`max_completion_tokens`) must allocate a larger safety buffer for reasoning models—allocating `max_tokens + 8192`—to prevent token exhaustion during internal model reasoning and ensure valid JSON/text responses are generated.
 
 ## Notes for implementers
 
