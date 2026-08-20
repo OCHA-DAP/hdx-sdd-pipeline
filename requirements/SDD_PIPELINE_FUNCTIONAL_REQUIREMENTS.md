@@ -206,6 +206,9 @@ Any new feature request for this project must follow this order:
 - [x] FR-SDD-064: Increased max completion tokens buffer for reasoning models in OpenAIProvider.
   - Expected behavior: When invoking reasoning models (e.g., `gpt-5` family) in `OpenAIProvider`, the completion token budget (`max_completion_tokens`) must allocate a larger safety buffer for reasoning models—allocating `max_tokens + 8192`—to prevent token exhaustion during internal model reasoning and ensure valid JSON/text responses are generated.
 
+- [x] FR-SDD-065: Deterministic LLM execution via fixed random seed 42.
+  - Expected behavior: `OpenAIProvider` must pass `seed=42` in all OpenAI API completion requests (including reasoning models such as GPT-5.4 and standard models) to ensure deterministic response generation across pipeline executions.
+
 ## Notes for implementers
 
 - Do not change startup logging order without explicit requirement update.

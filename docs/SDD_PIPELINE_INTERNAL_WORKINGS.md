@@ -744,37 +744,49 @@ class SensitivityLevel(Enum):
 
 ## LLM Integration
 
-### AzureOpenAIProvider
+### OpenAIProvider
 
-The pipeline uses Azure OpenAI through a custom provider implementation:
+The pipeline uses OpenAI models (including GPT-4.1 series and reasoning models like GPT-5.4) through `OpenAIProvider`:
 
 ```python
-class AzureOpenAIProvider(ILLMProvider):
-    """Azure OpenAI implementation with token tracking and error handling."""
+class OpenAIProvider:
+    """OpenAI or OpenAI-compatible endpoint LLM provider."""
 
     def __init__(
         self,
         model_name: str,
-        azure_endpoint: str,
-        api_key: str,
+        endpoint: str | None = None,
+        api_key: str | None = None,
     ):
-        self.model_name = model_name
-        self.client = AzureOpenAI(
-            azure_endpoint=azure_endpoint,
+        self._model = model_name
+        self.client = OpenAI(
+            base_url=endpoint,
             api_key=api_key,
-            api_version="2024-02-15-preview"
         )
 ```
 
+**Deterministic Execution (Seed 42)**:
+
+- All completion requests made via `OpenAIProvider` include a fixed random seed parameter (`seed=42`) passed directly to the OpenAI API call.
+- This ensures reproducible and deterministic evaluation across pipeline runs for models including GPT-5.4 and GPT-4.1.
+
+**Reasoning Models (GPT-5 / GPT-5.4)**:
+
+- Models containing `gpt-5` are recognized as reasoning models.
+- Parameter configuration for reasoning models:
+  - Configures `reasoning_effort` (e.g. `'low'` for PII detection/README scans, `'medium'` for PII reflection and non-PII classification).
+  - Automatically strips incompatible parameters like `temperature` and `top_p` when reasoning is active (when `reasoning_effort` is not `'none'`).
+  - Expands `max_completion_tokens` by adding a safety buffer (`max_tokens + 8192`) for internal reasoning tokens.
+
 **Key Methods**:
 
-1. **`generate(prompt, max_tokens)`** - Generate text completion
+1. **`generate(prompt, system, temperature, max_tokens)`** - Generate text completion
    - Returns: `(response_text, completion_tokens, prompt_tokens)`
    - Tracks token usage
    - Logs warnings for high token usage
    - Comprehensive error handling
 
-2. **`generate_json(prompt, max_tokens)`** - Generate JSON response
+2. **`generate_json(prompt, system, temperature, max_tokens)`** - Generate JSON response
    - Returns: `(json_dict, completion_tokens, prompt_tokens)`
    - Validates JSON structure
    - Handles parsing errors

@@ -64,6 +64,7 @@ class OpenAIProvider:
         **kwargs,
     ):
         extra = {'response_format': response_format} if response_format else {}
+        seed = kwargs.pop('seed', 42)
 
         try:
             if self._is_reasoning_model():
@@ -71,6 +72,7 @@ class OpenAIProvider:
                 api_params = {
                     'model': self._model,
                     'messages': messages,
+                    'seed': seed,
                     **extra,
                 }
                 if reasoning_effort == 'none':
@@ -91,6 +93,7 @@ class OpenAIProvider:
                     messages=messages,
                     temperature=temperature,
                     max_tokens=max_tokens,
+                    seed=seed,
                     **extra,
                     **kwargs,
                 )
