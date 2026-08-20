@@ -295,6 +295,43 @@ def test_google_sheets_isp_strategy():
     ]
 
 
+def test_google_sheets_isp_strategy_filters_disabled_and_inactive():
+    """Test GoogleSheetsISPStrategy excludes disabled or inactive rows."""
+    from src.infrastructure.external.isp_strategies import GoogleSheetsISPStrategy
+    from unittest.mock import MagicMock
+
+    strategy = GoogleSheetsISPStrategy()
+    mock_client = MagicMock()
+    mock_spreadsheet = MagicMock()
+    mock_worksheet = MagicMock()
+    mock_readme_worksheet = MagicMock()
+
+    mock_client.open_by_url.return_value = mock_spreadsheet
+    mock_readme_worksheet.get_all_values.return_value = []
+    mock_spreadsheet.worksheet.side_effect = lambda name: mock_readme_worksheet if name == 'ReadMe' else mock_worksheet
+
+    mock_worksheet.get_all_values.return_value = [
+        ['Country', 'Sensitivity Level', 'Data / Information Type', 'Enabled', 'ISP Status'],
+        ['Afghanistan', 'low/no sensitivity', 'Active Rule 1', 'Yes', 'Active'],
+        ['Afghanistan', 'low/no sensitivity', 'Disabled Rule', 'No', 'Active'],
+        ['Sudan', 'high sensitivity', 'Dev Rule', 'Yes', 'Under development'],
+        ['Sudan', 'severe sensitivity', 'Unused Rule', 'Yes', 'Not used'],
+        ['Sudan', 'medium sensitivity', 'Active Rule 2', 'Yes', 'Approved'],
+    ]
+
+    with patch('src.infrastructure.external.google_sheets_client.get_gsheets', return_value=mock_client):
+        isps = strategy.get_isps()
+
+    assert 'Afghanistan' in isps
+    assert 'Active Rule 1' in isps['Afghanistan']['low_no_sensitivity']
+    assert 'Disabled Rule' not in isps['Afghanistan']['low_no_sensitivity']
+
+    assert 'Sudan' in isps
+    assert 'Active Rule 2' in isps['Sudan']['medium_sensitivity']
+    assert 'Dev Rule' not in isps['Sudan']['high_sensitivity']
+    assert 'Unused Rule' not in isps['Sudan']['severe_sensitivity']
+
+
 def test_isp_retriever_redis_caching():
     """Test ISPRetriever retrieves from and sets to Redis KV store."""
     from unittest.mock import MagicMock
