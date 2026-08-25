@@ -165,6 +165,7 @@ class TestOpenAIProvider:
             messages=[{'role': 'user', 'content': 'hello'}],
             temperature=0.7,
             max_tokens=100,
+            seed=42,
         )
 
     def test_call_standard_model_with_response_format(self, provider, mock_client):
@@ -239,6 +240,7 @@ class TestOpenAIProvider:
             assert call_kwargs['model'] == 'gpt-5-reasoning'
             assert call_kwargs['max_completion_tokens'] == 8292
             assert call_kwargs['reasoning_effort'] == 'minimal'
+            assert call_kwargs['seed'] == 42
             assert 'temperature' not in call_kwargs
             assert 'top_p' not in call_kwargs
 

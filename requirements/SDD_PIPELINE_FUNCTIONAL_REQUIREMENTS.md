@@ -210,6 +210,9 @@ Any new feature request for this project must follow this order:
   - Expected behavior: `GoogleSheetsISPStrategy` must skip rows where the 'Enabled' column (case-insensitive) is 'no', and skip rows where the 'ISP Status' column (case-insensitive) is 'under development' or 'not used', ensuring disabled or unapproved rules are not included in downstream prompts.
 
 
+- [x] FR-SDD-065: Deterministic LLM execution via fixed random seed 42.
+  - Expected behavior: `OpenAIProvider` must pass `seed=42` in all OpenAI API completion requests (including reasoning models such as GPT-5.4 and standard models) to ensure deterministic response generation across pipeline executions.
+
 ## Notes for implementers
 
 - Do not change startup logging order without explicit requirement update.
