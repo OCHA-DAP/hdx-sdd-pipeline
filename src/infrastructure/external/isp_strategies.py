@@ -299,6 +299,16 @@ class GoogleSheetsISPStrategy:
                     return ''
                 return str(row[idx]).strip()
 
+            enabled_raw = cell('Enabled').lower().strip()
+            if enabled_raw == 'no':
+                logger.debug(f'Row {row_num}: rule disabled (Enabled=No), skipping')
+                continue
+
+            isp_status_raw = cell('ISP Status').lower().strip()
+            if isp_status_raw in ('under development', 'not used'):
+                logger.debug(f'Row {row_num}: rule status "{isp_status_raw}", skipping')
+                continue
+
             country_raw = cell('Country').lower().strip()
             if not country_raw:
                 continue
@@ -314,7 +324,10 @@ class GoogleSheetsISPStrategy:
                 continue
 
             data_type = cell('Data / Information Type')
-            category = expand_category(cell('Category'))
+            category_col_name = (
+                'Data / Information Category' if 'Data / Information Category' in col_idx else 'Category'
+            )
+            category = expand_category(cell(category_col_name))
             disaggregation = cell('Lowest Disaggregation')
             instructions = cell('Rule Interpretation Instructions')
 

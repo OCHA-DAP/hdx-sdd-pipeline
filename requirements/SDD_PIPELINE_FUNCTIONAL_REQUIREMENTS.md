@@ -205,6 +205,10 @@ Any new feature request for this project must follow this order:
 
 - [x] FR-SDD-064: Increased max completion tokens buffer for reasoning models in OpenAIProvider.
   - Expected behavior: When invoking reasoning models (e.g., `gpt-5` family) in `OpenAIProvider`, the completion token budget (`max_completion_tokens`) must allocate a larger safety buffer for reasoning models—allocating `max_tokens + 8192`—to prevent token exhaustion during internal model reasoning and ensure valid JSON/text responses are generated.
+  
+- [x] FR-SDD-065: Exclusion of disabled or inactive rules in Google Sheets ISP strategy.
+  - Expected behavior: `GoogleSheetsISPStrategy` must skip rows where the 'Enabled' column (case-insensitive) is 'no', and skip rows where the 'ISP Status' column (case-insensitive) is 'under development' or 'not used', ensuring disabled or unapproved rules are not included in downstream prompts.
+
 
 ## Notes for implementers
 
