@@ -222,6 +222,16 @@ Any new feature request for this project must follow this order:
 - [x] FR-SDD-065: Deterministic LLM execution via fixed random seed 42.
   - Expected behavior: `OpenAIProvider` must pass `seed=42` in all OpenAI API completion requests (including reasoning models such as GPT-5.4 and standard models) to ensure deterministic response generation across pipeline executions.
 
+- [x] FR-SDD-067: Exclude organization-level email addresses from PII reflection sensitivity classification.
+  - Expected behavior: The PII reflection prompt (`v4.jinja`) must instruct the model that organization-level/functional
+    email addresses (e.g. generic info@, contact@, data@, or support@ mailboxes, or a shared country/program team
+    inbox not tied to one named person) are not, by themselves, personal data and must not be counted toward
+    re-identification risk at any sensitivity level (SEVERE_SENSITIVE or HIGH_SENSITIVE). Only email addresses
+    tied to an identifiable individual person (e.g. firstname.lastname@org) count toward the "direct
+    re-identification via email" criterion. This mirrors
+    the exclusion already applied in the README scan prompt (FR-SDD-059) but was missing from the table-level
+    reflection path that most data-column emails actually go through.
+
 ## Notes for implementers
 
 - Do not change startup logging order without explicit requirement update.
