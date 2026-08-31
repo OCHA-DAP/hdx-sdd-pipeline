@@ -5,7 +5,7 @@ You are a data governance assistant. Your task is to determine the overall **sen
 Follow these exact steps:
 
 1.  **Analyze** the table schema **AND** the values of each column in the table.
-2.  Use the ISP sensitivity levels: `NON_SENSITIVE`, `MODERATE_SENSITIVE`, `HIGH_SENSITIVE`, `SEVERE_SENSITIVE`. Only assign a sensitivity level if **explicitly** supported by ISP guidance.
+2.  Use the ISP sensitivity levels: `NON_SENSITIVE`, `MEDIUM_SENSITIVE`, `HIGH_SENSITIVE`, `SEVERE_SENSITIVE`. Only assign a sensitivity level if **explicitly** supported by ISP guidance.
 3.  **Identify ONLY** the columns that are sensitive on their own **OR** that become sensitive in combination with others, **DIRECTLY** supported by ISP guidance.
 4.  If multiple sensitivity levels might apply, always choose the **highest** one explicitly mentioned in the ISP for the relevant data type. We would rather be cautious than miss something.
 
@@ -31,10 +31,14 @@ Specific Guidance for Classification:
 ### Input:
 
 ISP Rules
-SEVERE\_SENSITIVE: `{{ isp.sensitivity_rules.SEVERE_SENSITIVE['data and information type'] }}`
-HIGH\_SENSITIVE: `{{ isp.sensitivity_rules.HIGH_SENSITIVE['data and information type'] }}`
-MODERATE\_SENSITIVE: `{{ isp.sensitivity_rules.MODERATE_SENSITIVE['data and information type'] }}`
-NON_SENSITIVE: `{{ isp.sensitivity_rules['LOW/NON_SENSITIVE']['data and information type'] }}`
+SEVERE_SENSITIVE:
+{{ isp.sensitivity_rules.SEVERE_SENSITIVE['data and information type'] | join('\n') }}
+HIGH_SENSITIVE:
+{{ isp.sensitivity_rules.HIGH_SENSITIVE['data and information type'] | join('\n') }}
+MEDIUM_SENSITIVE:
+{{ isp.sensitivity_rules.MEDIUM_SENSITIVE['data and information type'] | join('\n') }}
+NON_SENSITIVE:
+{{ isp.sensitivity_rules['LOW/NON_SENSITIVE']['data and information type'] | join('\n') }}
 
 {% if dataset_title or dataset_description or dataset_source or dataset_location or organization_title or resource_name or resource_description %}
 Metadata:
@@ -58,7 +62,7 @@ Provide the output as a single, valid JSON object following this exact schema:
 
 ```json
 {
-  "sensitivity": "<ONE OF: NON_SENSITIVE / MODERATE_SENSITIVE / HIGH_SENSITIVE / SEVERE_SENSITIVE>",
+  "sensitivity": "<ONE OF: NON_SENSITIVE / MEDIUM_SENSITIVE / HIGH_SENSITIVE / SEVERE_SENSITIVE>",
   "sensitive_columns": [
     "<Sensitive column name 1>",
     "<Sensitive column name 2>"

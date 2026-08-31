@@ -31,7 +31,7 @@ def test_prompt_rendering_with_metadata():
         'sensitivity_rules': {
             'SEVERE_SENSITIVE': {'data and information type': 'Severe Rule'},
             'HIGH_SENSITIVE': {'data and information type': 'High Rule'},
-            'MODERATE_SENSITIVE': {'data and information type': 'Moderate Rule'},
+            'MEDIUM_SENSITIVE': {'data and information type': 'Moderate Rule'},
             'LOW/NON_SENSITIVE': {'data and information type': 'Non-sensitive Rule'},
         }
     }

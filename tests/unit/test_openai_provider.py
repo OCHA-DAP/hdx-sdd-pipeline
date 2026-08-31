@@ -165,6 +165,7 @@ class TestOpenAIProvider:
             messages=[{'role': 'user', 'content': 'hello'}],
             temperature=0.7,
             max_tokens=100,
+            seed=42,
         )
 
     def test_call_standard_model_with_response_format(self, provider, mock_client):
@@ -237,9 +238,73 @@ class TestOpenAIProvider:
             call_kwargs = mock_client.chat.completions.with_raw_response.create.call_args[1]
 
             assert call_kwargs['model'] == 'gpt-5-reasoning'
-            assert call_kwargs['max_completion_tokens'] == 612
+            assert call_kwargs['max_completion_tokens'] == 8292
             assert call_kwargs['reasoning_effort'] == 'minimal'
+            assert call_kwargs['seed'] == 42
             assert 'temperature' not in call_kwargs
+            assert 'top_p' not in call_kwargs
+
+    def test_call_reasoning_model_custom_effort(self, mock_client):
+        """Test _call for reasoning models with custom effort."""
+        with patch(
+            'src.infrastructure.openai_provider.OpenAI',
+            return_value=mock_client,
+        ):
+            provider = OpenAIProvider(
+                model_name='gpt-5-reasoning',
+                endpoint='https://api.openai.com/v1',
+                api_key='test-key',
+            )
+
+            parsed_response = Mock()
+            raw_response = Mock()
+            raw_response.parse.return_value = parsed_response
+            mock_client.chat.completions.with_raw_response.create.return_value = raw_response
+
+            provider._call(
+                messages=[{'role': 'user', 'content': 'hello'}],
+                temperature=0.7,
+                max_tokens=100,
+                reasoning_effort='medium',
+                top_p=0.9,
+            )
+
+            call_kwargs = mock_client.chat.completions.with_raw_response.create.call_args[1]
+            assert call_kwargs['reasoning_effort'] == 'medium'
+            assert 'temperature' not in call_kwargs
+            assert 'top_p' not in call_kwargs
+
+    def test_call_reasoning_model_effort_none(self, mock_client):
+        """Test _call for reasoning models with reasoning_effort='none' retains temperature."""
+        with patch(
+            'src.infrastructure.openai_provider.OpenAI',
+            return_value=mock_client,
+        ):
+            provider = OpenAIProvider(
+                model_name='gpt-5-reasoning',
+                endpoint='https://api.openai.com/v1',
+                api_key='test-key',
+            )
+
+            parsed_response = Mock()
+            raw_response = Mock()
+            raw_response.parse.return_value = parsed_response
+            mock_client.chat.completions.with_raw_response.create.return_value = raw_response
+
+            provider._call(
+                messages=[{'role': 'user', 'content': 'hello'}],
+                temperature=0.4,
+                max_tokens=100,
+                reasoning_effort='none',
+                top_p=0.9,
+            )
+
+            call_kwargs = mock_client.chat.completions.with_raw_response.create.call_args[1]
+            assert 'reasoning_effort' not in call_kwargs
+            assert call_kwargs['temperature'] == 0.4
+            assert call_kwargs['top_p'] == 0.9
+            assert call_kwargs['max_tokens'] == 100
+            assert 'max_completion_tokens' not in call_kwargs
 
     def test_call_reasoning_model_with_response_format(self, mock_client):
         """Test reasoning model token adjustment with response_format."""
@@ -269,7 +334,7 @@ class TestOpenAIProvider:
 
             call_kwargs = mock_client.chat.completions.with_raw_response.create.call_args[1]
 
-            assert call_kwargs['max_completion_tokens'] == 1124
+            assert call_kwargs['max_completion_tokens'] == 8292
             assert call_kwargs['response_format'] == {'type': 'json_object'}
 
     def test_call_error_with_response(self, provider, mock_client):

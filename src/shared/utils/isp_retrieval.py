@@ -1,13 +1,7 @@
-"""
-ISP retrieval and matching utilities.
-
-This module handles loading ISP rules from JSON and matching them
-based on ISO3 codes from package metadata and resource names.
-"""
-
-import json
 import logging
 from typing import Dict, Any, Optional
+
+from src.application.interfaces.isp_strategy import IISPStrategy
 
 logger = logging.getLogger(__name__)
 
@@ -16,20 +10,28 @@ class ISPRetriever:
     """
     Handles retrieval and matching of ISP rules based on ISO3 codes.
 
-    This class loads ISP rules from a JSON file and provides methods to match
+    This class loads ISP rules from a strategy and provides methods to match
     the appropriate ISP based on ISO3 codes found in package metadata
     or resource filenames.
     """
 
-    def __init__(self, isp_file_path: str = 'data/isps.json'):
+    def __init__(self, strategy: Optional[IISPStrategy] = None, store: Optional[Any] = None):
         """
         Initialize ISP retriever.
 
         Args:
-            isp_file_path: Path to the ISP rules JSON file
+            strategy: Strategy to retrieve ISP rules. Defaults to LocalJSONISPStrategy.
+            store: RedisKeyValueStore to cache ISP rules.
         """
-        self.isp_file_path = isp_file_path
+        if strategy is None:
+            from src.infrastructure.external.isp_strategies import LocalJSONISPStrategy
+
+            self.strategy = LocalJSONISPStrategy('data/isps.json')
+        else:
+            self.strategy = strategy
+
         self._isps_cache = None
+        self.store = store
 
     def get_isp_rules(
         self, package_id: Optional[str], resource_name: Optional[str] = None, ckan_client=None
@@ -91,7 +93,8 @@ class ISPRetriever:
             return None
 
         for isp_name, isp_data in isps.items():
-            country_filter = isp_data.get('country', '')
+            # Support both country and ISO_CODE
+            country_filter = isp_data.get('ISO_CODE', isp_data.get('country', ''))
             if isinstance(country_filter, str) and country_filter.strip().lower() == normalized_iso3:
                 logger.info(f'Using ISP: {isp_name} (matched ISO3: {normalized_iso3})')
                 return isp_data
@@ -99,16 +102,35 @@ class ISPRetriever:
         return None
 
     def _load_isp_rules(self) -> Dict[str, Any]:
-        """Load ISP rules from JSON file with caching."""
+        """Load ISP rules from configured strategy with caching."""
         if self._isps_cache is not None:
             return self._isps_cache
 
+        cache_key = 'isp_rules_cache'
+
+        if self.store:
+            try:
+                cached_isps = self.store.get_object(cache_key)
+                if cached_isps:
+                    logger.info('Loaded ISP rules from Redis cache')
+                    self._isps_cache = cached_isps
+                    return self._isps_cache
+            except Exception as e:
+                logger.error(f'Failed to load ISP rules from Redis cache: {e}')
+
         try:
-            with open(self.isp_file_path, 'r', encoding='utf-8') as f:
-                self._isps_cache = json.load(f)
-                return self._isps_cache
+            self._isps_cache = self.strategy.get_isps()
+
+            if self.store and self._isps_cache:
+                try:
+                    # Cache the ISP rules for 12 hours
+                    self.store.set_object(cache_key, self._isps_cache, expire_in_seconds=60 * 60 * 12)
+                except Exception as e:
+                    logger.error(f'Failed to set ISP rules to Redis cache: {e}')
+
+            return self._isps_cache
         except Exception as e:
-            logger.error(f'Failed to load ISP rules file: {e}')
+            logger.error(f'Failed to load ISP rules: {e}')
             return {}
 
     def _match_from_package_groups(

@@ -266,14 +266,14 @@ class TestSheetReport:
         report = SheetReport(file_name='test.csv', sheet_name='Sheet1')
 
         # Set all fields
-        report.personal_data_classification.sensitivity = SensitivityLevel.MODERATE_SENSITIVE
+        report.personal_data_classification.sensitivity = SensitivityLevel.MEDIUM_SENSITIVE
         report.personal_data_classification.explanation = 'Some identifying information'
         report.personal_data_classification.confidence = 0.85
 
         result = report.to_dict()
 
         personal_data = result['personal_data']
-        assert personal_data['sensitivity'] == 'MODERATE_SENSITIVE'
+        assert personal_data['sensitivity'] == 'MEDIUM_SENSITIVE'
         assert personal_data['explanation'] == 'Some identifying information'
         assert personal_data['confidence'] == 0.85
 
@@ -351,7 +351,7 @@ class TestSheetReport:
 
         # Test Case B: PD=SEVERE_SENSITIVE (3), NPD=MEDIUM/MODERATE (1)
         report.personal_data_classification.sensitivity = SensitivityLevel.SEVERE_SENSITIVE
-        report.non_pii_classification.sensitivity = SensitivityLevel.MODERATE_SENSITIVE
+        report.non_pii_classification.sensitivity = SensitivityLevel.MEDIUM_SENSITIVE
         report.update_risk_levels()
         assert report.personal_data_risk_level == 3
         assert report.non_personal_data_risk_level == 1

@@ -110,7 +110,7 @@ class SheetReport:
             self.non_personal_data_risk_level = 3
         elif npd_sens == SensitivityLevel.HIGH_SENSITIVE:
             self.non_personal_data_risk_level = 2
-        elif npd_sens in (SensitivityLevel.MODERATE_SENSITIVE, SensitivityLevel.MEDIUM_SENSITIVE):
+        elif npd_sens in (SensitivityLevel.MEDIUM_SENSITIVE, SensitivityLevel.MEDIUM_SENSITIVE):
             self.non_personal_data_risk_level = 1
         else:
             self.non_personal_data_risk_level = 0

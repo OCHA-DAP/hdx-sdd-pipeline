@@ -230,3 +230,131 @@ def test_match_country_case_insensitive():
 
     result = retriever.match_country('afg', isps)
     assert result == {'country': 'AFG', 'rule': 'custom'}
+
+
+def test_google_sheets_isp_strategy():
+    """Test GoogleSheetsISPStrategy correctly parses Google Sheet rows."""
+    from src.infrastructure.external.isp_strategies import GoogleSheetsISPStrategy
+    from unittest.mock import MagicMock
+
+    strategy = GoogleSheetsISPStrategy()
+
+    # Mocking get_gsheets and components
+    mock_client = MagicMock()
+    mock_spreadsheet = MagicMock()
+    mock_worksheet = MagicMock()
+    mock_readme_worksheet = MagicMock()
+
+    mock_client.open_by_url.return_value = mock_spreadsheet
+
+    mock_readme_worksheet.get_all_values.return_value = [
+        ['Acronyms and abbreviations used in Data / Information types', ''],
+        ['AAP', 'Accountability to Affected Populations'],
+        ['SEA', 'Sexual Exploitation and Abuse'],
+        ['GBV', 'Gender Based Violence'],
+        ['HNO', 'Humanitarian Needs Overview'],
+    ]
+
+    def get_worksheet(name):
+        if name == 'ReadMe':
+            return mock_readme_worksheet
+        return mock_worksheet
+
+    mock_spreadsheet.worksheet.side_effect = get_worksheet
+
+    mock_worksheet.get_all_values.return_value = [
+        ['Country', 'Sensitivity Level', 'Data / Information Type', 'Category', 'Lowest Disaggregation'],
+        ['Afghanistan', 'low/no sensitivity', 'HNO data', '3W', 'Admin 1'],
+        ['default', 'severe sensitivity', 'SEA/GBV data', 'AAP', 'Community'],
+    ]
+
+    with patch('src.infrastructure.external.google_sheets_client.get_gsheets', return_value=mock_client):
+        isps = strategy.get_isps()
+
+    assert 'Afghanistan' in isps
+    assert isps['Afghanistan']['ISO_CODE'] == 'AFG'
+    # Category 3W expanded to "Who does What Where (3W)"
+    assert (
+        isps['Afghanistan']['low_no_sensitivity']
+        == '- HNO data (Category: Who does What Where (3W), Lowest Disaggregation Level: Admin 1)\n'
+        '-- Definitions: HNO = Humanitarian Needs Overview\n'
+    )
+    assert isps['Afghanistan']['sensitivity_rules']['LOW/NON_SENSITIVE']['data and information type'] == [
+        '- HNO data (Category: Who does What Where (3W), Lowest Disaggregation Level: Admin 1)\n'
+        '-- Definitions: HNO = Humanitarian Needs Overview\n'
+    ]
+
+    # Default is parsed from the sheet
+    assert 'default' in isps
+    assert isps['default']['is_default'] is True
+    assert isps['default']['sensitivity_rules']['SEVERE_SENSITIVE']['data and information type'] == [
+        '- SEA/GBV data (Category: Accountability to Affected Populations (AAP), '
+        'Lowest Disaggregation Level: Community)\n'
+        '-- Definitions: AAP = Accountability to Affected Populations, SEA = Sexual Exploitation and Abuse, '
+        'GBV = Gender Based Violence\n'
+    ]
+
+
+def test_google_sheets_isp_strategy_filters_disabled_and_inactive():
+    """Test GoogleSheetsISPStrategy excludes disabled or inactive rows."""
+    from src.infrastructure.external.isp_strategies import GoogleSheetsISPStrategy
+    from unittest.mock import MagicMock
+
+    strategy = GoogleSheetsISPStrategy()
+    mock_client = MagicMock()
+    mock_spreadsheet = MagicMock()
+    mock_worksheet = MagicMock()
+    mock_readme_worksheet = MagicMock()
+
+    mock_client.open_by_url.return_value = mock_spreadsheet
+    mock_readme_worksheet.get_all_values.return_value = []
+    mock_spreadsheet.worksheet.side_effect = lambda name: mock_readme_worksheet if name == 'ReadMe' else mock_worksheet
+
+    mock_worksheet.get_all_values.return_value = [
+        ['Country', 'Sensitivity Level', 'Data / Information Type', 'Enabled', 'ISP Status'],
+        ['Afghanistan', 'low/no sensitivity', 'Active Rule 1', 'Yes', 'Active'],
+        ['Afghanistan', 'low/no sensitivity', 'Disabled Rule', 'No', 'Active'],
+        ['Sudan', 'high sensitivity', 'Dev Rule', 'Yes', 'Under development'],
+        ['Sudan', 'severe sensitivity', 'Unused Rule', 'Yes', 'Not used'],
+        ['Sudan', 'medium sensitivity', 'Active Rule 2', 'Yes', 'Approved'],
+    ]
+
+    with patch('src.infrastructure.external.google_sheets_client.get_gsheets', return_value=mock_client):
+        isps = strategy.get_isps()
+
+    assert 'Afghanistan' in isps
+    assert 'Active Rule 1' in isps['Afghanistan']['low_no_sensitivity']
+    assert 'Disabled Rule' not in isps['Afghanistan']['low_no_sensitivity']
+
+    assert 'Sudan' in isps
+    assert 'Active Rule 2' in isps['Sudan']['medium_sensitivity']
+    assert 'Dev Rule' not in isps['Sudan']['high_sensitivity']
+    assert 'Unused Rule' not in isps['Sudan']['severe_sensitivity']
+
+
+def test_isp_retriever_redis_caching():
+    """Test ISPRetriever retrieves from and sets to Redis KV store."""
+    from unittest.mock import MagicMock
+
+    mock_strategy = MagicMock()
+    mock_store = MagicMock()
+
+    mock_isps = {'default': {'rule': 'from_strategy'}}
+    mock_strategy.get_isps.return_value = mock_isps
+
+    # 1. Cache hit case
+    mock_store.get_object.return_value = {'default': {'rule': 'cached'}}
+    retriever = ISPRetriever(strategy=mock_strategy, store=mock_store)
+
+    rules = retriever.get_isp_rules(None)
+    assert rules == {'rule': 'cached'}
+    mock_strategy.get_isps.assert_not_called()
+
+    # 2. Cache miss case
+    mock_store.get_object.return_value = None
+    retriever = ISPRetriever(strategy=mock_strategy, store=mock_store)
+
+    rules = retriever.get_isp_rules(None)
+    assert rules == {'rule': 'from_strategy'}
+    mock_strategy.get_isps.assert_called_once()
+    mock_store.set_object.assert_called_once_with('isp_rules_cache', mock_isps, expire_in_seconds=60 * 60 * 12)

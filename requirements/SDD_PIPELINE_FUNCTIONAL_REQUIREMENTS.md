@@ -118,7 +118,7 @@ Any new feature request for this project must follow this order:
     - NPD Score: NONE/LOW/UNDETERMINED -> 0; MEDIUM -> 1; HIGH -> 2; SEVERE -> 3.
     - Sheet Risk: max(PD Score, NPD Score).
     - Resource/File Risk: max(all Sheet Risks).
-  - The `pii_reflection` prompt (specifically the latest version `v2.jinja`) must be updated to use the new PD classification scale (NON_SENSITIVE, HIGH_SENSITIVE, SEVERE_SENSITIVE) instead of the old MODERATE_SENSITIVE.
+  - The `pii_reflection` prompt (specifically the latest version `v2.jinja`) must be updated to use the new PD classification scale (NON_SENSITIVE, HIGH_SENSITIVE, SEVERE_SENSITIVE) instead of the old MEDIUM_SENSITIVE.
 
 - [x] FR-SDD-045: Metadata-aware prompts for PII reflection and non-PII classification.
   - Expected behavior: New Jinja prompt templates `pii_reflection/v4.jinja` (reflection), `non_pii_classification/v3.jinja` (standard non-PII), and `non_pii_classification/default/v1.jinja` (default non-PII) include dataset metadata (`dataset_title`, `dataset_description`, `dataset_source`, `dataset_location`, `organization_title`) and resource metadata (`resource_name`, `resource_description`), handling missing/null metadata fields gracefully without rendering empty entries.
@@ -186,6 +186,41 @@ Any new feature request for this project must follow this order:
   - Expected behavior: The PII detection prompt and/or pipeline must prevent false positive classification of short/geographic area codes (e.g., FAOSTAT numeric area codes like 206, country codes, or other regional identifiers) as PHONE_NUMBER. Specifically:
     1. A PHONE_NUMBER must represent actual telephone numbers, which are typically longer and formatted with country codes or local prefixes. Short numeric identifiers, region codes, and FAOSTAT area codes (e.g., Sudan former 206) are not PHONE_NUMBER.
     2. Prompt instructions must clarify that column names like "Area Code", "Country Code", or "Region Code" combined with short numeric codes should not be flagged as PHONE_NUMBER.
+
+- [x] FR-SDD-059: Support for GPT-5.4 reasoning effort and temperature handling.
+  - Expected behavior:
+    1. In the LLM provider, if a model is identified as a reasoning model (any model name containing 'gpt-5'), reasoning_effort should be configurable via standard parameters or kwargs (defaulting to 'minimal').
+    2. When reasoning is active (reasoning_effort is not 'none'), standard temperature and top_p parameters must be stripped from the API payload to prevent validation errors. Standard temperature is only configured if reasoning_effort is explicitly 'none'.
+    3. The pipeline must configure reasoning_effort appropriately for each task: set it to 'low' for column-level PII entity detection and README scans, and set it to 'medium' for PII reflection and non-PII classification.
+
+- [x] FR-SDD-060: Route all PII entity types (including names, phone numbers, and emails) through table-level reflection.
+- [x] FR-SDD-061: Decouple ISP retrieval via IISPStrategy protocol.
+  - Expected behavior: Decouple the ISP retrieval from a static file path by defining an `IISPStrategy` protocol. The pipeline will resolve ISP strategies dynamically, supporting both a local JSON strategy (`LocalJSONISPStrategy`) and a Google Sheets strategy (`GoogleSheetsISPStrategy`).
+  
+- [x] FR-SDD-062: Optionally cache loaded ISP rules in Redis store.
+  - Expected behavior: When running in event-driven worker mode, the loaded ISP rules from the configured strategy should be cached in Redis with a key `isp_rules_cache` expiring after 12 hours, avoiding redundant calls to Google Sheets or disk.
+
+- [x] FR-SDD-063: Sourced Google Sheets ISP rules must be parsed into forward-compatible structures.
+  - Expected behavior: The `GoogleSheetsISPStrategy` will connect to Google Sheets, retrieve rows from the "Data & Information Types Dataset" worksheet, map them using `COUNTRY_MAPPING_ISO` and sensitivity scales, and structure each country's ISP rules to include both the legacy text-blob keys (`low_no_sensitivity`, `medium_sensitivity`, `high_sensitivity`, `severe_sensitivity`) and the modern `sensitivity_rules` dictionary structure required by current prompts.
+
+- [x] FR-SDD-064: Require sample-value confirmation for PERSON_NAME, EMAIL_ADDRESS, and PHONE_NUMBER PII classification.
+  - Expected behavior: The PII detection prompt (`v3.jinja`) explicitly instructs the model that classification for PERSON_NAME, EMAIL_ADDRESS, and PHONE_NUMBER must not rely on the column name alone. The decision must be confirmed by the presence of actual personal names, email addresses, or phone numbers within the sample values. If sample values do not contain actual matching values (e.g., empty, numeric codes, or generic non-PII entries), classify as None.
+
+- [x] FR-SDD-065: Personal data risk focus and step-by-step evaluation rules in PII reflection prompt.
+  - Expected behavior: The PII reflection prompt (`v4.jinja`) explicitly instructs the model to assess PERSONAL data risk ONLY (identifying an individual human being). Precision of locations/sites/facilities is assessed separately under Information Sharing Protocols and must not influence this decision. The prompt includes a 3-step evaluation process:
+    1. Determine the unit of analysis (person, household, site/place/aggregate).
+    2. Identify individual-level columns.
+    3. Assign sensitivity level based on those columns only.
+
+- [x] FR-SDD-066: Increased max completion tokens buffer for reasoning models in OpenAIProvider.
+  - Expected behavior: When invoking reasoning models (e.g., `gpt-5` family) in `OpenAIProvider`, the completion token budget (`max_completion_tokens`) must allocate a larger safety buffer for reasoning models—allocating `max_tokens + 8192`—to prevent token exhaustion during internal model reasoning and ensure valid JSON/text responses are generated.
+  
+- [x] FR-SDD-065: Exclusion of disabled or inactive rules in Google Sheets ISP strategy.
+  - Expected behavior: `GoogleSheetsISPStrategy` must skip rows where the 'Enabled' column (case-insensitive) is 'no', and skip rows where the 'ISP Status' column (case-insensitive) is 'under development' or 'not used', ensuring disabled or unapproved rules are not included in downstream prompts.
+
+
+- [x] FR-SDD-065: Deterministic LLM execution via fixed random seed 42.
+  - Expected behavior: `OpenAIProvider` must pass `seed=42` in all OpenAI API completion requests (including reasoning models such as GPT-5.4 and standard models) to ensure deterministic response generation across pipeline executions.
 
 ## Notes for implementers
 
