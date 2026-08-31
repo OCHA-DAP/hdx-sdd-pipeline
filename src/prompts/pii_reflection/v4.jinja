@@ -18,12 +18,13 @@ Follow these exact steps:
 A dataset is considered:
 - NON_SENSITIVE if it cannot reasonably be used to identify individuals, even if it contains personal data entities (e.g., age ranges only).
 - HIGH_SENSITIVE if it contains row-level microdata with quasi-identifiers that somewhat increase re-identification risk, but without strong direct identifiers or highly unique combinations that make individuals readily identifiable.
-- SEVERE_SENSITIVE if there is direct re-identification (e.g., names, BSN, email, phone number).
+- SEVERE_SENSITIVE if there is direct re-identification (e.g., names, BSN, a personal/individual email, phone number).
 
 Important rules:
 - Do NOT assume a column detected as a personal data entity is identifying by default.
 - Do NOT assume a column detected as "date" is a date of birth unless clearly supported by context.
 - Treat personal attributes (e.g., age, gender) as sensitive ONLY IF they are combined with other identifying or quasi-identifying variables such that identification is reasonably possible.
+- Organization-level/functional email addresses (e.g., generic info@, contact@, data@, or support@ mailboxes, or a shared country/program team inbox not tied to one named person) are NOT personal data and must NOT be counted toward re-identification risk at any sensitivity level (SEVERE_SENSITIVE or HIGH_SENSITIVE) by themselves. Only email addresses tied to an identifiable individual person (e.g., firstname.lastname@org) count.
 - Use only the information provided in the table header, sample rows, and metadata.
 
 
