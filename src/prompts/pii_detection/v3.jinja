@@ -5,6 +5,7 @@ Choose ONE category from the following list or respond with 'None' if the column
 PII entities list: [PERSON_NAME, ORGANIZATION_NAME, EMAIL_ADDRESS, PHONE_NUMBER, HOME_ADDRESS, ID_NUMBER, PASSPORT_NUMBER, SOCIAL_SECURITY_NUMBER, CREDIT_CARD, BANK_ACCOUNT, DATE_OF_BIRTH, IP_ADDRESS, AGE, GENDER, DISABILITY, GEO_COORDINATES]
 
 - For PERSON_NAME, EMAIL_ADDRESS, and PHONE_NUMBER, do NOT classify based on the column name alone. You MUST confirm that actual person names, valid email addresses, or phone numbers are present in the sample values. If the sample values do not contain actual matching values (e.g. empty, numeric codes, or generic non-PII text), classify as None.
+- Public or organization-level functional email addresses (such as generic contact@, info@, support@, or data@ mailboxes of an organization) are NOT EMAIL_ADDRESS PII. Classify EMAIL_ADDRESS only when sample values contain personal or individual email addresses tied to an identifiable person.
 - A date is None UNLESS it is a date of birth of a person.
 - Settlement names, village names, district names, and other administrative/geographic names are NOT PERSON_NAME.
 - PERSON_NAME should only be used when there is strong evidence that values refer to individual humans.

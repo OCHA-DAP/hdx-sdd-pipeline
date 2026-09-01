@@ -232,6 +232,11 @@ Any new feature request for this project must follow this order:
     the exclusion already applied in the README scan prompt (FR-SDD-059) but was missing from the table-level
     reflection path that most data-column emails actually go through.
 
+- [x] FR-SDD-068: Exclude organization-level and public functional email addresses from column-level PII detection prompt.
+  - Expected behavior: The PII detection prompt (`v3.jinja`) instructs the model to ignore public, organization-level, or functional email addresses (e.g. generic info@, contact@, support@, or data@ mailboxes of an organization) and only classify `EMAIL_ADDRESS` when sample values contain personal or individual email addresses tied to an identifiable person.
+
+
+
 ## Notes for implementers
 
 - Do not change startup logging order without explicit requirement update.
