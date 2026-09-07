@@ -67,7 +67,6 @@ class Config:
     PII_PROMPT_STRATEGY: str = os.getenv('PII_PROMPT_STRATEGY', 'google_sheets')  # 'google_sheets' or 'local'
     PII_DETECTION_GOOGLE_SHEET_URL: str = os.getenv(
         'PII_DETECTION_GOOGLE_SHEET_URL',
-        'https://docs.google.com/spreadsheets/d/1vbn0d3tqZB0dGJTUdBPfn-oRU9m7xPeIwjXH4HW0eYI/edit?gid=0#gid=0',
     )
     PII_DETECTION_WORKSHEET_NAME: str = os.getenv('PII_DETECTION_WORKSHEET_NAME', 'PII detection')
 
@@ -77,7 +76,6 @@ class Config:
     )  # 'google_sheets' or 'local'
     PII_REFLECTION_GOOGLE_SHEET_URL: str = os.getenv(
         'PII_REFLECTION_GOOGLE_SHEET_URL',
-        'https://docs.google.com/spreadsheets/d/1vbn0d3tqZB0dGJTUdBPfn-oRU9m7xPeIwjXH4HW0eYI/edit?gid=0#gid=0',
     )
     PII_REFLECTION_WORKSHEET_NAME: str = os.getenv('PII_REFLECTION_WORKSHEET_NAME', 'PII reflection')
 
