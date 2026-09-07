@@ -18,12 +18,13 @@ class PromptManager:
     of each prompt category.
     """
 
-    def __init__(self, prompts_dir: str = 'src/prompts'):
+    def __init__(self, prompts_dir: str = 'src/prompts', store: Optional[Any] = None):
         """
         Initialize prompt manager.
 
         Args:
             prompts_dir: Directory containing prompt templates
+            store: RedisKeyValueStore or cache store instance for prompt caching
         """
         self.prompts_dir = Path(prompts_dir)
 
@@ -31,6 +32,57 @@ class PromptManager:
             raise FileNotFoundError(f'Prompts directory not found: {self.prompts_dir}')
 
         self.env = Environment(loader=FileSystemLoader(str(self.prompts_dir)), trim_blocks=True, lstrip_blocks=True)
+        self.store = store
+
+        # Lazy-initialized Google Sheets PII detection and reflection prompt strategies
+        self._pii_gsheets_strategy = None
+        self._pii_reflection_gsheets_strategy = None
+
+    def _get_pii_gsheets_strategy(self):
+        """Lazy load Google Sheets strategy for PII detection."""
+        if self._pii_gsheets_strategy is None:
+            try:
+                from config.config import get_config
+                from src.infrastructure.external.pii_prompt_strategy import GoogleSheetsPIIPromptStrategy
+
+                cfg = get_config()
+                if getattr(cfg, 'PII_PROMPT_STRATEGY', 'google_sheets') == 'google_sheets':
+                    url = getattr(
+                        cfg,
+                        'PII_DETECTION_GOOGLE_SHEET_URL',
+                        'https://docs.google.com/spreadsheets/d/1vbn0d3tqZB0dGJTUdBPfn-oRU9m7xPeIwjXH4HW0eYI/edit?gid=0#gid=0',
+                    )
+                    ws_name = getattr(cfg, 'PII_DETECTION_WORKSHEET_NAME', 'PII detection')
+                    self._pii_gsheets_strategy = GoogleSheetsPIIPromptStrategy(
+                        spreadsheet_url=url, worksheet_name=ws_name, store=self.store
+                    )
+            except Exception as e:
+                logger.warning(f'Failed to initialize Google Sheets PII prompt strategy: {e}')
+                self._pii_gsheets_strategy = False
+        return self._pii_gsheets_strategy if self._pii_gsheets_strategy is not False else None
+
+    def _get_pii_reflection_gsheets_strategy(self):
+        """Lazy load Google Sheets strategy for PII reflection."""
+        if self._pii_reflection_gsheets_strategy is None:
+            try:
+                from config.config import get_config
+                from src.infrastructure.external.pii_prompt_strategy import GoogleSheetsPIIReflectionPromptStrategy
+
+                cfg = get_config()
+                if getattr(cfg, 'PII_REFLECTION_PROMPT_STRATEGY', 'google_sheets') == 'google_sheets':
+                    url = getattr(
+                        cfg,
+                        'PII_REFLECTION_GOOGLE_SHEET_URL',
+                        'https://docs.google.com/spreadsheets/d/1vbn0d3tqZB0dGJTUdBPfn-oRU9m7xPeIwjXH4HW0eYI/edit?gid=0#gid=0',
+                    )
+                    ws_name = getattr(cfg, 'PII_REFLECTION_WORKSHEET_NAME', 'PII reflection')
+                    self._pii_reflection_gsheets_strategy = GoogleSheetsPIIReflectionPromptStrategy(
+                        spreadsheet_url=url, worksheet_name=ws_name, store=self.store
+                    )
+            except Exception as e:
+                logger.warning(f'Failed to initialize Google Sheets PII reflection prompt strategy: {e}')
+                self._pii_reflection_gsheets_strategy = False
+        return self._pii_reflection_gsheets_strategy if self._pii_reflection_gsheets_strategy is not False else None
 
     def get_latest_version(self, prompt_name: str) -> Optional[str]:
         """
@@ -86,6 +138,26 @@ class PromptManager:
         """
         if context is None:
             context = {}
+
+        # Check if Google Sheets strategy should handle pii_detection
+        if prompt_name == 'pii_detection' and (version is None or version == 'latest'):
+            strategy = self._get_pii_gsheets_strategy()
+            if strategy:
+                rendered = strategy.render(context)
+                if rendered:
+                    return rendered
+                logger.warning('Google Sheets PII prompt rendering returned None; falling back to local Jinja template')
+
+        # Check if Google Sheets strategy should handle pii_reflection
+        if prompt_name == 'pii_reflection' and (version is None or version == 'latest'):
+            strategy = self._get_pii_reflection_gsheets_strategy()
+            if strategy:
+                rendered = strategy.render(context)
+                if rendered:
+                    return rendered
+                logger.warning(
+                    'Google Sheets PII reflection prompt rendering returned None; falling back to local Jinja template'
+                )
 
         # Auto-detect latest version if not specified
         if version is None or version == 'latest':

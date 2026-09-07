@@ -80,7 +80,7 @@ class TestPipelineFactory:
         assert mock_openai.call_count == 4
 
         # Verify prompt manager was created
-        mock_prompt_manager.assert_called_once_with(prompts_dir='src/prompts')
+        mock_prompt_manager.assert_called_once_with(prompts_dir='src/prompts', store=None)
 
     @patch('src.infrastructure.pipeline_factory.SmartDataLoader')
     @patch('src.infrastructure.pipeline_factory.OpenAIProvider')
