@@ -25,16 +25,14 @@ def test_pii_prompt_strategy_rendering():
     mock_gsheets_client.open_by_url.return_value = mock_spreadsheet
 
     with patch('src.infrastructure.external.google_sheets_client.get_gsheets', return_value=mock_gsheets_client):
-        strategy = GoogleSheetsPIIPromptStrategy(
-            spreadsheet_url='http://example.com', worksheet_name='PII detection'
-        )
+        strategy = GoogleSheetsPIIPromptStrategy(spreadsheet_url='http://example.com', worksheet_name='PII detection')
 
         rendered = strategy.render({'column_name': 'Area Code', 'sample_values': ['206', '1']})
 
         assert rendered is not None
         assert 'You are a PII classification system.' in rendered
         assert 'Column name: Area Code' in rendered
-        assert 'Samples: [\'206\', \'1\']' in rendered or 'Samples: ["206", "1"]' in rendered or "['206', '1']" in rendered
+        assert "Samples: ['206', '1']" in rendered or 'Samples: ["206", "1"]' in rendered or "['206', '1']" in rendered
 
 
 def test_prompt_manager_fallback_on_error():
