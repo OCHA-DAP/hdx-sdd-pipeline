@@ -18,12 +18,13 @@ class PromptManager:
     of each prompt category.
     """
 
-    def __init__(self, prompts_dir: str = 'src/prompts'):
+    def __init__(self, prompts_dir: str = 'src/prompts', store: Optional[Any] = None):
         """
         Initialize prompt manager.
 
         Args:
             prompts_dir: Directory containing prompt templates
+            store: RedisKeyValueStore or cache store instance for prompt caching
         """
         self.prompts_dir = Path(prompts_dir)
 
@@ -31,6 +32,7 @@ class PromptManager:
             raise FileNotFoundError(f'Prompts directory not found: {self.prompts_dir}')
 
         self.env = Environment(loader=FileSystemLoader(str(self.prompts_dir)), trim_blocks=True, lstrip_blocks=True)
+        self.store = store
 
         # Lazy-initialized Google Sheets PII detection and reflection prompt strategies
         self._pii_gsheets_strategy = None
@@ -52,7 +54,7 @@ class PromptManager:
                     )
                     ws_name = getattr(cfg, 'PII_DETECTION_WORKSHEET_NAME', 'PII detection')
                     self._pii_gsheets_strategy = GoogleSheetsPIIPromptStrategy(
-                        spreadsheet_url=url, worksheet_name=ws_name
+                        spreadsheet_url=url, worksheet_name=ws_name, store=self.store
                     )
             except Exception as e:
                 logger.warning(f'Failed to initialize Google Sheets PII prompt strategy: {e}')
@@ -75,7 +77,7 @@ class PromptManager:
                     )
                     ws_name = getattr(cfg, 'PII_REFLECTION_WORKSHEET_NAME', 'PII reflection')
                     self._pii_reflection_gsheets_strategy = GoogleSheetsPIIReflectionPromptStrategy(
-                        spreadsheet_url=url, worksheet_name=ws_name
+                        spreadsheet_url=url, worksheet_name=ws_name, store=self.store
                     )
             except Exception as e:
                 logger.warning(f'Failed to initialize Google Sheets PII reflection prompt strategy: {e}')

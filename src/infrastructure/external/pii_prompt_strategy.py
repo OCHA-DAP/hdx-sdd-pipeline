@@ -20,9 +20,13 @@ class GoogleSheetsPIIPromptStrategy:
         self,
         spreadsheet_url: str = 'https://docs.google.com/spreadsheets/d/1vbn0d3tqZB0dGJTUdBPfn-oRU9m7xPeIwjXH4HW0eYI/edit?gid=0#gid=0',
         worksheet_name: str = 'PII detection',
+        store: Optional[Any] = None,
+        cache_key: str = 'pii_detection_prompt_cache',
     ):
         self.spreadsheet_url = spreadsheet_url
         self.worksheet_name = worksheet_name
+        self.store = store
+        self.cache_key = cache_key
         self._cached_template_str: Optional[str] = None
         self._jinja_env = Environment(trim_blocks=True, lstrip_blocks=True)
 
@@ -31,13 +35,23 @@ class GoogleSheetsPIIPromptStrategy:
         Fetch worksheet rows from Google Sheets and build prompt template string.
 
         Args:
-            force_refresh: If True, bypass internal cache and reload from Google Sheets.
+            force_refresh: If True, bypass internal and Redis cache and reload from Google Sheets.
 
         Returns:
             Template string or None if loading fails.
         """
         if self._cached_template_str is not None and not force_refresh:
             return self._cached_template_str
+
+        if self.store and not force_refresh:
+            try:
+                cached_val = getattr(self.store, 'get_object', getattr(self.store, 'get', None))(self.cache_key)
+                if cached_val:
+                    logger.info(f'Loaded PII detection prompt from Redis cache ({self.cache_key})')
+                    self._cached_template_str = cached_val
+                    return self._cached_template_str
+            except Exception as e:
+                logger.error(f'Failed to load PII detection prompt from Redis cache: {e}')
 
         from src.infrastructure.external.google_sheets_client import get_gsheets
 
@@ -85,6 +99,15 @@ class GoogleSheetsPIIPromptStrategy:
 
         template_str = '\n\n'.join(prompt_parts)
         self._cached_template_str = template_str
+
+        if self.store:
+            try:
+                set_fn = getattr(self.store, 'set_object', getattr(self.store, 'set', None))
+                if set_fn:
+                    set_fn(self.cache_key, template_str, expire_in_seconds=60 * 60 * 12)
+            except Exception as e:
+                logger.error(f'Failed to set PII detection prompt in Redis cache: {e}')
+
         logger.info(f'Successfully loaded PII detection prompt from Google Sheet ({len(prompt_parts)} sections)')
         return self._cached_template_str
 
@@ -124,9 +147,13 @@ class GoogleSheetsPIIReflectionPromptStrategy:
         self,
         spreadsheet_url: str = 'https://docs.google.com/spreadsheets/d/1vbn0d3tqZB0dGJTUdBPfn-oRU9m7xPeIwjXH4HW0eYI/edit?gid=0#gid=0',
         worksheet_name: str = 'PII reflection',
+        store: Optional[Any] = None,
+        cache_key: str = 'pii_reflection_prompt_cache',
     ):
         self.spreadsheet_url = spreadsheet_url
         self.worksheet_name = worksheet_name
+        self.store = store
+        self.cache_key = cache_key
         self._cached_template_str: Optional[str] = None
         self._jinja_env = Environment(trim_blocks=True, lstrip_blocks=True)
 
@@ -135,13 +162,23 @@ class GoogleSheetsPIIReflectionPromptStrategy:
         Fetch worksheet rows from Google Sheets and build prompt template string.
 
         Args:
-            force_refresh: If True, bypass internal cache and reload from Google Sheets.
+            force_refresh: If True, bypass internal and Redis cache and reload from Google Sheets.
 
         Returns:
             Template string or None if loading fails.
         """
         if self._cached_template_str is not None and not force_refresh:
             return self._cached_template_str
+
+        if self.store and not force_refresh:
+            try:
+                cached_val = getattr(self.store, 'get_object', getattr(self.store, 'get', None))(self.cache_key)
+                if cached_val:
+                    logger.info(f'Loaded PII reflection prompt from Redis cache ({self.cache_key})')
+                    self._cached_template_str = cached_val
+                    return self._cached_template_str
+            except Exception as e:
+                logger.error(f'Failed to load PII reflection prompt from Redis cache: {e}')
 
         from src.infrastructure.external.google_sheets_client import get_gsheets
 
@@ -189,6 +226,15 @@ class GoogleSheetsPIIReflectionPromptStrategy:
 
         template_str = '\n\n'.join(prompt_parts)
         self._cached_template_str = template_str
+
+        if self.store:
+            try:
+                set_fn = getattr(self.store, 'set_object', getattr(self.store, 'set', None))
+                if set_fn:
+                    set_fn(self.cache_key, template_str, expire_in_seconds=60 * 60 * 12)
+            except Exception as e:
+                logger.error(f'Failed to set PII reflection prompt in Redis cache: {e}')
+
         logger.info(f'Successfully loaded PII reflection prompt from Google Sheet ({len(prompt_parts)} sections)')
         return self._cached_template_str
 

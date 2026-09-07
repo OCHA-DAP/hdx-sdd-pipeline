@@ -43,3 +43,14 @@ def test_prompt_manager_fallback_on_error():
 
         assert rendered is not None
         assert 'PII' in rendered or 'column' in rendered.lower()
+
+
+def test_pii_prompt_strategy_redis_caching():
+    mock_store = MagicMock()
+    mock_store.get_object.return_value = 'Cached PII Template: {{ column_name }}'
+
+    strategy = GoogleSheetsPIIPromptStrategy(store=mock_store, cache_key='pii_detection_prompt_cache')
+    rendered = strategy.render({'column_name': 'RedisCol'})
+
+    assert rendered == 'Cached PII Template: RedisCol'
+    mock_store.get_object.assert_called_once_with('pii_detection_prompt_cache')
