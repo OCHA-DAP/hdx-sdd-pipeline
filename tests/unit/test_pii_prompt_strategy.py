@@ -54,3 +54,35 @@ def test_pii_prompt_strategy_redis_caching():
 
     assert rendered == 'Cached PII Template: RedisCol'
     mock_store.get_object.assert_called_once_with('pii_detection_prompt_cache')
+
+
+def test_pii_prompt_strategy_section_id_sorting():
+    from src.infrastructure.external.pii_prompt_strategy import GoogleSheetsPIIReflectionPromptStrategy
+
+    mock_worksheet = MagicMock()
+    # Intentionally pass rows out of order (section 10, then section 2, then section 1)
+    mock_worksheet.get_all_values.return_value = [
+        ['section_id', 'type', 'content'],
+        ['10', 'footer', 'PART_3_FOOTER'],
+        ['2', 'body', 'PART_2_BODY'],
+        ['1', 'header', 'PART_1_HEADER'],
+    ]
+
+    mock_spreadsheet = MagicMock()
+    mock_spreadsheet.worksheet.return_value = mock_worksheet
+
+    mock_gsheets_client = MagicMock()
+    mock_gsheets_client.open_by_url.return_value = mock_spreadsheet
+
+    with patch('src.infrastructure.external.google_sheets_client.get_gsheets', return_value=mock_gsheets_client):
+        strategy = GoogleSheetsPIIPromptStrategy(spreadsheet_url='http://example.com', worksheet_name='PII detection')
+        template_str = strategy.load_template_string(force_refresh=True)
+
+        assert template_str == 'PART_1_HEADER\n\nPART_2_BODY\n\nPART_3_FOOTER'
+
+        refl_strategy = GoogleSheetsPIIReflectionPromptStrategy(
+            spreadsheet_url='http://example.com', worksheet_name='PII reflection'
+        )
+        refl_template_str = refl_strategy.load_template_string(force_refresh=True)
+
+        assert refl_template_str == 'PART_1_HEADER\n\nPART_2_BODY\n\nPART_3_FOOTER'

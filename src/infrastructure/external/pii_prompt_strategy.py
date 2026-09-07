@@ -7,13 +7,24 @@ from jinja2 import Environment
 logger = logging.getLogger(__name__)
 
 
+def _parse_section_id(val: Any) -> tuple:
+    s = str(val).strip()
+    try:
+        return (0, int(s))
+    except ValueError:
+        try:
+            return (0, float(s))
+        except ValueError:
+            return (1, s)
+
+
 class GoogleSheetsPIIPromptStrategy:
     """
     Strategy to retrieve and construct PII detection prompt from Google Sheets.
 
     Reads the worksheet containing columns `section_id`, `type`, and `content`.
-    Combines the `content` cells in row order into a single Jinja template string,
-    and caches it for rendering.
+    Combines the `content` cells in `section_id` order (or row order) into a single
+    Jinja template string, and caches it for rendering.
     """
 
     def __init__(
@@ -83,9 +94,15 @@ class GoogleSheetsPIIPromptStrategy:
             logger.error(f'PII detection Google Sheet is missing required column "content". Available: {values[0]}')
             return None
 
+        if 'section_id' in header:
+            section_id_idx = header.index('section_id')
+            rows = sorted(
+                rows, key=lambda r: _parse_section_id(r[section_id_idx]) if section_id_idx < len(r) else (2, '')
+            )
+
         content_idx = header.index('content')
 
-        # Combine content from all non-empty rows in worksheet order
+        # Combine content from all non-empty rows in section_id / worksheet order
         prompt_parts = []
         for row in rows:
             if content_idx < len(row):
@@ -206,13 +223,15 @@ class GoogleSheetsPIIReflectionPromptStrategy:
         header = [h.strip().lower() for h in values[0]]
         rows = values[1:]
 
-        if 'content' not in header:
-            logger.error(f'PII reflection Google Sheet is missing required column "content". Available: {values[0]}')
-            return None
+        if 'section_id' in header:
+            section_id_idx = header.index('section_id')
+            rows = sorted(
+                rows, key=lambda r: _parse_section_id(r[section_id_idx]) if section_id_idx < len(r) else (2, '')
+            )
 
         content_idx = header.index('content')
 
-        # Combine content from all non-empty rows in worksheet order
+        # Combine content from all non-empty rows in section_id / worksheet order
         prompt_parts = []
         for row in rows:
             if content_idx < len(row):
