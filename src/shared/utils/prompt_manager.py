@@ -32,6 +32,32 @@ class PromptManager:
 
         self.env = Environment(loader=FileSystemLoader(str(self.prompts_dir)), trim_blocks=True, lstrip_blocks=True)
 
+        # Lazy-initialized Google Sheets PII detection prompt strategy
+        self._pii_gsheets_strategy = None
+
+    def _get_pii_gsheets_strategy(self):
+        """Lazy load Google Sheets strategy for PII detection."""
+        if self._pii_gsheets_strategy is None:
+            try:
+                from config.config import get_config
+                from src.infrastructure.external.pii_prompt_strategy import GoogleSheetsPIIPromptStrategy
+
+                cfg = get_config()
+                if getattr(cfg, 'PII_PROMPT_STRATEGY', 'google_sheets') == 'google_sheets':
+                    url = getattr(
+                        cfg,
+                        'PII_DETECTION_GOOGLE_SHEET_URL',
+                        'https://docs.google.com/spreadsheets/d/1vbn0d3tqZB0dGJTUdBPfn-oRU9m7xPeIwjXH4HW0eYI/edit?gid=0#gid=0',
+                    )
+                    ws_name = getattr(cfg, 'PII_DETECTION_WORKSHEET_NAME', 'PII detection')
+                    self._pii_gsheets_strategy = GoogleSheetsPIIPromptStrategy(
+                        spreadsheet_url=url, worksheet_name=ws_name
+                    )
+            except Exception as e:
+                logger.warning(f'Failed to initialize Google Sheets PII prompt strategy: {e}')
+                self._pii_gsheets_strategy = False
+        return self._pii_gsheets_strategy if self._pii_gsheets_strategy is not False else None
+
     def get_latest_version(self, prompt_name: str) -> Optional[str]:
         """
         Get the latest version for a prompt category.
@@ -86,6 +112,15 @@ class PromptManager:
         """
         if context is None:
             context = {}
+
+        # Check if Google Sheets strategy should handle pii_detection
+        if prompt_name == 'pii_detection' and (version is None or version == 'latest'):
+            strategy = self._get_pii_gsheets_strategy()
+            if strategy:
+                rendered = strategy.render(context)
+                if rendered:
+                    return rendered
+                logger.warning('Google Sheets PII prompt rendering returned None; falling back to local Jinja template')
 
         # Auto-detect latest version if not specified
         if version is None or version == 'latest':

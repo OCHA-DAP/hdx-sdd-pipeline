@@ -230,7 +230,8 @@ Any new feature request for this project must follow this order:
     tied to an identifiable individual person (e.g. firstname.lastname@org) count toward the "direct
     re-identification via email" criterion. This mirrors
     the exclusion already applied in the README scan prompt (FR-SDD-059) but was missing from the table-level
-    reflection path that most data-column emails actually go through.
+- [x] FR-SDD-068: Dynamic Google Sheets PII Detection Prompt Integration.
+  - Expected behavior: The system supports fetching PII detection prompt instructions and entity definitions from a Google Sheet (`PII detection` worksheet). The sheet contains `section_id`, `type`, and `content` columns. Rows are combined in order of `section_id` to construct a Jinja template accepting `column_name` and `sample_values`. If Google Sheets is unavailable or fetching fails, the system safely falls back to local Jinja prompt templates.
 
 ## Notes for implementers
 
