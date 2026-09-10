@@ -14,6 +14,22 @@ logger = logging.getLogger(__name__)
 load_dotenv()
 
 
+DEFAULT_ISP_GOOGLE_SHEET_URL = (
+    'https://docs.google.com/spreadsheets/d/1Z5wj6H6WV2E8VN9r6y8AfdgOltTNL-z2KIlbnNzzPok/edit?gid=886310371#gid=886310371'
+)
+DEFAULT_ISP_WORKSHEET_NAME = 'Data & Information Types Dataset'
+
+DEFAULT_PII_DETECTION_GOOGLE_SHEET_URL = (
+    'https://docs.google.com/spreadsheets/d/1vbn0d3tqZB0dGJTUdBPfn-oRU9m7xPeIwjXH4HW0eYI/edit?gid=0#gid=0'
+)
+DEFAULT_PII_DETECTION_WORKSHEET_NAME = 'PII detection'
+
+DEFAULT_PII_REFLECTION_GOOGLE_SHEET_URL = (
+    'https://docs.google.com/spreadsheets/d/1vbn0d3tqZB0dGJTUdBPfn-oRU9m7xPeIwjXH4HW0eYI/edit?gid=0#gid=0'
+)
+DEFAULT_PII_REFLECTION_WORKSHEET_NAME = 'PII reflection'
+
+
 @dataclass
 class Config:
     # Redis / Worker
@@ -57,11 +73,22 @@ class Config:
 
     # ISP Configuration
     ISP_STRATEGY: str = os.getenv('ISP_STRATEGY', 'google_sheets')  # 'local' or 'google_sheets'
-    ISP_GOOGLE_SHEET_URL: str = os.getenv('ISP_GOOGLE_SHEET_URL', '')
+    ISP_GOOGLE_SHEET_URL: str = os.getenv('ISP_GOOGLE_SHEET_URL') or DEFAULT_ISP_GOOGLE_SHEET_URL
+    ISP_WORKSHEET_NAME: str = os.getenv('ISP_WORKSHEET_NAME') or DEFAULT_ISP_WORKSHEET_NAME
     ISP_LOCAL_JSON_PATH: str = os.getenv('ISP_LOCAL_JSON_PATH', 'data/isps.json')
     GOOGLE_SHEETS_PRIVATE_KEY: str = os.getenv('GOOGLE_SHEETS_PRIVATE_KEY', '')
     GOOGLE_SHEETS_CLIENT_EMAIL: str = os.getenv('GOOGLE_SHEETS_CLIENT_EMAIL', '')
     GOOGLE_SHEETS_TOKEN_URI: str = os.getenv('GOOGLE_SHEETS_TOKEN_URI', '')
+
+    # PII Detection Prompt Configuration
+    PII_DETECTION_GOOGLE_SHEET_URL: str = os.getenv('PII_DETECTION_GOOGLE_SHEET_URL') or DEFAULT_PII_DETECTION_GOOGLE_SHEET_URL
+    PII_PROMPT_STRATEGY: str = os.getenv('PII_PROMPT_STRATEGY', 'google_sheets')
+    PII_DETECTION_WORKSHEET_NAME: str = os.getenv('PII_DETECTION_WORKSHEET_NAME') or DEFAULT_PII_DETECTION_WORKSHEET_NAME
+
+    # PII Reflection Prompt Configuration
+    PII_REFLECTION_GOOGLE_SHEET_URL: str = os.getenv('PII_REFLECTION_GOOGLE_SHEET_URL') or DEFAULT_PII_REFLECTION_GOOGLE_SHEET_URL
+    PII_REFLECTION_PROMPT_STRATEGY: str = os.getenv('PII_REFLECTION_PROMPT_STRATEGY', 'google_sheets')
+    PII_REFLECTION_WORKSHEET_NAME: str = os.getenv('PII_REFLECTION_WORKSHEET_NAME') or DEFAULT_PII_REFLECTION_WORKSHEET_NAME
 
     # OpenAI
     OPENAI_ENDPOINT: str = os.getenv(
@@ -72,6 +99,18 @@ class Config:
     # Slack
     HDX_SDD_SLACK_CHANNEL: str = os.getenv('HDX_SDD_SLACK_CHANNEL', 'topic-sensitive-data-alerts')
     HDX_SDD_SLACK_ACCESS_TOKEN: str = os.getenv('HDX_SDD_SLACK_ACCESS_TOKEN')
+
+    def __post_init__(self):
+        self.ISP_GOOGLE_SHEET_URL = os.getenv('ISP_GOOGLE_SHEET_URL') or DEFAULT_ISP_GOOGLE_SHEET_URL
+        self.ISP_WORKSHEET_NAME = os.getenv('ISP_WORKSHEET_NAME') or DEFAULT_ISP_WORKSHEET_NAME
+
+        self.PII_DETECTION_GOOGLE_SHEET_URL = os.getenv('PII_DETECTION_GOOGLE_SHEET_URL') or DEFAULT_PII_DETECTION_GOOGLE_SHEET_URL
+        self.PII_PROMPT_STRATEGY = os.getenv('PII_PROMPT_STRATEGY', 'google_sheets') if self.PII_DETECTION_GOOGLE_SHEET_URL else 'local'
+        self.PII_DETECTION_WORKSHEET_NAME = os.getenv('PII_DETECTION_WORKSHEET_NAME') or DEFAULT_PII_DETECTION_WORKSHEET_NAME
+
+        self.PII_REFLECTION_GOOGLE_SHEET_URL = os.getenv('PII_REFLECTION_GOOGLE_SHEET_URL') or DEFAULT_PII_REFLECTION_GOOGLE_SHEET_URL
+        self.PII_REFLECTION_PROMPT_STRATEGY = os.getenv('PII_REFLECTION_PROMPT_STRATEGY', 'google_sheets') if self.PII_REFLECTION_GOOGLE_SHEET_URL else 'local'
+        self.PII_REFLECTION_WORKSHEET_NAME = os.getenv('PII_REFLECTION_WORKSHEET_NAME') or DEFAULT_PII_REFLECTION_WORKSHEET_NAME
 
 
 def get_config() -> Config:

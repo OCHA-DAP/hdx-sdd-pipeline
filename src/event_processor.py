@@ -68,9 +68,17 @@ class EventProcessor:
         # Set custom output path if provided
         self.custom_output_path = Path(custom_output_path) if custom_output_path else None
 
+        kv_store = None
+        if self.config.WORKER_ENABLED:
+            try:
+                kv_store = connect_to_key_value_store_with_env_vars(expire_in_seconds=60 * 60 * 12)
+                logger.info('Redis KV store connected for ISP and prompt caching')
+            except Exception as e:
+                logger.warning(f'Could not initialize Redis KV store: {e}')
+
         # Create pipeline using factory
         factory = PipelineFactory(self.config)
-        self.pipeline = factory.create_pipeline(sample_size=5)
+        self.pipeline = factory.create_pipeline(sample_size=5, store=kv_store)
 
         # Initialize ISP retriever strategy based on configuration
         isp_strategy_name = self.config.ISP_STRATEGY.lower()
@@ -92,14 +100,6 @@ class EventProcessor:
 
             strategy = LocalJSONISPStrategy(json_path=self.config.ISP_LOCAL_JSON_PATH)
             logger.info(f'Using LocalJSONISPStrategy for ISP retrieval ({self.config.ISP_LOCAL_JSON_PATH})')
-
-        kv_store = None
-        if self.config.WORKER_ENABLED:
-            try:
-                kv_store = connect_to_key_value_store_with_env_vars(expire_in_seconds=60 * 60 * 12)
-                logger.info('Redis KV store connected for ISP caching')
-            except Exception as e:
-                logger.warning(f'Could not initialize Redis KV store for ISP: {e}')
 
         self.isp_retriever = ISPRetriever(strategy=strategy, store=kv_store)
         self.slack = SlackClientWrapper()
