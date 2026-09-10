@@ -637,7 +637,6 @@ class TestGliNERScanIntegration:
         assert 'NOT PHONE_NUMBER' in prompt
         assert 'Area Code' in prompt
         assert (
-            'For PERSON_NAME, EMAIL_ADDRESS, and PHONE_NUMBER, do NOT classify'
-            ' based on the column name alone' in prompt
+            'For PERSON_NAME, EMAIL_ADDRESS, and PHONE_NUMBER, do NOT classify based on the column name alone' in prompt
         )
         assert 'You MUST confirm that actual person names, valid email addresses' in prompt

@@ -63,6 +63,16 @@ class Config:
     GOOGLE_SHEETS_CLIENT_EMAIL: str = os.getenv('GOOGLE_SHEETS_CLIENT_EMAIL', '')
     GOOGLE_SHEETS_TOKEN_URI: str = os.getenv('GOOGLE_SHEETS_TOKEN_URI', '')
 
+    # PII Detection Prompt Configuration
+    PII_DETECTION_GOOGLE_SHEET_URL: str = os.getenv('PII_DETECTION_GOOGLE_SHEET_URL', '')
+    PII_PROMPT_STRATEGY: str = 'google_sheets' if os.getenv('PII_DETECTION_GOOGLE_SHEET_URL') else 'local'
+    PII_DETECTION_WORKSHEET_NAME: str = os.getenv('PII_DETECTION_WORKSHEET_NAME', 'PII detection')
+
+    # PII Reflection Prompt Configuration
+    PII_REFLECTION_GOOGLE_SHEET_URL: str = os.getenv('PII_REFLECTION_GOOGLE_SHEET_URL', '')
+    PII_REFLECTION_PROMPT_STRATEGY: str = 'google_sheets' if os.getenv('PII_REFLECTION_GOOGLE_SHEET_URL') else 'local'
+    PII_REFLECTION_WORKSHEET_NAME: str = os.getenv('PII_REFLECTION_WORKSHEET_NAME', 'PII reflection')
+
     # OpenAI
     OPENAI_ENDPOINT: str = os.getenv(
         'OPENAI_ENDPOINT', 'https://hdx-azurellm-classification.services.ai.azure.com/openai/v1'
@@ -72,6 +82,15 @@ class Config:
     # Slack
     HDX_SDD_SLACK_CHANNEL: str = os.getenv('HDX_SDD_SLACK_CHANNEL', 'topic-sensitive-data-alerts')
     HDX_SDD_SLACK_ACCESS_TOKEN: str = os.getenv('HDX_SDD_SLACK_ACCESS_TOKEN')
+
+    def __post_init__(self):
+        self.PII_DETECTION_GOOGLE_SHEET_URL = os.getenv('PII_DETECTION_GOOGLE_SHEET_URL', '')
+        self.PII_PROMPT_STRATEGY = 'google_sheets' if self.PII_DETECTION_GOOGLE_SHEET_URL else 'local'
+        self.PII_DETECTION_WORKSHEET_NAME = os.getenv('PII_DETECTION_WORKSHEET_NAME', 'PII detection')
+
+        self.PII_REFLECTION_GOOGLE_SHEET_URL = os.getenv('PII_REFLECTION_GOOGLE_SHEET_URL', '')
+        self.PII_REFLECTION_PROMPT_STRATEGY = 'google_sheets' if self.PII_REFLECTION_GOOGLE_SHEET_URL else 'local'
+        self.PII_REFLECTION_WORKSHEET_NAME = os.getenv('PII_REFLECTION_WORKSHEET_NAME', 'PII reflection')
 
 
 def get_config() -> Config:

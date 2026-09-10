@@ -230,7 +230,14 @@ Any new feature request for this project must follow this order:
     tied to an identifiable individual person (e.g. firstname.lastname@org) count toward the "direct
     re-identification via email" criterion. This mirrors
     the exclusion already applied in the README scan prompt (FR-SDD-059) but was missing from the table-level
-    reflection path that most data-column emails actually go through.
+- [x] FR-SDD-068: Dynamic Google Sheets PII Detection Prompt Integration.
+  - Expected behavior: The system supports fetching PII detection prompt instructions and entity definitions from a Google Sheet (`PII detection` worksheet). The sheet contains `section_id`, `type`, and `content` columns. Rows are combined in order of `section_id` to construct a Jinja template accepting `column_name` and `sample_values`. Strategy setting `PII_PROMPT_STRATEGY` dynamically defaults to `'google_sheets'` when `PII_DETECTION_GOOGLE_SHEET_URL` environment variable is provided, and defaults to `'local'` when omitted. If Google Sheets is unavailable or fetching fails, the system safely falls back to local Jinja prompt templates.
+
+- [x] FR-SDD-069: Dynamic Google Sheets PII Reflection Prompt Integration.
+  - Expected behavior: The system supports fetching PII reflection prompt instructions, evaluation steps, and schema requirements from a Google Sheet (`PII Reflection` worksheet). The sheet contains `section_id`, `type`, and `content` columns. Rows are combined in order of `section_id` to construct a Jinja template accepting metadata and `table_markdown`. Strategy setting `PII_REFLECTION_PROMPT_STRATEGY` dynamically defaults to `'google_sheets'` when `PII_REFLECTION_GOOGLE_SHEET_URL` environment variable is provided, and defaults to `'local'` when omitted. If Google Sheets is unavailable or fetching fails, the system safely falls back to local Jinja prompt templates.
+
+- [x] FR-SDD-070: Cache loaded PII prompts in Redis store.
+  - Expected behavior: When running with worker mode / Redis store enabled, the loaded template strings for PII detection (`pii_detection_prompt_cache`) and PII reflection (`pii_reflection_prompt_cache`) are cached in Redis with a TTL of 12 hours (`expire_in_seconds=43200`), avoiding redundant Google Sheets calls across worker instances and process restarts.
 
 ## Notes for implementers
 

@@ -1,7 +1,7 @@
 """Pipeline factory for creating configured processing pipelines."""
 
 import logging
-from typing import Optional
+from typing import Optional, Any
 
 from src.application.process_dataset import ProcessDatasetUseCase
 from src.infrastructure.openai_provider import OpenAIProvider
@@ -43,12 +43,13 @@ class PipelineFactory:
         logger.info(f'  GLiNER pre-scan: {self.config.GLINER_SCAN}')
         logger.info('===========================================')
 
-    def create_pipeline(self, sample_size: int = 5) -> ProcessDatasetUseCase:
+    def create_pipeline(self, sample_size: int = 5, store: Optional[Any] = None) -> ProcessDatasetUseCase:
         """
         Create a configured processing pipeline.
 
         Args:
             sample_size: Number of samples per column
+            store: RedisKeyValueStore or cache store instance for prompt caching
 
         Returns:
             Configured ProcessDatasetUseCase instance
@@ -72,7 +73,7 @@ class PipelineFactory:
         gliner_scanner = self._create_gliner_scanner() if self.config.GLINER_SCAN else None
 
         # Create prompt manager
-        prompt_manager = PromptManager(prompts_dir='src/prompts')
+        prompt_manager = PromptManager(prompts_dir='src/prompts', store=store)
 
         # Create and return use case
         pipeline = ProcessDatasetUseCase(
