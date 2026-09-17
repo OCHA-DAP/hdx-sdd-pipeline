@@ -34,7 +34,7 @@ except Exception as err:
     print(f'Warning: Could not fetch real ISPs ({err}). Falling back to dummy ISP.', file=sys.stderr)
     REAL_ISPS = {}
 
-sudan_isp = REAL_ISPS.get('Sudan') or REAL_ISPS.get('Default') or DUMMY_ISP
+afghanistan_isp = REAL_ISPS.get('Afghanistan') or REAL_ISPS.get('Default') or DUMMY_ISP
 default_isp = REAL_ISPS.get('Default') or REAL_ISPS.get('default') or DUMMY_ISP
 
 SAMPLE_CONTEXTS: Dict[str, Dict[str, Any]] = {
@@ -64,7 +64,7 @@ SAMPLE_CONTEXTS: Dict[str, Dict[str, Any]] = {
         'organization_title': 'UN OCHA',
         'resource_name': 'sudan_idp_counts.csv',
         'resource_description': 'Admin 2 level aggregated data',
-        'isp': sudan_isp,
+        'isp': afghanistan_isp,
     },
     'non_pii_default': {
         'column_name': 'count_val',

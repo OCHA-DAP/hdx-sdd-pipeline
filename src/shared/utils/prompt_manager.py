@@ -42,7 +42,6 @@ class PromptManager:
         if prompt_name not in self._spreadsheet_strategies:
             from src.infrastructure.external.pii_prompt_strategy import (
                 SpreadsheetPromptStrategy,
-                WORKSHEET_ALIASES,
             )
 
             ws_name = prompt_name

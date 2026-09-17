@@ -62,9 +62,6 @@ class SheetReport:
     readme_content: Optional[str] = None
     readme_report: Optional[Dict[str, Any]] = None
 
-    # GLiNER fast pre-scan evidence (FR-SDD-057)
-    gliner_scan_evidence: List[Dict[str, Any]] = field(default_factory=list)
-
     def __post_init__(self):
         """Validate and normalize data after initialization."""
         if not self.file_name:
@@ -158,9 +155,6 @@ class SheetReport:
             result['is_readme'] = self.is_readme
         if self.readme_report:
             result['readme_report'] = self.readme_report
-        if self.gliner_scan_evidence:
-            result['gliner_scan_evidence'] = self.gliner_scan_evidence
-
         return result
 
     @classmethod
@@ -211,5 +205,4 @@ class SheetReport:
             is_readme=data.get('is_readme', False),
             readme_content=data.get('readme'),
             readme_report=data.get('readme_report', data.get('readme_report')),
-            gliner_scan_evidence=data.get('gliner_scan_evidence', []),
         )
