@@ -81,8 +81,14 @@ class TestPromptManager:
 
             manager = PromptManager()
 
-            # Mock get_latest_version to return v1
-            with patch.object(manager, 'get_latest_version', return_value='v1'):
+            mock_strategy = Mock()
+            mock_strategy.load_rules.return_value = [{'section_id': 1, 'content': 'Rule 1'}]
+
+            # Mock get_latest_version to return v1 and mock strategy
+            with (
+                patch.object(manager, 'get_latest_version', return_value='v1'),
+                patch.object(manager, '_get_spreadsheet_strategy', return_value=mock_strategy),
+            ):
                 prompt = manager.get_prompt('non_pii_classification', context={'key': 'value'})
 
                 assert prompt == 'Rendered Prompt'
