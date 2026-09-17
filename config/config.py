@@ -49,26 +49,29 @@ class Config:
     OUTPUT_DIR: str = os.getenv('OUTPUT_DIR', '/tmp/reports')
     DOWNLOAD_DIR: str = os.getenv('DOWNLOAD_DIR', '/tmp/download')
 
-    # ISP Configuration
-    ISP_STRATEGY: str = os.getenv('ISP_STRATEGY', 'google_sheets')  # 'local' or 'google_sheets'
-    ISP_GOOGLE_SHEET_URL: str = os.getenv('ISP_GOOGLE_SHEET_URL', '')
-    ISP_LOCAL_JSON_PATH: str = os.getenv('ISP_LOCAL_JSON_PATH', 'data/isps.json')
+    # Google Sheets Configuration
+    GOOGLE_SHEET_URL: str = field(
+        default_factory=lambda: os.getenv(
+            'GOOGLE_SHEET_URL',
+            'https://docs.google.com/spreadsheets/d/1vbn0d3tqZB0dGJTUdBPfn-oRU9m7xPeIwjXH4HW0eYI/edit',
+        )
+    )
     GOOGLE_SHEETS_PRIVATE_KEY: str = os.getenv('GOOGLE_SHEETS_PRIVATE_KEY', '')
     GOOGLE_SHEETS_CLIENT_EMAIL: str = os.getenv('GOOGLE_SHEETS_CLIENT_EMAIL', '')
     GOOGLE_SHEETS_TOKEN_URI: str = os.getenv('GOOGLE_SHEETS_TOKEN_URI', '')
 
+    # ISP Configuration
+    ISP_STRATEGY: str = os.getenv('ISP_STRATEGY', 'google_sheets')  # 'local' or 'google_sheets'
+    ISP_LOCAL_JSON_PATH: str = os.getenv('ISP_LOCAL_JSON_PATH', 'data/isps.json')
+
     # PII Detection Prompt Configuration
-    PII_DETECTION_GOOGLE_SHEET_URL: str = field(default_factory=lambda: os.getenv('PII_DETECTION_GOOGLE_SHEET_URL', ''))
-    PII_PROMPT_STRATEGY: str = 'local'
+    PII_PROMPT_STRATEGY: str = os.getenv('PII_PROMPT_STRATEGY', 'google_sheets')
     PII_DETECTION_WORKSHEET_NAME: str = field(
         default_factory=lambda: os.getenv('PII_DETECTION_WORKSHEET_NAME', 'PII detection')
     )
 
     # PII Reflection Prompt Configuration
-    PII_REFLECTION_GOOGLE_SHEET_URL: str = field(
-        default_factory=lambda: os.getenv('PII_REFLECTION_GOOGLE_SHEET_URL', '')
-    )
-    PII_REFLECTION_PROMPT_STRATEGY: str = 'local'
+    PII_REFLECTION_PROMPT_STRATEGY: str = os.getenv('PII_REFLECTION_PROMPT_STRATEGY', 'google_sheets')
     PII_REFLECTION_WORKSHEET_NAME: str = field(
         default_factory=lambda: os.getenv('PII_REFLECTION_WORKSHEET_NAME', 'PII reflection')
     )
@@ -82,10 +85,6 @@ class Config:
     # Slack
     HDX_SDD_SLACK_CHANNEL: str = os.getenv('HDX_SDD_SLACK_CHANNEL', 'topic-sensitive-data-alerts')
     HDX_SDD_SLACK_ACCESS_TOKEN: str = os.getenv('HDX_SDD_SLACK_ACCESS_TOKEN')
-
-    def __post_init__(self):
-        self.PII_PROMPT_STRATEGY = 'google_sheets' if self.PII_DETECTION_GOOGLE_SHEET_URL else 'local'
-        self.PII_REFLECTION_PROMPT_STRATEGY = 'google_sheets' if self.PII_REFLECTION_GOOGLE_SHEET_URL else 'local'
 
 
 def get_config() -> Config:

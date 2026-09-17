@@ -5,10 +5,10 @@ import os
 from pathlib import Path
 from typing import Dict, Any, List, Optional, Tuple
 from jinja2 import Environment
+from config.config import get_config
 
 logger = logging.getLogger(__name__)
 
-DEFAULT_SPREADSHEET_URL = 'https://docs.google.com/spreadsheets/d/1vbn0d3tqZB0dGJTUdBPfn-oRU9m7xPeIwjXH4HW0eYI/edit?gid=1424096147#gid=1424096147'
 DEFAULT_EXCEL_PATH = 'src/prompts/prompts_dev.xlsx'
 
 WORKSHEET_ALIASES: Dict[str, List[str]] = {
@@ -62,7 +62,7 @@ class SpreadsheetPromptStrategy:
         cache_key: Optional[str] = None,
     ):
         self.worksheet_name = worksheet_name
-        self.spreadsheet_url = spreadsheet_url or os.getenv('PROMPTS_GOOGLE_SHEET_URL', DEFAULT_SPREADSHEET_URL)
+        self.spreadsheet_url = spreadsheet_url or get_config().GOOGLE_SHEET_URL
         self.excel_path = excel_path or os.getenv('PROMPTS_EXCEL_PATH', DEFAULT_EXCEL_PATH)
         self.store = store
         self.cache_key = cache_key or f'prompt_cache_{worksheet_name}'
@@ -262,7 +262,7 @@ class GoogleSheetsPIIPromptStrategy(SpreadsheetPromptStrategy):
 
     def __init__(
         self,
-        spreadsheet_url: str = DEFAULT_SPREADSHEET_URL,
+        spreadsheet_url: Optional[str] = None,
         worksheet_name: str = 'PII detection',
         store: Optional[Any] = None,
         cache_key: str = 'pii_detection_prompt_cache',
@@ -280,7 +280,7 @@ class GoogleSheetsPIIReflectionPromptStrategy(SpreadsheetPromptStrategy):
 
     def __init__(
         self,
-        spreadsheet_url: str = DEFAULT_SPREADSHEET_URL,
+        spreadsheet_url: Optional[str] = None,
         worksheet_name: str = 'PII reflection',
         store: Optional[Any] = None,
         cache_key: str = 'pii_reflection_prompt_cache',

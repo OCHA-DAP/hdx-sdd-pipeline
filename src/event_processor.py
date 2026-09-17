@@ -85,11 +85,11 @@ class EventProcessor:
         if isp_strategy_name == 'google_sheets':
             from src.infrastructure.external.isp_strategies import GoogleSheetsISPStrategy
 
-            spreadsheet_url = self.config.ISP_GOOGLE_SHEET_URL
+            spreadsheet_url = self.config.GOOGLE_SHEET_URL
             if not spreadsheet_url or not str(spreadsheet_url).strip():
                 message = (
-                    'ISP_STRATEGY is set to "google_sheets" but ISP_GOOGLE_SHEET_URL is unset or empty. '
-                    'Set ISP_GOOGLE_SHEET_URL to a valid Google Sheets URL or choose a different ISP_STRATEGY.'
+                    'ISP_STRATEGY is set to "google_sheets" but GOOGLE_SHEET_URL is unset or empty. '
+                    'Set GOOGLE_SHEET_URL to a valid Google Sheets URL or choose a different ISP_STRATEGY.'
                 )
                 logger.error(message)
                 raise ValueError(message)

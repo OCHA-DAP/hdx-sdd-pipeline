@@ -5,25 +5,19 @@ from unittest.mock import patch
 from config.config import Config
 
 
-def test_pii_prompt_strategy_defaults_to_local_when_sheet_url_unset():
-    """Test PII prompt strategies default to local when Google Sheet URLs are unset."""
+def test_google_sheet_url_default():
+    """Test GOOGLE_SHEET_URL has expected default when unset."""
     with patch.dict(os.environ, {}, clear=True):
         cfg = Config()
-        assert cfg.PII_DETECTION_GOOGLE_SHEET_URL == ''
-        assert cfg.PII_PROMPT_STRATEGY == 'local'
-        assert cfg.PII_REFLECTION_GOOGLE_SHEET_URL == ''
-        assert cfg.PII_REFLECTION_PROMPT_STRATEGY == 'local'
+        assert (
+            cfg.GOOGLE_SHEET_URL
+            == 'https://docs.google.com/spreadsheets/d/1vbn0d3tqZB0dGJTUdBPfn-oRU9m7xPeIwjXH4HW0eYI/edit'
+        )
 
 
-def test_pii_prompt_strategy_defaults_to_google_sheets_when_sheet_url_set():
-    """Test PII prompt strategies resolve to google_sheets when Google Sheet URLs are provided."""
-    env = {
-        'PII_DETECTION_GOOGLE_SHEET_URL': 'https://docs.google.com/spreadsheets/d/test_det/edit',
-        'PII_REFLECTION_GOOGLE_SHEET_URL': 'https://docs.google.com/spreadsheets/d/test_refl/edit',
-    }
-    with patch.dict(os.environ, env, clear=True):
+def test_google_sheet_url_custom_env():
+    """Test GOOGLE_SHEET_URL can be overridden via environment variable."""
+    custom_url = 'https://docs.google.com/spreadsheets/d/custom-sheet-id/edit'
+    with patch.dict(os.environ, {'GOOGLE_SHEET_URL': custom_url}, clear=True):
         cfg = Config()
-        assert cfg.PII_DETECTION_GOOGLE_SHEET_URL == 'https://docs.google.com/spreadsheets/d/test_det/edit'
-        assert cfg.PII_PROMPT_STRATEGY == 'google_sheets'
-        assert cfg.PII_REFLECTION_GOOGLE_SHEET_URL == 'https://docs.google.com/spreadsheets/d/test_refl/edit'
-        assert cfg.PII_REFLECTION_PROMPT_STRATEGY == 'google_sheets'
+        assert cfg.GOOGLE_SHEET_URL == custom_url

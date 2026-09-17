@@ -1,6 +1,8 @@
 """Unit tests for GoogleSheetsPIIPromptStrategy and PromptManager integration."""
 
+from pathlib import Path
 from unittest.mock import MagicMock, patch
+import pytest
 from src.infrastructure.external.pii_prompt_strategy import GoogleSheetsPIIPromptStrategy
 from src.shared.utils.prompt_manager import PromptManager
 
@@ -99,6 +101,10 @@ def test_pii_prompt_strategy_section_id_sorting():
         assert refl_template_str == 'PART_1_HEADER\n\nPART_2_BODY\n\nPART_3_FOOTER'
 
 
+@pytest.mark.skipif(
+    not Path('src/prompts/prompts_dev.xlsx').exists(),
+    reason='prompts_dev.xlsx not present in local test environment',
+)
 def test_spreadsheet_prompt_strategy_local_excel_all_categories():
     from src.infrastructure.external.pii_prompt_strategy import SpreadsheetPromptStrategy
 

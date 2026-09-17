@@ -1,7 +1,8 @@
 import json
 import re
 import logging
-from typing import Dict, Any, List
+from typing import Dict, Any, List, Optional
+from config.config import get_config
 
 logger = logging.getLogger(__name__)
 
@@ -241,10 +242,10 @@ class GoogleSheetsISPStrategy:
 
     def __init__(
         self,
-        spreadsheet_url: str = 'https://docs.google.com/spreadsheets/d/1vbn0d3tqZB0dGJTUdBPfn-oRU9m7xPeIwjXH4HW0eYI/edit?gid=984860187#gid=984860187',
+        spreadsheet_url: Optional[str] = None,
         worksheet_name: str = 'Data & Information Types Dataset',
     ):
-        self.spreadsheet_url = spreadsheet_url
+        self.spreadsheet_url = spreadsheet_url or get_config().GOOGLE_SHEET_URL
         self.worksheet_name = worksheet_name
 
     def get_isps(self) -> Dict[str, Any]:
