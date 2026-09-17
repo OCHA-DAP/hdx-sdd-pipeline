@@ -18,12 +18,13 @@ class PromptManager:
     of each prompt category.
     """
 
-    def __init__(self, prompts_dir: str = 'src/prompts'):
+    def __init__(self, prompts_dir: str = 'src/prompts', store: Optional[Any] = None):
         """
         Initialize prompt manager.
 
         Args:
             prompts_dir: Directory containing prompt templates
+            store: RedisKeyValueStore or cache store instance for prompt caching
         """
         self.prompts_dir = Path(prompts_dir)
 
@@ -31,6 +32,41 @@ class PromptManager:
             raise FileNotFoundError(f'Prompts directory not found: {self.prompts_dir}')
 
         self.env = Environment(loader=FileSystemLoader(str(self.prompts_dir)), trim_blocks=True, lstrip_blocks=True)
+        self.store = store
+
+        # Cache of SpreadsheetPromptStrategy per category
+        self._spreadsheet_strategies: Dict[str, Any] = {}
+
+    def _get_spreadsheet_strategy(self, prompt_name: str):
+        """Lazy load SpreadsheetPromptStrategy for any prompt category."""
+        if prompt_name not in self._spreadsheet_strategies:
+            from src.infrastructure.external.pii_prompt_strategy import (
+                SpreadsheetPromptStrategy,
+            )
+
+            ws_name = prompt_name
+            # Map category names to worksheet names
+            category_mapping = {
+                'pii_detection': 'personal_data_detection',
+                'pii_reflection': 'personal_data_reflection',
+                'non_pii_classification': 'non_personal_data_classificatio',
+                'non_pii_default': 'non_personal_data_default_class',
+                'non_pii_classification/default': 'non_personal_data_default_class',
+                'readme_scan': 'readme',
+            }
+            ws_name = category_mapping.get(prompt_name, prompt_name)
+
+            try:
+                self._spreadsheet_strategies[prompt_name] = SpreadsheetPromptStrategy(
+                    worksheet_name=ws_name,
+                    store=self.store,
+                )
+            except Exception as e:
+                logger.warning(f'Failed to initialize SpreadsheetPromptStrategy for {prompt_name}: {e}')
+                self._spreadsheet_strategies[prompt_name] = False
+
+        strat = self._spreadsheet_strategies[prompt_name]
+        return strat if strat is not False else None
 
     def get_latest_version(self, prompt_name: str) -> Optional[str]:
         """
@@ -86,6 +122,14 @@ class PromptManager:
         """
         if context is None:
             context = {}
+
+        # Fetch active rules from Spreadsheet / Excel strategy if not manually passed
+        if 'active_rules' not in context:
+            strategy = self._get_spreadsheet_strategy(prompt_name)
+            if strategy:
+                rules = strategy.load_rules()
+                if rules:
+                    context['active_rules'] = rules
 
         # Auto-detect latest version if not specified
         if version is None or version == 'latest':

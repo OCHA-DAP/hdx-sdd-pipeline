@@ -81,13 +81,21 @@ class TestPromptManager:
 
             manager = PromptManager()
 
-            # Mock get_latest_version to return v1
-            with patch.object(manager, 'get_latest_version', return_value='v1'):
-                prompt = manager.get_prompt('pii_detection', context={'key': 'value'})
+            mock_strategy = Mock()
+            mock_strategy.load_rules.return_value = [{'section_id': 1, 'content': 'Rule 1'}]
+
+            # Mock get_latest_version to return v1 and mock strategy
+            with (
+                patch.object(manager, 'get_latest_version', return_value='v1'),
+                patch.object(manager, '_get_spreadsheet_strategy', return_value=mock_strategy),
+            ):
+                prompt = manager.get_prompt('non_pii_classification', context={'key': 'value'})
 
                 assert prompt == 'Rendered Prompt'
-                mock_env_instance.get_template.assert_called_with('pii_detection/v1.jinja')
-                mock_template.render.assert_called_with(key='value')
+                mock_env_instance.get_template.assert_called_with('non_pii_classification/v1.jinja')
+                called_kwargs = mock_template.render.call_args[1]
+                assert called_kwargs.get('key') == 'value'
+                assert 'active_rules' in called_kwargs
 
     @patch('src.shared.utils.prompt_manager.Path.exists', return_value=True)
     def test_get_prompt_with_explicit_version(self, mock_exists):
@@ -101,10 +109,10 @@ class TestPromptManager:
 
             manager = PromptManager()
 
-            prompt = manager.get_prompt('pii_detection', version='v2')
+            prompt = manager.get_prompt('non_pii_classification', version='v2')
 
             assert prompt == 'V2 Prompt'
-            mock_env_instance.get_template.assert_called_with('pii_detection/v2.jinja')
+            mock_env_instance.get_template.assert_called_with('non_pii_classification/v2.jinja')
 
     @patch('src.shared.utils.prompt_manager.Path.exists', return_value=True)
     def test_get_prompt_not_found(self, mock_exists):
@@ -117,7 +125,7 @@ class TestPromptManager:
 
             with patch.object(manager, 'get_latest_version', return_value='v1'):
                 with pytest.raises(FileNotFoundError, match='Template not found'):
-                    manager.get_prompt('pii_detection')
+                    manager.get_prompt('non_pii_classification')
 
     @patch('src.shared.utils.prompt_manager.Path.exists', return_value=True)
     def test_get_prompt_render_error(self, mock_exists):
@@ -133,7 +141,7 @@ class TestPromptManager:
 
             with patch.object(manager, 'get_latest_version', return_value='v1'):
                 with pytest.raises(ValueError, match='Render error'):
-                    manager.get_prompt('pii_detection')
+                    manager.get_prompt('non_pii_classification')
 
     @patch('src.shared.utils.prompt_manager.Path.exists', return_value=True)
     def test_get_prompt_no_versions(self, mock_exists):
@@ -143,4 +151,4 @@ class TestPromptManager:
 
             with patch.object(manager, 'get_latest_version', return_value=None):
                 with pytest.raises(FileNotFoundError, match='No versions found'):
-                    manager.get_prompt('pii_detection')
+                    manager.get_prompt('non_pii_classification')

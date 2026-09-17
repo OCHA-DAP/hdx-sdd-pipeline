@@ -147,6 +147,9 @@ Any new feature request for this project must follow this order:
 - [x] FR-SDD-059: Exclude organization email addresses from README scan PII detection.
   - Expected behavior: The README scan prompt instructs the model to ignore organization-level/functional email addresses (such as contact/info/data mailboxes of an organization) and only flag personal/individual email addresses tied to an identifiable individual.
 
+- [x] FR-SDD-060: Unified prompt rule integration from Excel / Google Sheets ordered by section_id.
+  - Expected behavior: Prompt strategies for all 5 prompt categories (`personal_data_detection`, `personal_data_reflection`, `non_personal_data_classificatio`, `non_personal_data_default_class`, `readme`) load rules dynamically from Google Sheets or local Excel workbook (`prompts_dev.xlsx`). Enabled rows (`enabled` is true) are strictly ordered by `section_id` using numerical/float parsing, and formatted into template rules without code duplication.
+
 ### Persistence and outputs
 
 - [x] FR-SDD-040: Results must be persisted either to CKAN or local output depending on runtime mode.
@@ -168,19 +171,6 @@ Any new feature request for this project must follow this order:
 
 - [x] FR-SDD-056: Output tokens for non-PII classification configuration.
   - Expected behavior: The output tokens (`max_tokens`) used for non-PII classification must be a minimum of 2000 output tokens. If the number of columns in the resource (sheet report) multiplied by 5 is greater than 2000, then use that number (`n_columns * 5`) as the output tokens (`max_tokens`).
-
-- [x] FR-SDD-057: GLiNER fast PII pre-scan.
-  - Expected behavior: Before the LLM-based PII classification step, the pipeline must run a fast, local GLiNER model scan over **all columns** of every data sheet to detect personal names, email addresses, and exact street addresses. If any are found, the sheet is immediately flagged as `personal_data_sensitive=True` with `personal_data_classification.sensitivity=SEVERE_SENSITIVE`, column-level sensitive flags are set, and the LLM PII classification and reflection steps are **skipped** (reusing the existing early-exit pattern). Non-PII classification continues normally. The scan must:
-    - Load the GLiNER model (`gliner-community/gliner_small-v2.5` by default) once on first use and reuse it for all subsequent scans.
-    - Process columns by extracting unique non-empty values (optionally capped at `GLINER_BATCH_SIZE` if greater than 0, defaulting to 0 for unlimited to scan all unique values), concatenating them into text chunks of at most 2000 characters, and running GLiNER prediction on each chunk.
-    - Stop scanning a column as soon as a PII entity is detected in that column (early-exit).
-    - Map the dominant detected entity label in a column to a `PIIEntityType` and assign it to the column's `pii_classification.entity_type` field.
-    - Apply an email regex fast-path to detect email addresses without invoking the GLiNER model.
-    - Support non-Western (Arabic, Chinese, Cyrillic, etc.) names via the multilingual mGLiNER architecture.
-    - Be individually switchable via a `GLINER_SCAN` configuration flag (default `false`).
-    - Expose `GLINER_THRESHOLD` (default `0.7`), `GLINER_MODEL`, and `GLINER_BATCH_SIZE` (default `0` for unlimited) as environment-driven configuration settings.
-    - Record GLiNER scan evidence (column, row index, matched text, label, score) in the sheet report for auditability.
-    - Provide a complete, non-truncated explanation detailing the hits grouped by column (e.g. `'col': label ×count`).
 
 - [x] FR-SDD-058: Enhanced PII detection and phone number false positive mitigation.
   - Expected behavior: The PII detection prompt and/or pipeline must prevent false positive classification of short/geographic area codes (e.g., FAOSTAT numeric area codes like 206, country codes, or other regional identifiers) as PHONE_NUMBER. Specifically:
@@ -230,7 +220,17 @@ Any new feature request for this project must follow this order:
     tied to an identifiable individual person (e.g. firstname.lastname@org) count toward the "direct
     re-identification via email" criterion. This mirrors
     the exclusion already applied in the README scan prompt (FR-SDD-059) but was missing from the table-level
-    reflection path that most data-column emails actually go through.
+- [x] FR-SDD-068: Dynamic Google Sheets PII Detection Prompt Integration.
+  - Expected behavior: The system supports fetching PII detection prompt instructions and entity definitions from a Google Sheet (`PII detection` worksheet). The sheet contains `section_id`, `type`, and `content` columns. Rows are combined in order of `section_id` to construct a Jinja template accepting `column_name` and `sample_values`. Strategy setting `PII_PROMPT_STRATEGY` dynamically defaults to `'google_sheets'` when `PII_DETECTION_GOOGLE_SHEET_URL` environment variable is provided, and defaults to `'local'` when omitted. If Google Sheets is unavailable or fetching fails, the system safely falls back to local Jinja prompt templates.
+
+- [x] FR-SDD-069: Dynamic Google Sheets PII Reflection Prompt Integration.
+  - Expected behavior: The system supports fetching PII reflection prompt instructions, evaluation steps, and schema requirements from a Google Sheet (`PII Reflection` worksheet). The sheet contains `section_id`, `type`, and `content` columns. Rows are combined in order of `section_id` to construct a Jinja template accepting metadata and `table_markdown`. Strategy setting `PII_REFLECTION_PROMPT_STRATEGY` dynamically defaults to `'google_sheets'` when `PII_REFLECTION_GOOGLE_SHEET_URL` environment variable is provided, and defaults to `'local'` when omitted. If Google Sheets is unavailable or fetching fails, the system safely falls back to local Jinja prompt templates.
+
+- [x] FR-SDD-070: Cache loaded PII prompts and rules in Redis store.
+  - Expected behavior: When running with worker mode / Redis store enabled, the loaded template strings and parsed prompt rules for all prompt categories (with key suffix `_rules`) are cached in Redis with a TTL of 12 hours (`expire_in_seconds=43200`), avoiding redundant Google Sheets calls across worker instances and process restarts.
+
+- [x] FR-SDD-071: Unified environment-configurable Google Sheets URL.
+  - Expected behavior: The pipeline consolidates all Google Sheet URL configuration under a single environment variable `GOOGLE_SHEET_URL` (defaulting to the central spreadsheet URL `https://docs.google.com/spreadsheets/d/1vbn0d3tqZB0dGJTUdBPfn-oRU9m7xPeIwjXH4HW0eYI/edit`), removing separate URL variables (`ISP_GOOGLE_SHEET_URL`, `PROMPTS_GOOGLE_SHEET_URL`, `PII_DETECTION_GOOGLE_SHEET_URL`, `PII_REFLECTION_GOOGLE_SHEET_URL`) so that changing `GOOGLE_SHEET_URL` updates the spreadsheet source across ISP retrieval and all prompt strategies uniformly in different environments.
 
 ## Notes for implementers
 
