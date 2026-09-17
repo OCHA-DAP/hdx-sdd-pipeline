@@ -232,6 +232,9 @@ Any new feature request for this project must follow this order:
     the exclusion already applied in the README scan prompt (FR-SDD-059) but was missing from the table-level
     reflection path that most data-column emails actually go through.
 
+- [x] FR-SDD-068: Default Non-PII ISP classification for datasets/resources with multiple locations.
+  - Expected behavior: When resolving ISP rules for a dataset/resource, if the dataset is associated with multiple locations (e.g., more than one valid location group in CKAN package `groups`), the retriever must not arbitrarily select one specific country's ISP rules. Instead, it must resolve to the default ISP rules (`isps['default']`), which routes non-PII classification through the default non-PII classification prompt.
+
 ## Notes for implementers
 
 - Do not change startup logging order without explicit requirement update.
