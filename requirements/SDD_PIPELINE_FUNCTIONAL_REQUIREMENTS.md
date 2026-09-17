@@ -232,6 +232,9 @@ Any new feature request for this project must follow this order:
 - [x] FR-SDD-071: Unified environment-configurable Google Sheets URL.
   - Expected behavior: The pipeline consolidates all Google Sheet URL configuration under a single environment variable `GOOGLE_SHEET_URL` (defaulting to the central spreadsheet URL `https://docs.google.com/spreadsheets/d/1vbn0d3tqZB0dGJTUdBPfn-oRU9m7xPeIwjXH4HW0eYI/edit`), removing separate URL variables (`ISP_GOOGLE_SHEET_URL`, `PROMPTS_GOOGLE_SHEET_URL`, `PII_DETECTION_GOOGLE_SHEET_URL`, `PII_REFLECTION_GOOGLE_SHEET_URL`) so that changing `GOOGLE_SHEET_URL` updates the spreadsheet source across ISP retrieval and all prompt strategies uniformly in different environments.
 
+- [x] FR-SDD-068: Default Non-PII ISP classification for datasets/resources with multiple locations.
+  - Expected behavior: When resolving ISP rules for a dataset/resource, if the dataset is associated with multiple locations (e.g., more than one valid location group in CKAN package `groups`), the retriever must not arbitrarily select one specific country's ISP rules. Instead, it must resolve to the default ISP rules (`isps['default']`), which routes non-PII classification through the default non-PII classification prompt.
+
 ## Notes for implementers
 
 - Do not change startup logging order without explicit requirement update.
