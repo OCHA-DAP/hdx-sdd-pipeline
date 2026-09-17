@@ -229,7 +229,7 @@ Any new feature request for this project must follow this order:
 - [x] FR-SDD-070: Cache loaded PII prompts and rules in Redis store.
   - Expected behavior: When running with worker mode / Redis store enabled, the loaded template strings and parsed prompt rules for all prompt categories (with key suffix `_rules`) are cached in Redis with a TTL of 12 hours (`expire_in_seconds=43200`), avoiding redundant Google Sheets calls across worker instances and process restarts.
 
-- [ ] FR-SDD-071: Unified environment-configurable Google Sheets URL.
+- [x] FR-SDD-071: Unified environment-configurable Google Sheets URL.
   - Expected behavior: The pipeline consolidates all Google Sheet URL configuration under a single environment variable `GOOGLE_SHEET_URL` (defaulting to the central spreadsheet URL `https://docs.google.com/spreadsheets/d/1vbn0d3tqZB0dGJTUdBPfn-oRU9m7xPeIwjXH4HW0eYI/edit`), removing separate URL variables (`ISP_GOOGLE_SHEET_URL`, `PROMPTS_GOOGLE_SHEET_URL`, `PII_DETECTION_GOOGLE_SHEET_URL`, `PII_REFLECTION_GOOGLE_SHEET_URL`) so that changing `GOOGLE_SHEET_URL` updates the spreadsheet source across ISP retrieval and all prompt strategies uniformly in different environments.
 
 ## Notes for implementers
