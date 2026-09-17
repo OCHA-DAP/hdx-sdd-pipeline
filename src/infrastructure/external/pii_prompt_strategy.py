@@ -66,6 +66,7 @@ class SpreadsheetPromptStrategy:
         self.excel_path = excel_path or os.getenv('PROMPTS_EXCEL_PATH', DEFAULT_EXCEL_PATH)
         self.store = store
         self.cache_key = cache_key or f'prompt_cache_{worksheet_name}'
+        self.rules_cache_key = f'{self.cache_key}_rules'
         self._cached_template_str: Optional[str] = None
         self._cached_rules: Optional[List[Dict[str, Any]]] = None
         self._jinja_env = Environment(trim_blocks=True, lstrip_blocks=True)
@@ -144,6 +145,17 @@ class SpreadsheetPromptStrategy:
         if self._cached_rules is not None and not force_refresh:
             return self._cached_rules
 
+        if self.store and not force_refresh:
+            try:
+                get_fn = getattr(self.store, 'get_object', getattr(self.store, 'get', None))
+                cached_rules = get_fn(self.rules_cache_key) if get_fn else None
+                if cached_rules:
+                    logger.info(f'Loaded prompt rules for "{self.worksheet_name}" from Redis cache.')
+                    self._cached_rules = cached_rules
+                    return self._cached_rules
+            except Exception as e:
+                logger.error(f'Failed to load prompt rules from Redis cache: {e}')
+
         values = self.load_rows(force_refresh=force_refresh)
         if not values or len(values) < 2:
             return []
@@ -190,6 +202,15 @@ class SpreadsheetPromptStrategy:
                     parsed_rules.append(rule_obj)
 
         self._cached_rules = parsed_rules
+
+        if self.store and self.rules_cache_key and parsed_rules:
+            try:
+                set_fn = getattr(self.store, 'set_object', getattr(self.store, 'set', None))
+                if set_fn:
+                    set_fn(self.rules_cache_key, parsed_rules, expire_in_seconds=60 * 60 * 12)
+            except Exception as e:
+                logger.error(f'Failed to set prompt rules in Redis cache: {e}')
+
         return self._cached_rules
 
     def load_template_string(self, force_refresh: bool = False) -> Optional[str]:

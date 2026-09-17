@@ -56,6 +56,17 @@ def test_pii_prompt_strategy_redis_caching():
     mock_store.get_object.assert_called_once_with('pii_detection_prompt_cache')
 
 
+def test_pii_prompt_strategy_load_rules_redis_caching():
+    mock_store = MagicMock()
+    mock_store.get_object.return_value = [{'content': 'Cached Rule 1', 'section_id': '1'}]
+
+    strategy = GoogleSheetsPIIPromptStrategy(store=mock_store, cache_key='pii_detection_prompt_cache')
+    rules = strategy.load_rules()
+
+    assert rules == [{'content': 'Cached Rule 1', 'section_id': '1'}]
+    mock_store.get_object.assert_called_once_with('pii_detection_prompt_cache_rules')
+
+
 def test_pii_prompt_strategy_section_id_sorting():
     from src.infrastructure.external.pii_prompt_strategy import GoogleSheetsPIIReflectionPromptStrategy
 
