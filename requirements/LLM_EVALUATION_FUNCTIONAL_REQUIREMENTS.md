@@ -1,6 +1,6 @@
 # LLM Evaluation Functional Requirements (Implemented Baseline)
 
-Last updated: 2026-03-18
+Last updated: 2026-09-17
 Scope: Evaluation workflows (batch processing + FastAPI/Next.js dashboard integration).
 Purpose: Document currently implemented requirements so future changes preserve existing evaluation behavior.
 

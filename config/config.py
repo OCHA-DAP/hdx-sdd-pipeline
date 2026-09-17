@@ -1,7 +1,7 @@
 """config/config.py: Centralized configuration for the HDX SDD pipeline."""
 
 import os
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 import logging
 from urllib.parse import urlparse
 import slack_sdk
@@ -45,23 +45,36 @@ class Config:
     README_SCAN = os.getenv('README_SCAN', 'true').lower() == 'true'
     CKAN_UPDATE = os.getenv('CKAN_UPDATE', 'true').lower() == 'true'
 
-    # GLiNER fast PII pre-scan (FR-SDD-057)
-    GLINER_SCAN: bool = os.getenv('GLINER_SCAN', 'false').lower() == 'true'
-    GLINER_MODEL: str = os.getenv('GLINER_MODEL', 'gliner-community/gliner_small-v2.5')
-    GLINER_THRESHOLD: float = float(os.getenv('GLINER_THRESHOLD', '0.9'))
-    GLINER_BATCH_SIZE: int = int(os.getenv('GLINER_BATCH_SIZE', '0'))
-
     # Directories
     OUTPUT_DIR: str = os.getenv('OUTPUT_DIR', '/tmp/reports')
     DOWNLOAD_DIR: str = os.getenv('DOWNLOAD_DIR', '/tmp/download')
 
-    # ISP Configuration
-    ISP_STRATEGY: str = os.getenv('ISP_STRATEGY', 'google_sheets')  # 'local' or 'google_sheets'
-    ISP_GOOGLE_SHEET_URL: str = os.getenv('ISP_GOOGLE_SHEET_URL', '')
-    ISP_LOCAL_JSON_PATH: str = os.getenv('ISP_LOCAL_JSON_PATH', 'data/isps.json')
+    # Google Sheets Configuration
+    GOOGLE_SHEET_URL: str = field(
+        default_factory=lambda: os.getenv(
+            'GOOGLE_SHEET_URL',
+            'https://docs.google.com/spreadsheets/d/1vbn0d3tqZB0dGJTUdBPfn-oRU9m7xPeIwjXH4HW0eYI/edit',
+        )
+    )
     GOOGLE_SHEETS_PRIVATE_KEY: str = os.getenv('GOOGLE_SHEETS_PRIVATE_KEY', '')
     GOOGLE_SHEETS_CLIENT_EMAIL: str = os.getenv('GOOGLE_SHEETS_CLIENT_EMAIL', '')
     GOOGLE_SHEETS_TOKEN_URI: str = os.getenv('GOOGLE_SHEETS_TOKEN_URI', '')
+
+    # ISP Configuration
+    ISP_STRATEGY: str = os.getenv('ISP_STRATEGY', 'google_sheets')  # 'local' or 'google_sheets'
+    ISP_LOCAL_JSON_PATH: str = os.getenv('ISP_LOCAL_JSON_PATH', 'data/isps.json')
+
+    # PII Detection Prompt Configuration
+    PII_PROMPT_STRATEGY: str = os.getenv('PII_PROMPT_STRATEGY', 'google_sheets')
+    PII_DETECTION_WORKSHEET_NAME: str = field(
+        default_factory=lambda: os.getenv('PII_DETECTION_WORKSHEET_NAME', 'PII detection')
+    )
+
+    # PII Reflection Prompt Configuration
+    PII_REFLECTION_PROMPT_STRATEGY: str = os.getenv('PII_REFLECTION_PROMPT_STRATEGY', 'google_sheets')
+    PII_REFLECTION_WORKSHEET_NAME: str = field(
+        default_factory=lambda: os.getenv('PII_REFLECTION_WORKSHEET_NAME', 'PII reflection')
+    )
 
     # OpenAI
     OPENAI_ENDPOINT: str = os.getenv(

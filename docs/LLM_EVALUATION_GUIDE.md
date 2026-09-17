@@ -81,15 +81,21 @@ nano .env
 Add the following configuration to `.env`:
 
 ```bash
-# Azure OpenAI Configuration
-AZURE_OPENAI_API_KEY="your-azure-openai-api-key"
-AZURE_OPENAI_ENDPOINT="https://your-resource.cognitiveservices.azure.com/"
+# OpenAI / Azure OpenAI Configuration
+OPENAI_API_KEY="your-openai-or-azure-api-key"
+OPENAI_ENDPOINT="https://your-resource.cognitiveservices.azure.com/openai/v1"
 
 # Model Configuration
 PII_DETECT_MODEL="gpt-4.1-nano"
 PII_REFLECT_MODEL="gpt-4.1-nano"
-NON_PII_DETECT_MODEL="gpt-4.1-nano"
+NON_PII_DETECT_MODEL="gpt-4.1-mini"
 README_SCAN_MODEL="gpt-4.1-nano"
+
+# Google Sheets Configuration (for dynamic prompts and ISP rules)
+GOOGLE_SHEET_URL="https://docs.google.com/spreadsheets/d/1vbn0d3tqZB0dGJTUdBPfn-oRU9m7xPeIwjXH4HW0eYI/edit"
+GOOGLE_SHEETS_PRIVATE_KEY=""
+GOOGLE_SHEETS_CLIENT_EMAIL=""
+GOOGLE_SHEETS_TOKEN_URI="https://oauth2.googleapis.com/token"
 
 # Local Evaluation Settings
 LOCAL="true"
@@ -391,13 +397,15 @@ After completing evaluations:
 ## Appendix
 
 ### Available Models
-
-| Model          | Description         | Use Case                          |
-| -------------- | ------------------- | --------------------------------- |
-| `gpt-4.1-nano` | Smallest, fastest   | Quick evaluations, cost-sensitive |
-| `gpt-4.1-mini` | Balanced            | General-purpose evaluations       |
-| `gpt-5-nano`   | Latest nano version | Testing new capabilities          |
-| `gpt-5-mini`   | Latest mini version | Best performance                  |
+ 
+| Model | Description | Use Case |
+| --- | --- | --- |
+| `gpt-4.1-nano` | Smallest, fast & cost-efficient | Quick column PII evaluations and README scans |
+| `gpt-4.1-mini` | Balanced capability and speed | General evaluation and standard ISP analysis |
+| `gpt-5-nano` / `gpt-5.4-nano` | Reasoning model (nano) | Efficient structured evaluation with reasoning |
+| `gpt-5-mini` / `gpt-5.4-mini` | Reasoning model (mini) | Deep ISP analysis, table reflection & complex edge cases |
+| `DeepSeek-V3.1` | General-purpose model | Alternative open-weights / hosted model comparison |
+| `DeepSeek-V4-Flash` / `Pro` | High-speed / High-accuracy | Advanced reasoning and sensitivity classification |
 
 ### Directory Structure
 
@@ -414,7 +422,13 @@ hdx-ssd-pipeline/
 ├── dashboard/
 │   └── frontend/                # Next.js dashboard (Node.js)
 ├── app/                         # FastAPI backend (Python)
-├── classifiers/                 # Classification logic
-├── prompts/                     # LLM prompts
-└── docs/                        # Documentation
+├── src/
+│   ├── domain/                  # Entities and value objects
+│   ├── application/             # Pipeline use cases
+│   ├── infrastructure/          # LLM providers, data loaders, strategies
+│   ├── shared/                  # Utilities, prompt managers, serializers
+│   └── prompts/                 # Versioned Jinja prompt templates
+├── print_prompts.py             # CLI to preview live Google Sheets / local prompts
+├── batch_process_model.py       # Batch evaluation script
+└── docs/                        # Pipeline and evaluation documentation
 ```
