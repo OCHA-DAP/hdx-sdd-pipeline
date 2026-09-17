@@ -147,6 +147,9 @@ Any new feature request for this project must follow this order:
 - [x] FR-SDD-059: Exclude organization email addresses from README scan PII detection.
   - Expected behavior: The README scan prompt instructs the model to ignore organization-level/functional email addresses (such as contact/info/data mailboxes of an organization) and only flag personal/individual email addresses tied to an identifiable individual.
 
+- [x] FR-SDD-060: Unified prompt rule integration from Excel / Google Sheets ordered by section_id.
+  - Expected behavior: Prompt strategies for all 5 prompt categories (`personal_data_detection`, `personal_data_reflection`, `non_personal_data_classificatio`, `non_personal_data_default_class`, `readme`) load rules dynamically from Google Sheets or local Excel workbook (`prompts_dev.xlsx`). Enabled rows (`enabled` is true) are strictly ordered by `section_id` using numerical/float parsing, and formatted into template rules without code duplication.
+
 ### Persistence and outputs
 
 - [x] FR-SDD-040: Results must be persisted either to CKAN or local output depending on runtime mode.

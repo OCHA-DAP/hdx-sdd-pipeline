@@ -34,55 +34,40 @@ class PromptManager:
         self.env = Environment(loader=FileSystemLoader(str(self.prompts_dir)), trim_blocks=True, lstrip_blocks=True)
         self.store = store
 
-        # Lazy-initialized Google Sheets PII detection and reflection prompt strategies
-        self._pii_gsheets_strategy = None
-        self._pii_reflection_gsheets_strategy = None
+        # Cache of SpreadsheetPromptStrategy per category
+        self._spreadsheet_strategies: Dict[str, Any] = {}
 
-    def _get_pii_gsheets_strategy(self):
-        """Lazy load Google Sheets strategy for PII detection."""
-        if self._pii_gsheets_strategy is None:
+    def _get_spreadsheet_strategy(self, prompt_name: str):
+        """Lazy load SpreadsheetPromptStrategy for any prompt category."""
+        if prompt_name not in self._spreadsheet_strategies:
+            from src.infrastructure.external.pii_prompt_strategy import (
+                SpreadsheetPromptStrategy,
+                WORKSHEET_ALIASES,
+            )
+
+            ws_name = prompt_name
+            # Map category names to worksheet names
+            category_mapping = {
+                'pii_detection': 'personal_data_detection',
+                'pii_reflection': 'personal_data_reflection',
+                'non_pii_classification': 'non_personal_data_classificatio',
+                'non_pii_default': 'non_personal_data_default_class',
+                'non_pii_classification/default': 'non_personal_data_default_class',
+                'readme_scan': 'readme',
+            }
+            ws_name = category_mapping.get(prompt_name, prompt_name)
+
             try:
-                from config.config import get_config
-                from src.infrastructure.external.pii_prompt_strategy import GoogleSheetsPIIPromptStrategy
-
-                cfg = get_config()
-                if getattr(cfg, 'PII_PROMPT_STRATEGY', 'google_sheets') == 'google_sheets':
-                    url = getattr(
-                        cfg,
-                        'PII_DETECTION_GOOGLE_SHEET_URL',
-                        'https://docs.google.com/spreadsheets/d/1vbn0d3tqZB0dGJTUdBPfn-oRU9m7xPeIwjXH4HW0eYI/edit?gid=0#gid=0',
-                    )
-                    ws_name = getattr(cfg, 'PII_DETECTION_WORKSHEET_NAME', 'PII detection')
-                    self._pii_gsheets_strategy = GoogleSheetsPIIPromptStrategy(
-                        spreadsheet_url=url, worksheet_name=ws_name, store=self.store
-                    )
+                self._spreadsheet_strategies[prompt_name] = SpreadsheetPromptStrategy(
+                    worksheet_name=ws_name,
+                    store=self.store,
+                )
             except Exception as e:
-                logger.warning(f'Failed to initialize Google Sheets PII prompt strategy: {e}')
-                self._pii_gsheets_strategy = False
-        return self._pii_gsheets_strategy if self._pii_gsheets_strategy is not False else None
+                logger.warning(f'Failed to initialize SpreadsheetPromptStrategy for {prompt_name}: {e}')
+                self._spreadsheet_strategies[prompt_name] = False
 
-    def _get_pii_reflection_gsheets_strategy(self):
-        """Lazy load Google Sheets strategy for PII reflection."""
-        if self._pii_reflection_gsheets_strategy is None:
-            try:
-                from config.config import get_config
-                from src.infrastructure.external.pii_prompt_strategy import GoogleSheetsPIIReflectionPromptStrategy
-
-                cfg = get_config()
-                if getattr(cfg, 'PII_REFLECTION_PROMPT_STRATEGY', 'google_sheets') == 'google_sheets':
-                    url = getattr(
-                        cfg,
-                        'PII_REFLECTION_GOOGLE_SHEET_URL',
-                        'https://docs.google.com/spreadsheets/d/1vbn0d3tqZB0dGJTUdBPfn-oRU9m7xPeIwjXH4HW0eYI/edit?gid=0#gid=0',
-                    )
-                    ws_name = getattr(cfg, 'PII_REFLECTION_WORKSHEET_NAME', 'PII reflection')
-                    self._pii_reflection_gsheets_strategy = GoogleSheetsPIIReflectionPromptStrategy(
-                        spreadsheet_url=url, worksheet_name=ws_name, store=self.store
-                    )
-            except Exception as e:
-                logger.warning(f'Failed to initialize Google Sheets PII reflection prompt strategy: {e}')
-                self._pii_reflection_gsheets_strategy = False
-        return self._pii_reflection_gsheets_strategy if self._pii_reflection_gsheets_strategy is not False else None
+        strat = self._spreadsheet_strategies[prompt_name]
+        return strat if strat is not False else None
 
     def get_latest_version(self, prompt_name: str) -> Optional[str]:
         """
@@ -139,25 +124,13 @@ class PromptManager:
         if context is None:
             context = {}
 
-        # Check if Google Sheets strategy should handle pii_detection
-        if prompt_name == 'pii_detection' and (version is None or version == 'latest'):
-            strategy = self._get_pii_gsheets_strategy()
+        # Fetch active rules from Spreadsheet / Excel strategy if not manually passed
+        if 'active_rules' not in context:
+            strategy = self._get_spreadsheet_strategy(prompt_name)
             if strategy:
-                rendered = strategy.render(context)
-                if rendered:
-                    return rendered
-                logger.warning('Google Sheets PII prompt rendering returned None; falling back to local Jinja template')
-
-        # Check if Google Sheets strategy should handle pii_reflection
-        if prompt_name == 'pii_reflection' and (version is None or version == 'latest'):
-            strategy = self._get_pii_reflection_gsheets_strategy()
-            if strategy:
-                rendered = strategy.render(context)
-                if rendered:
-                    return rendered
-                logger.warning(
-                    'Google Sheets PII reflection prompt rendering returned None; falling back to local Jinja template'
-                )
+                rules = strategy.load_rules()
+                if rules:
+                    context['active_rules'] = rules
 
         # Auto-detect latest version if not specified
         if version is None or version == 'latest':

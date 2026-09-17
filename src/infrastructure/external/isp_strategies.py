@@ -241,7 +241,7 @@ class GoogleSheetsISPStrategy:
 
     def __init__(
         self,
-        spreadsheet_url: str = 'https://docs.google.com/spreadsheets/d/1Z5wj6H6WV2E8VN9r6y8AfdgOltTNL-z2KIlbnNzzPok/edit?gid=886310371#gid=886310371',
+        spreadsheet_url: str = 'https://docs.google.com/spreadsheets/d/1vbn0d3tqZB0dGJTUdBPfn-oRU9m7xPeIwjXH4HW0eYI/edit?gid=984860187#gid=984860187',
         worksheet_name: str = 'Data & Information Types Dataset',
     ):
         self.spreadsheet_url = spreadsheet_url
@@ -398,13 +398,23 @@ class GoogleSheetsISPStrategy:
         return isp_dict
 
     def _load_acronyms_from_readme(self, spreadsheet) -> Dict[str, str]:
-        """Load acronyms and definitions from the ReadMe worksheet."""
+        """Load acronyms and definitions from the readme_isp or ReadMe worksheet."""
         acronyms = {}
         try:
-            worksheet = spreadsheet.worksheet('ReadMe')
+            try:
+                worksheet = spreadsheet.worksheet('readme_isp')
+            except Exception:
+                try:
+                    worksheet = spreadsheet.worksheet('ReadMe')
+                except Exception:
+                    ws_matching = [w for w in spreadsheet.worksheets() if 'readme' in w.title.lower()]
+                    if ws_matching:
+                        worksheet = ws_matching[0]
+                    else:
+                        raise
             values = worksheet.get_all_values()
         except Exception as e:
-            logger.error(f'Failed to read ReadMe worksheet: {e}')
+            logger.error(f'Failed to read ReadMe/readme_isp worksheet: {e}')
             return {}
 
         start_parsing = False
@@ -412,7 +422,7 @@ class GoogleSheetsISPStrategy:
             if not row:
                 continue
             first_cell = str(row[0]).strip()
-            if 'Acronyms and abbreviations used' in first_cell:
+            if 'acronyms and abbreviations' in first_cell.lower():
                 start_parsing = True
                 continue
             if start_parsing:
@@ -421,7 +431,7 @@ class GoogleSheetsISPStrategy:
                     definition = str(row[1]).strip()
                     if acronym and definition:
                         acronyms[acronym] = definition
-        logger.info(f'Loaded {len(acronyms)} acronyms from ReadMe worksheet')
+        logger.info(f'Loaded {len(acronyms)} acronyms from ReadMe/readme_isp worksheet')
         return acronyms
 
     @staticmethod

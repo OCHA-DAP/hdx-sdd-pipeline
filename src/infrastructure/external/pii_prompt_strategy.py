@@ -1,13 +1,40 @@
-"""Strategy for loading and rendering PII detection prompts from Google Sheets."""
+"""Strategy for loading and rendering prompts from Google Sheets with local Excel fallback."""
 
 import logging
-from typing import Dict, Any, Optional
+import os
+from pathlib import Path
+from typing import Dict, Any, List, Optional, Tuple
 from jinja2 import Environment
 
 logger = logging.getLogger(__name__)
 
+DEFAULT_SPREADSHEET_URL = 'https://docs.google.com/spreadsheets/d/1vbn0d3tqZB0dGJTUdBPfn-oRU9m7xPeIwjXH4HW0eYI/edit?gid=1424096147#gid=1424096147'
+DEFAULT_EXCEL_PATH = 'src/prompts/prompts_dev.xlsx'
 
-def _parse_section_id(val: Any) -> tuple:
+WORKSHEET_ALIASES: Dict[str, List[str]] = {
+    'personal_data_detection': ['personal_data_detection', 'pii detection', 'pii_detection', 'detection'],
+    'personal_data_reflection': ['personal_data_reflection', 'pii reflection', 'pii_reflection', 'reflection'],
+    'non_personal_data_classificatio': [
+        'non_personal_data_classificatio',
+        'non_personal_data_classification',
+        'non-pii classification',
+        'non_pii_classification',
+        'non_pii',
+    ],
+    'non_personal_data_default_class': [
+        'non_personal_data_default_class',
+        'non_personal_data_default_classification',
+        'non-pii default',
+        'non_pii_default',
+        'default',
+    ],
+    'readme': ['readme', 'readme scan', 'readme_scan'],
+}
+
+
+def _parse_section_id(val: Any) -> Tuple[int, Any]:
+    if val is None:
+        return (2, '')
     s = str(val).strip()
     try:
         return (0, int(s))
@@ -18,263 +45,228 @@ def _parse_section_id(val: Any) -> tuple:
             return (1, s)
 
 
-class GoogleSheetsPIIPromptStrategy:
+class SpreadsheetPromptStrategy:
     """
-    Strategy to retrieve and construct PII detection prompt from Google Sheets.
+    Unified strategy to retrieve prompt rules from Google Sheets with local Excel fallback.
 
-    Reads the worksheet containing columns `section_id`, `type`, and `content`.
-    Combines the `content` cells in `section_id` order (or row order) into a single
-    Jinja template string, and caches it for rendering.
+    Reads a worksheet matching `worksheet_name` or its aliases, filters out rows where `enabled` is False,
+    sorts strictly by `section_id`, and extracts content rules into template strings or dictionaries.
     """
 
     def __init__(
         self,
-        spreadsheet_url: str = 'https://docs.google.com/spreadsheets/d/1vbn0d3tqZB0dGJTUdBPfn-oRU9m7xPeIwjXH4HW0eYI/edit?gid=0#gid=0',
+        worksheet_name: str,
+        spreadsheet_url: Optional[str] = None,
+        excel_path: Optional[str] = None,
+        store: Optional[Any] = None,
+        cache_key: Optional[str] = None,
+    ):
+        self.worksheet_name = worksheet_name
+        self.spreadsheet_url = spreadsheet_url or os.getenv('PROMPTS_GOOGLE_SHEET_URL', DEFAULT_SPREADSHEET_URL)
+        self.excel_path = excel_path or os.getenv('PROMPTS_EXCEL_PATH', DEFAULT_EXCEL_PATH)
+        self.store = store
+        self.cache_key = cache_key or f'prompt_cache_{worksheet_name}'
+        self._cached_template_str: Optional[str] = None
+        self._cached_rules: Optional[List[Dict[str, Any]]] = None
+        self._jinja_env = Environment(trim_blocks=True, lstrip_blocks=True)
+
+    def _matches_worksheet_name(self, title: str) -> bool:
+        t_clean = title.strip().lower()
+        ws_clean = self.worksheet_name.strip().lower()
+        if t_clean == ws_clean or t_clean.startswith(ws_clean):
+            return True
+        aliases = WORKSHEET_ALIASES.get(ws_clean, [ws_clean])
+        for alias in aliases:
+            if t_clean == alias or t_clean.startswith(alias):
+                return True
+        return False
+
+    def _fetch_from_google_sheets(self) -> Optional[List[List[Any]]]:
+        from src.infrastructure.external.google_sheets_client import get_gsheets
+
+        try:
+            spreadsheet = get_gsheets().open_by_url(self.spreadsheet_url)
+            # Try exact worksheet lookup first
+            try:
+                worksheet = spreadsheet.worksheet(self.worksheet_name)
+                return worksheet.get_all_values()
+            except Exception:
+                # Alias / fuzzy lookup fallback
+                matching_ws = [w for w in spreadsheet.worksheets() if self._matches_worksheet_name(w.title)]
+                if matching_ws:
+                    return matching_ws[0].get_all_values()
+                raise
+        except Exception as e:
+            logger.warning(f'Failed to fetch prompt rules from Google Sheet ({self.worksheet_name}): {e}')
+            return None
+
+    def _fetch_from_local_excel(self) -> Optional[List[List[Any]]]:
+        excel_file = Path(self.excel_path)
+        if not excel_file.exists():
+            logger.warning(f'Local Excel fallback file not found at: {self.excel_path}')
+            return None
+        try:
+            import openpyxl
+
+            wb = openpyxl.load_workbook(str(excel_file), data_only=True)
+            target_sheet = None
+            for sname in wb.sheetnames:
+                if self._matches_worksheet_name(sname):
+                    target_sheet = wb[sname]
+                    break
+            if target_sheet is None:
+                logger.warning(f'No matching sheet in Excel file "{self.excel_path}" for "{self.worksheet_name}"')
+                return None
+
+            values = list(target_sheet.iter_rows(values_only=True))
+            return values
+        except Exception as e:
+            logger.error(f'Failed to read local Excel fallback file ({self.excel_path}): {e}')
+            return None
+
+    def load_rows(self, force_refresh: bool = False) -> Optional[List[List[Any]]]:
+        """Fetch raw rows: first try Google Sheets, then fallback to local Excel."""
+        values = self._fetch_from_google_sheets()
+        if values:
+            logger.info(f'Loaded prompt rules for "{self.worksheet_name}" from Google Sheets.')
+            return values
+
+        logger.info(f'Attempting local Excel fallback for "{self.worksheet_name}".')
+        values = self._fetch_from_local_excel()
+        if values:
+            logger.info(f'Loaded prompt rules for "{self.worksheet_name}" from local Excel ({self.excel_path}).')
+            return values
+
+        return None
+
+    def load_rules(self, force_refresh: bool = False) -> List[Dict[str, Any]]:
+        """Parse, filter by enabled, and sort strictly by section_id."""
+        if self._cached_rules is not None and not force_refresh:
+            return self._cached_rules
+
+        values = self.load_rows(force_refresh=force_refresh)
+        if not values or len(values) < 2:
+            return []
+
+        header = [str(h).strip().lower() if h is not None else '' for h in values[0]]
+        rows = values[1:]
+
+        if 'content' not in header:
+            logger.error(f'Worksheet "{self.worksheet_name}" is missing required column "content"')
+            return []
+
+        content_idx = header.index('content')
+        enabled_idx = header.index('enabled') if 'enabled' in header else None
+        section_id_idx = header.index('section_id') if 'section_id' in header else None
+        category_idx = header.index('category') if 'category' in header else None
+        qa_notes_idx = header.index('qa_notes') if 'qa_notes' in header else None
+
+        # Filter enabled
+        if enabled_idx is not None:
+            rows = [
+                r
+                for r in rows
+                if enabled_idx < len(r) and r[enabled_idx] not in (None, False, 'False', 'false', 0, '0', 'FALSE')
+            ]
+
+        # Sort strictly by section_id
+        if section_id_idx is not None:
+            rows = sorted(
+                rows, key=lambda r: _parse_section_id(r[section_id_idx]) if section_id_idx < len(r) else (2, '')
+            )
+
+        parsed_rules = []
+        for r in rows:
+            if content_idx < len(r) and r[content_idx]:
+                rule_text = str(r[content_idx]).strip().replace('\\n', '\n')
+                if rule_text:
+                    rule_obj = {'content': rule_text}
+                    if section_id_idx is not None and section_id_idx < len(r):
+                        rule_obj['section_id'] = r[section_id_idx]
+                    if category_idx is not None and category_idx < len(r):
+                        rule_obj['category'] = r[category_idx]
+                    if qa_notes_idx is not None and qa_notes_idx < len(r):
+                        rule_obj['qa_notes'] = r[qa_notes_idx]
+                    parsed_rules.append(rule_obj)
+
+        self._cached_rules = parsed_rules
+        return self._cached_rules
+
+    def load_template_string(self, force_refresh: bool = False) -> Optional[str]:
+        if self._cached_template_str is not None and not force_refresh:
+            return self._cached_template_str
+
+        if self.store and not force_refresh:
+            try:
+                get_fn = getattr(self.store, 'get_object', getattr(self.store, 'get', None))
+                cached_val = get_fn(self.cache_key) if get_fn else None
+                if cached_val:
+                    self._cached_template_str = cached_val
+                    return self._cached_template_str
+            except Exception as e:
+                logger.error(f'Failed to load prompt template from Redis cache: {e}')
+
+        rules = self.load_rules(force_refresh=force_refresh)
+        if not rules:
+            return None
+
+        prompt_parts = [r['content'] for r in rules]
+        template_str = '\n\n'.join(prompt_parts)
+        self._cached_template_str = template_str
+
+        if self.store and self.cache_key:
+            try:
+                set_fn = getattr(self.store, 'set_object', getattr(self.store, 'set', None))
+                if set_fn:
+                    set_fn(self.cache_key, template_str, expire_in_seconds=60 * 60 * 12)
+            except Exception as e:
+                logger.error(f'Failed to set prompt template in Redis cache: {e}')
+
+        return self._cached_template_str
+
+    def render(self, context: Dict[str, Any], force_refresh: bool = False) -> Optional[str]:
+        template_str = self.load_template_string(force_refresh=force_refresh)
+        if not template_str:
+            return None
+        try:
+            template = self._jinja_env.from_string(template_str)
+            return template.render(**context)
+        except Exception as e:
+            logger.error(f'Failed to render prompt template for "{self.worksheet_name}": {e}')
+            return None
+
+
+class GoogleSheetsPIIPromptStrategy(SpreadsheetPromptStrategy):
+    """Backward compatible class for PII detection prompt strategy."""
+
+    def __init__(
+        self,
+        spreadsheet_url: str = DEFAULT_SPREADSHEET_URL,
         worksheet_name: str = 'PII detection',
         store: Optional[Any] = None,
         cache_key: str = 'pii_detection_prompt_cache',
     ):
-        self.spreadsheet_url = spreadsheet_url
-        self.worksheet_name = worksheet_name
-        self.store = store
-        self.cache_key = cache_key
-        self._cached_template_str: Optional[str] = None
-        self._jinja_env = Environment(trim_blocks=True, lstrip_blocks=True)
-
-    def load_template_string(self, force_refresh: bool = False) -> Optional[str]:
-        """
-        Fetch worksheet rows from Google Sheets and build prompt template string.
-
-        Args:
-            force_refresh: If True, bypass internal and Redis cache and reload from Google Sheets.
-
-        Returns:
-            Template string or None if loading fails.
-        """
-        if self._cached_template_str is not None and not force_refresh:
-            return self._cached_template_str
-
-        if self.store and not force_refresh:
-            try:
-                cached_val = getattr(self.store, 'get_object', getattr(self.store, 'get', None))(self.cache_key)
-                if cached_val:
-                    logger.info(f'Loaded PII detection prompt from Redis cache ({self.cache_key})')
-                    self._cached_template_str = cached_val
-                    return self._cached_template_str
-            except Exception as e:
-                logger.error(f'Failed to load PII detection prompt from Redis cache: {e}')
-
-        from src.infrastructure.external.google_sheets_client import get_gsheets
-
-        try:
-            spreadsheet = get_gsheets().open_by_url(self.spreadsheet_url)
-            try:
-                worksheet = spreadsheet.worksheet(self.worksheet_name)
-            except Exception:
-                # Case-insensitive fallback lookup
-                ws_name_lower = self.worksheet_name.strip().lower()
-                matching_ws = [w for w in spreadsheet.worksheets() if w.title.strip().lower() == ws_name_lower]
-                if matching_ws:
-                    worksheet = matching_ws[0]
-                else:
-                    raise
-            values = worksheet.get_all_values()
-        except Exception as e:
-            logger.error(f'Failed to read PII detection Google Sheet ({self.worksheet_name}): {e}')
-            return None
-
-        if not values or len(values) < 2:
-            logger.error(f'PII detection Google Sheet worksheet "{self.worksheet_name}" has insufficient rows')
-            return None
-
-        header = [h.strip().lower() for h in values[0]]
-        rows = values[1:]
-
-        if 'content' not in header:
-            logger.error(f'PII detection Google Sheet is missing required column "content". Available: {values[0]}')
-            return None
-
-        if 'section_id' in header:
-            section_id_idx = header.index('section_id')
-            rows = sorted(
-                rows, key=lambda r: _parse_section_id(r[section_id_idx]) if section_id_idx < len(r) else (2, '')
-            )
-
-        content_idx = header.index('content')
-
-        # Combine content from all non-empty rows in section_id / worksheet order
-        prompt_parts = []
-        for row in rows:
-            if content_idx < len(row):
-                cell_value = str(row[content_idx]).strip().replace('\\n', '\n')
-                if cell_value:
-                    prompt_parts.append(cell_value)
-
-        if not prompt_parts:
-            logger.error(f'No content found in PII detection Google Sheet worksheet "{self.worksheet_name}"')
-            return None
-
-        template_str = '\n\n'.join(prompt_parts)
-        self._cached_template_str = template_str
-
-        if self.store:
-            try:
-                set_fn = getattr(self.store, 'set_object', getattr(self.store, 'set', None))
-                if set_fn:
-                    set_fn(self.cache_key, template_str, expire_in_seconds=60 * 60 * 12)
-            except Exception as e:
-                logger.error(f'Failed to set PII detection prompt in Redis cache: {e}')
-
-        logger.info(f'Successfully loaded PII detection prompt from Google Sheet ({len(prompt_parts)} sections)')
-        return self._cached_template_str
-
-    def render(self, context: Dict[str, Any], force_refresh: bool = False) -> Optional[str]:
-        """
-        Render the PII detection prompt template with provided context.
-
-        Args:
-            context: Template context dictionary (e.g. column_name, sample_values)
-            force_refresh: If True, reload template from Google Sheets.
-
-        Returns:
-            Rendered prompt string or None if loading/rendering fails.
-        """
-        template_str = self.load_template_string(force_refresh=force_refresh)
-        if not template_str:
-            return None
-
-        try:
-            template = self._jinja_env.from_string(template_str)
-            return template.render(**context)
-        except Exception as e:
-            logger.error(f'Failed to render PII detection template from Google Sheet: {e}')
-            return None
+        super().__init__(
+            worksheet_name=worksheet_name,
+            spreadsheet_url=spreadsheet_url,
+            store=store,
+            cache_key=cache_key,
+        )
 
 
-class GoogleSheetsPIIReflectionPromptStrategy:
-    """
-    Strategy to retrieve and construct PII reflection prompt from Google Sheets.
-
-    Reads the worksheet containing columns `section_id`, `type`, and `content`.
-    Combines the `content` cells in row order into a single Jinja template string,
-    and renders it with metadata and table markdown.
-    """
+class GoogleSheetsPIIReflectionPromptStrategy(SpreadsheetPromptStrategy):
+    """Backward compatible class for PII reflection prompt strategy."""
 
     def __init__(
         self,
-        spreadsheet_url: str = 'https://docs.google.com/spreadsheets/d/1vbn0d3tqZB0dGJTUdBPfn-oRU9m7xPeIwjXH4HW0eYI/edit?gid=0#gid=0',
+        spreadsheet_url: str = DEFAULT_SPREADSHEET_URL,
         worksheet_name: str = 'PII reflection',
         store: Optional[Any] = None,
         cache_key: str = 'pii_reflection_prompt_cache',
     ):
-        self.spreadsheet_url = spreadsheet_url
-        self.worksheet_name = worksheet_name
-        self.store = store
-        self.cache_key = cache_key
-        self._cached_template_str: Optional[str] = None
-        self._jinja_env = Environment(trim_blocks=True, lstrip_blocks=True)
-
-    def load_template_string(self, force_refresh: bool = False) -> Optional[str]:
-        """
-        Fetch worksheet rows from Google Sheets and build prompt template string.
-
-        Args:
-            force_refresh: If True, bypass internal and Redis cache and reload from Google Sheets.
-
-        Returns:
-            Template string or None if loading fails.
-        """
-        if self._cached_template_str is not None and not force_refresh:
-            return self._cached_template_str
-
-        if self.store and not force_refresh:
-            try:
-                cached_val = getattr(self.store, 'get_object', getattr(self.store, 'get', None))(self.cache_key)
-                if cached_val:
-                    logger.info(f'Loaded PII reflection prompt from Redis cache ({self.cache_key})')
-                    self._cached_template_str = cached_val
-                    return self._cached_template_str
-            except Exception as e:
-                logger.error(f'Failed to load PII reflection prompt from Redis cache: {e}')
-
-        from src.infrastructure.external.google_sheets_client import get_gsheets
-
-        try:
-            spreadsheet = get_gsheets().open_by_url(self.spreadsheet_url)
-            try:
-                worksheet = spreadsheet.worksheet(self.worksheet_name)
-            except Exception:
-                # Case-insensitive fallback lookup
-                ws_name_lower = self.worksheet_name.strip().lower()
-                matching_ws = [w for w in spreadsheet.worksheets() if w.title.strip().lower() == ws_name_lower]
-                if matching_ws:
-                    worksheet = matching_ws[0]
-                else:
-                    raise
-            values = worksheet.get_all_values()
-        except Exception as e:
-            logger.error(f'Failed to read PII reflection Google Sheet ({self.worksheet_name}): {e}')
-            return None
-
-        if not values or len(values) < 2:
-            logger.error(f'PII reflection Google Sheet worksheet "{self.worksheet_name}" has insufficient rows')
-            return None
-
-        header = [h.strip().lower() for h in values[0]]
-        rows = values[1:]
-
-        if 'section_id' in header:
-            section_id_idx = header.index('section_id')
-            rows = sorted(
-                rows, key=lambda r: _parse_section_id(r[section_id_idx]) if section_id_idx < len(r) else (2, '')
-            )
-
-        content_idx = header.index('content')
-
-        # Combine content from all non-empty rows in section_id / worksheet order
-        prompt_parts = []
-        for row in rows:
-            if content_idx < len(row):
-                cell_value = str(row[content_idx]).strip().replace('\\n', '\n')
-                if cell_value:
-                    prompt_parts.append(cell_value)
-
-        if not prompt_parts:
-            logger.error(f'No content found in PII reflection Google Sheet worksheet "{self.worksheet_name}"')
-            return None
-
-        template_str = '\n\n'.join(prompt_parts)
-        self._cached_template_str = template_str
-
-        if self.store:
-            try:
-                set_fn = getattr(self.store, 'set_object', getattr(self.store, 'set', None))
-                if set_fn:
-                    set_fn(self.cache_key, template_str, expire_in_seconds=60 * 60 * 12)
-            except Exception as e:
-                logger.error(f'Failed to set PII reflection prompt in Redis cache: {e}')
-
-        logger.info(f'Successfully loaded PII reflection prompt from Google Sheet ({len(prompt_parts)} sections)')
-        return self._cached_template_str
-
-    def render(self, context: Dict[str, Any], force_refresh: bool = False) -> Optional[str]:
-        """
-        Render the PII reflection prompt template with provided context.
-
-        Args:
-            context: Template context dictionary (e.g. metadata, table_markdown)
-            force_refresh: If True, reload template from Google Sheets.
-
-        Returns:
-            Rendered prompt string or None if loading/rendering fails.
-        """
-        template_str = self.load_template_string(force_refresh=force_refresh)
-        if not template_str:
-            return None
-
-        try:
-            template = self._jinja_env.from_string(template_str)
-            return template.render(**context)
-        except Exception as e:
-            logger.error(f'Failed to render PII reflection template from Google Sheet: {e}')
-            return None
+        super().__init__(
+            worksheet_name=worksheet_name,
+            spreadsheet_url=spreadsheet_url,
+            store=store,
+            cache_key=cache_key,
+        )

@@ -87,7 +87,9 @@ class TestPromptManager:
 
                 assert prompt == 'Rendered Prompt'
                 mock_env_instance.get_template.assert_called_with('non_pii_classification/v1.jinja')
-                mock_template.render.assert_called_with(key='value')
+                called_kwargs = mock_template.render.call_args[1]
+                assert called_kwargs.get('key') == 'value'
+                assert 'active_rules' in called_kwargs
 
     @patch('src.shared.utils.prompt_manager.Path.exists', return_value=True)
     def test_get_prompt_with_explicit_version(self, mock_exists):

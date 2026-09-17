@@ -86,3 +86,28 @@ def test_pii_prompt_strategy_section_id_sorting():
         refl_template_str = refl_strategy.load_template_string(force_refresh=True)
 
         assert refl_template_str == 'PART_1_HEADER\n\nPART_2_BODY\n\nPART_3_FOOTER'
+
+
+def test_spreadsheet_prompt_strategy_local_excel_all_categories():
+    from src.infrastructure.external.pii_prompt_strategy import SpreadsheetPromptStrategy
+
+    categories = [
+        'personal_data_detection',
+        'personal_data_reflection',
+        'non_personal_data_classificatio',
+        'non_personal_data_default_class',
+        'readme',
+    ]
+
+    for cat in categories:
+        strategy = SpreadsheetPromptStrategy(
+            worksheet_name=cat,
+            spreadsheet_url='http://invalid-url-to-force-fallback',
+            excel_path='src/prompts/prompts_dev.xlsx',
+        )
+        rules = strategy.load_rules(force_refresh=True)
+        assert len(rules) > 0, f'Expected active rules for category {cat}'
+
+        # Verify section_id sorting
+        section_ids = [float(r['section_id']) for r in rules if 'section_id' in r and r['section_id'] is not None]
+        assert section_ids == sorted(section_ids), f'Section IDs for {cat} are not strictly sorted: {section_ids}'
