@@ -14,20 +14,18 @@ Sensitivity Levels:
 2. SEVERE_SENSITIVE: Disclosure would likely result in serious harm or significant risk.
 
 Administrative Levels:
-- Admin Level 0 (National): Sovereign borders of a country.
-- Admin Level 1 (First Subdivision): States, provinces, regions, or governorates.
-- Admin Level 2 (Second Subdivision): Districts, counties, municipalities, or cities.
-- Admin Level 3 (Third Subdivision): Townships, wards, sub-districts, municipalities.
-- Admin Level 4 and Below: Villages, communes, neighborhoods, or similar granular units.
-- **IMPORTANT**: Administrative terms and column headers can be misleading. You must leverage your pre-trained world knowledge about geographic structures, administrative divisions, and spelling conventions of specific countries to identify the correct administrative level rather than relying on generic assumptions. For example, "Locality" in Sudan (Mahaliyah) is Admin Level 2 (ADM2), not Admin Level 3 or below.
+{% for rule in active_rules %}{% if rule.category == 'Administrative Levels Guidelines' %}
+- {{ rule.content }}
+{% endif %}{% endfor %}
 
 Data Granularity:
-- Community Level Data: Village, camp, settlement, or small population group.
-- Household or Individual Data: Personally identifiable or household-specific data.
-- Raw Data: Non-aggregated operational or assessment data.
+{% for rule in active_rules %}{% if rule.category == 'Data Granularity' %}
+- {{ rule.content }}
+{% endif %}{% endfor %}
 
 NON_SENSITIVE:
-{% if isp.sensitivity_rules and isp.sensitivity_rules['LOW/NON_SENSITIVE'] %}{{ isp.sensitivity_rules['LOW/NON_SENSITIVE']['data and information type'] | join('\n') }}{% else %}- Humanitarian Needs Overview (HNO) and Humanitarian Response Plan (HRP) data
+{% set low_rules = (isp.sensitivity_rules['LOW/NON_SENSITIVE']['data and information type'] | join('\n') if isp and isp.sensitivity_rules and isp.sensitivity_rules['LOW/NON_SENSITIVE'] else '') | trim %}
+{% if low_rules %}{{ low_rules }}{% else %}- Humanitarian Needs Overview (HNO) and Humanitarian Response Plan (HRP) data
 - Common Operational Datasets (CODs)
 - 3W/4W/5W data aggregated at Admin Level 1–2 (national/regional level)
 - Situation reports and humanitarian snapshots
@@ -37,8 +35,10 @@ NON_SENSITIVE:
 - General population, refugee, or IDP statistics aggregated at state, district, or higher administrative levels (Admin Level 2 or higher)
 - Any other dataset that does not match a SEVERE_SENSITIVE rule{% endif %}
 
+
 SEVERE SENSITIVE:
-{% if isp.sensitivity_rules and isp.sensitivity_rules.SEVERE_SENSITIVE %}{{ isp.sensitivity_rules.SEVERE_SENSITIVE['data and information type'] | join('\n') }}{% else %}- Survey/monitoring data at community or household level
+{% set severe_rules = (isp.sensitivity_rules.SEVERE_SENSITIVE['data and information type'] | join('\n') if isp and isp.sensitivity_rules and isp.sensitivity_rules.SEVERE_SENSITIVE else '') | trim %}
+{% if severe_rules %}{{ severe_rules }}{% else %}- Survey/monitoring data at community or household level
 - Detailed access constraints or operational presence by location (if it is below admin level 2)
 - Sensitive programmatic data (e.g., protection activities by location if it is below admin level 0)
 - Individual survey responses and household-level datasets
@@ -47,10 +47,10 @@ SEVERE SENSITIVE:
 - Location and identity of displaced individuals or vulnerable groups
 - Raw data from feedback or complaints mechanisms{% endif %}
 
-
 Specific Guidance for Classification:
-- **3W/4W/5W Operational Presence**: A dataset showing which organizations are working in which locations (e.g. columns like Organization Name, Org Acronym, Activity, Location/State/Locality) is a standard operational presence table. Do NOT classify it under "Organization contact and mailing lists" unless it actually contains personal/professional contact information of individuals (e.g. personal email addresses, phone numbers, contact names). General organization lists are not sensitive unless they specify highly restricted coordinates or operational limits.
-- **Population Statistics vs Needs Assessments**: General aggregated statistics (such as count of displaced people/IDPs, number of beneficiaries, or population totals) at Admin Level 2 or higher are general population indicators. They are NOT "humanitarian needs assessments" or "monitoring/survey data" and should not be classified as sensitive on that basis.
+{% for rule in active_rules %}{% if rule.category not in ['Administrative Levels Guidelines', 'Data Granularity'] %}
+- {{ rule.content }}
+{% endif %}{% endfor %}
 
 -----
 
@@ -66,7 +66,6 @@ Metadata:
 {% if resource_name %}* Resource Name: {{ resource_name }}{% endif %}
 {% if resource_description %}* Resource Description: {{ resource_description }}{% endif %}
 {% endif %}
-
 
 Table:
 {{ table_markdown }}

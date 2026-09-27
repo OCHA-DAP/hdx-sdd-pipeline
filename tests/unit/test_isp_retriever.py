@@ -277,11 +277,9 @@ def test_google_sheets_isp_strategy():
     assert (
         isps['Afghanistan']['low_no_sensitivity']
         == '- HNO data (Category: Who does What Where (3W), Lowest Disaggregation Level: Admin 1)\n'
-        '-- Definitions: HNO = Humanitarian Needs Overview\n'
     )
     assert isps['Afghanistan']['sensitivity_rules']['LOW/NON_SENSITIVE']['data and information type'] == [
         '- HNO data (Category: Who does What Where (3W), Lowest Disaggregation Level: Admin 1)\n'
-        '-- Definitions: HNO = Humanitarian Needs Overview\n'
     ]
 
     # Default is parsed from the sheet
@@ -290,8 +288,6 @@ def test_google_sheets_isp_strategy():
     assert isps['default']['sensitivity_rules']['SEVERE_SENSITIVE']['data and information type'] == [
         '- SEA/GBV data (Category: Accountability to Affected Populations (AAP), '
         'Lowest Disaggregation Level: Community)\n'
-        '-- Definitions: AAP = Accountability to Affected Populations, SEA = Sexual Exploitation and Abuse, '
-        'GBV = Gender Based Violence\n'
     ]
 
 
