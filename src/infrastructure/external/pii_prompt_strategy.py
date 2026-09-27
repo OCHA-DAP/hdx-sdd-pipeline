@@ -83,6 +83,10 @@ class SpreadsheetPromptStrategy:
         return False
 
     def _fetch_from_google_sheets(self) -> Optional[List[List[Any]]]:
+        if not self.spreadsheet_url:
+            logger.info(f'No Google Sheet URL configured for "{self.worksheet_name}", skipping Google Sheets fetch.')
+            return None
+
         from src.infrastructure.external.google_sheets_client import get_gsheets
 
         try:
@@ -258,7 +262,7 @@ class SpreadsheetPromptStrategy:
 
 
 class GoogleSheetsPIIPromptStrategy(SpreadsheetPromptStrategy):
-    """Backward compatible class for PII detection prompt strategy."""
+    """Backward compatible class for PII detection prompt strategy that sorts rules strictly by section_id."""
 
     def __init__(
         self,
@@ -276,7 +280,7 @@ class GoogleSheetsPIIPromptStrategy(SpreadsheetPromptStrategy):
 
 
 class GoogleSheetsPIIReflectionPromptStrategy(SpreadsheetPromptStrategy):
-    """Backward compatible class for PII reflection prompt strategy."""
+    """Backward compatible class for PII reflection prompt strategy that sorts rules strictly by section_id."""
 
     def __init__(
         self,

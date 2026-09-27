@@ -40,15 +40,29 @@ class PromptManager:
     def _get_spreadsheet_strategy(self, prompt_name: str):
         """Lazy load SpreadsheetPromptStrategy for any prompt category."""
         if prompt_name not in self._spreadsheet_strategies:
+            from config.config import get_config
             from src.infrastructure.external.pii_prompt_strategy import (
                 SpreadsheetPromptStrategy,
             )
 
-            ws_name = prompt_name
+            cfg = get_config()
+
+            # Check if strategy is configured as local
+            if prompt_name == 'pii_detection' and getattr(cfg, 'PII_PROMPT_STRATEGY', 'google_sheets') == 'local':
+                self._spreadsheet_strategies[prompt_name] = False
+                return None
+
+            if (
+                prompt_name == 'pii_reflection'
+                and getattr(cfg, 'PII_REFLECTION_PROMPT_STRATEGY', 'google_sheets') == 'local'
+            ):
+                self._spreadsheet_strategies[prompt_name] = False
+                return None
+
             # Map category names to worksheet names
             category_mapping = {
-                'pii_detection': 'personal_data_detection',
-                'pii_reflection': 'personal_data_reflection',
+                'pii_detection': getattr(cfg, 'PII_DETECTION_WORKSHEET_NAME', 'personal_data_detection'),
+                'pii_reflection': getattr(cfg, 'PII_REFLECTION_WORKSHEET_NAME', 'personal_data_reflection'),
                 'non_pii_classification': 'non_personal_data_classificatio',
                 'non_pii_default': 'non_personal_data_default_class',
                 'non_pii_classification/default': 'non_personal_data_default_class',
@@ -59,6 +73,7 @@ class PromptManager:
             try:
                 self._spreadsheet_strategies[prompt_name] = SpreadsheetPromptStrategy(
                     worksheet_name=ws_name,
+                    spreadsheet_url=getattr(cfg, 'GOOGLE_SHEET_URL', None),
                     store=self.store,
                 )
             except Exception as e:

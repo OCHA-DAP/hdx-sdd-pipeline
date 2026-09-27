@@ -152,3 +152,16 @@ class TestPromptManager:
             with patch.object(manager, 'get_latest_version', return_value=None):
                 with pytest.raises(FileNotFoundError, match='No versions found'):
                     manager.get_prompt('non_pii_classification')
+
+    def test_get_spreadsheet_strategy_local_caching(self, monkeypatch):
+        """Test that local strategy is disabled and cached."""
+        monkeypatch.setenv('PII_PROMPT_STRATEGY', 'local')
+        monkeypatch.setenv('PII_REFLECTION_PROMPT_STRATEGY', 'local')
+
+        with patch('pathlib.Path.exists', return_value=True):
+            manager = PromptManager()
+            assert manager._get_spreadsheet_strategy('pii_detection') is None
+            assert manager._spreadsheet_strategies.get('pii_detection') is False
+
+            assert manager._get_spreadsheet_strategy('pii_reflection') is None
+            assert manager._spreadsheet_strategies.get('pii_reflection') is False
