@@ -37,7 +37,7 @@ services:
       OPENAI_ENDPOINT: ${OPENAI_ENDPOINT:-https://your-resource.openai.azure.com/}
       OPENAI_API_KEY: ${OPENAI_API_KEY:-your-api-key-here}
       ISP_STRATEGY: ${ISP_STRATEGY:-google_sheets}
-      ISP_GOOGLE_SHEET_URL: ${ISP_GOOGLE_SHEET_URL:-https://docs.google.com/spreadsheets/d/your-spreadsheet-id/edit}
+      GOOGLE_SHEET_URL: ${GOOGLE_SHEET_URL:-https://docs.google.com/spreadsheets/d/1vbn0d3tqZB0dGJTUdBPfn-oRU9m7xPeIwjXH4HW0eYI/edit}
       GOOGLE_SHEETS_PRIVATE_KEY: ${GOOGLE_SHEETS_PRIVATE_KEY:-your-private-key-here}
       GOOGLE_SHEETS_CLIENT_EMAIL: ${GOOGLE_SHEETS_CLIENT_EMAIL:-your-service-account-email@example.com}
       GOOGLE_SHEETS_TOKEN_URI: ${GOOGLE_SHEETS_TOKEN_URI:-https://oauth2.googleapis.com/token}

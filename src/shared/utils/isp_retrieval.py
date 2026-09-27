@@ -147,17 +147,19 @@ class ISPRetriever:
             if not groups:
                 return None
 
-            for group in groups:
-                if not isinstance(group, dict):
-                    continue
+            valid_groups = [
+                g for g in groups if isinstance(g, dict) and isinstance(g.get('name'), str) and g.get('name').strip()
+            ]
 
-                group_name = group.get('name')
-                if not isinstance(group_name, str):
-                    continue
+            if len(valid_groups) > 1:
+                logger.info(
+                    'Package has multiple locations (%d) - using default ISP',
+                    len(valid_groups),
+                )
+                return None
 
-                matched_isp = self.match_country(group_name, isps)
-                if matched_isp:
-                    return matched_isp
+            if len(valid_groups) == 1:
+                return self.match_country(valid_groups[0].get('name'), isps)
 
         except Exception as e:
             logger.warning('Failed to get groups from CKAN: %s', e)

@@ -61,6 +61,26 @@ def test_isp_retriever_group_id_field_falls_back_to_default(mock_ckan_client):
     assert rules == {'rule': 'default'}
 
 
+def test_isp_retriever_multiple_locations_falls_back_to_default(mock_ckan_client):
+    """Test ISP retriever uses default rules when package has multiple locations."""
+    retriever = ISPRetriever()
+    mock_isps = {
+        'default': {'country': 'default', 'rule': 'default_rule'},
+        'afg_isp': {'country': 'afg', 'rule': 'afg_rule'},
+        'pak_isp': {'country': 'pak', 'rule': 'pak_rule'},
+    }
+
+    # Multiple valid location groups
+    mock_ckan_client.return_value.package_show.return_value = {
+        'groups': [{'name': 'afg', 'title': 'Afghanistan'}, {'name': 'pak', 'title': 'Pakistan'}]
+    }
+
+    with patch('builtins.open', mock_open(read_data=json.dumps(mock_isps))):
+        rules = retriever.get_isp_rules('pkg123', ckan_client=mock_ckan_client.return_value)
+
+    assert rules == {'country': 'default', 'rule': 'default_rule'}
+
+
 def test_isp_retriever_no_country_match(mock_ckan_client):
     """Test ISP retriever falls back to default when no country match."""
     retriever = ISPRetriever()
@@ -277,11 +297,9 @@ def test_google_sheets_isp_strategy():
     assert (
         isps['Afghanistan']['low_no_sensitivity']
         == '- HNO data (Category: Who does What Where (3W), Lowest Disaggregation Level: Admin 1)\n'
-        '-- Definitions: HNO = Humanitarian Needs Overview\n'
     )
     assert isps['Afghanistan']['sensitivity_rules']['LOW/NON_SENSITIVE']['data and information type'] == [
         '- HNO data (Category: Who does What Where (3W), Lowest Disaggregation Level: Admin 1)\n'
-        '-- Definitions: HNO = Humanitarian Needs Overview\n'
     ]
 
     # Default is parsed from the sheet
@@ -290,8 +308,6 @@ def test_google_sheets_isp_strategy():
     assert isps['default']['sensitivity_rules']['SEVERE_SENSITIVE']['data and information type'] == [
         '- SEA/GBV data (Category: Accountability to Affected Populations (AAP), '
         'Lowest Disaggregation Level: Community)\n'
-        '-- Definitions: AAP = Accountability to Affected Populations, SEA = Sexual Exploitation and Abuse, '
-        'GBV = Gender Based Violence\n'
     ]
 
 
