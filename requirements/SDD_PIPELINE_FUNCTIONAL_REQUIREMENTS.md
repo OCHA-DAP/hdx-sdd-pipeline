@@ -208,11 +208,22 @@ Any new feature request for this project must follow this order:
 
 - [x] FR-SDD-069: Unified prompt rule ordering by section_id.
   - Implemented behavior: Prompt strategies load rules dynamically from Google Sheets or Excel, filter out disabled rows, and strictly order enabled rows by `section_id` using numerical/float parsing.
+- [x] FR-SDD-070: Exclude organization-level email addresses from PII reflection sensitivity classification.
+  - Expected behavior: The PII reflection prompt (`v4.jinja`) must instruct the model that organization-level/functional
+    email addresses (e.g. generic info@, contact@, data@, or support@ mailboxes, or a shared country/program team
+    inbox not tied to one named person) are not, by themselves, personal data and must not be counted toward
+    re-identification risk at any sensitivity level (SEVERE_SENSITIVE or HIGH_SENSITIVE). Only email addresses
+    tied to an identifiable individual person (e.g. firstname.lastname@org) count toward the "direct
+    re-identification via email" criterion. This mirrors
+    the exclusion already applied in the README scan prompt (FR-SDD-059) but was missing from the table-level
+    reflection path that most data-column emails actually go through.
+- [x] FR-SDD-068: Dynamic Google Sheets PII Detection Prompt Integration.
+  - Expected behavior: The system supports fetching PII detection prompt instructions and entity definitions from a Google Sheet (`PII detection` worksheet). The sheet contains `section_id`, `type`, and `content` columns. Rows are combined in order of `section_id` to construct a Jinja template accepting `column_name` and `sample_values`. Strategy setting `PII_PROMPT_STRATEGY` dynamically defaults to `'google_sheets'` when `PII_DETECTION_GOOGLE_SHEET_URL` environment variable is provided, and defaults to `'local'` when omitted. If Google Sheets is unavailable or fetching fails, the system safely falls back to local Jinja prompt templates.
 
-- [x] FR-SDD-070: Cache loaded prompt templates and rules in Redis store.
+- [x] FR-SDD-071: Cache loaded prompt templates and rules in Redis store.
   - Implemented behavior: When running with worker mode / Redis store enabled, loaded template strings and parsed prompt rules for all prompt categories (with key suffix `_rules`) are cached in Redis with a TTL of 12 hours (`expire_in_seconds=43200`).
 
-- [x] FR-SDD-071: Unified environment-configurable Google Sheets URL.
+- [x] FR-SDD-072: Unified environment-configurable Google Sheets URL.
   - Implemented behavior: The pipeline consolidates all Google Sheet URL configuration under a single environment variable `GOOGLE_SHEET_URL` (defaulting to the central spreadsheet URL), removing separate URL variables across ISP retrieval and all prompt strategies.
 
 ## Notes for implementers

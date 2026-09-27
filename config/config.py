@@ -53,7 +53,16 @@ class Config:
     GOOGLE_SHEET_URL: str = field(
         default_factory=lambda: os.getenv(
             'GOOGLE_SHEET_URL',
-            'https://docs.google.com/spreadsheets/d/1vbn0d3tqZB0dGJTUdBPfn-oRU9m7xPeIwjXH4HW0eYI/edit',
+            os.getenv(
+                'ISP_GOOGLE_SHEET_URL',
+                os.getenv(
+                    'PII_DETECTION_GOOGLE_SHEET_URL',
+                    os.getenv(
+                        'PII_REFLECTION_GOOGLE_SHEET_URL',
+                        'https://docs.google.com/spreadsheets/d/1vbn0d3tqZB0dGJTUdBPfn-oRU9m7xPeIwjXH4HW0eYI/edit',
+                    ),
+                ),
+            ),
         )
     )
     GOOGLE_SHEETS_PRIVATE_KEY: str = os.getenv('GOOGLE_SHEETS_PRIVATE_KEY', '')
@@ -65,13 +74,17 @@ class Config:
     ISP_LOCAL_JSON_PATH: str = os.getenv('ISP_LOCAL_JSON_PATH', 'data/isps.json')
 
     # PII Detection Prompt Configuration
-    PII_PROMPT_STRATEGY: str = os.getenv('PII_PROMPT_STRATEGY', 'google_sheets')
+    PII_PROMPT_STRATEGY: str = field(
+        default_factory=lambda: os.getenv('PII_PROMPT_STRATEGY', 'google_sheets')
+    )
     PII_DETECTION_WORKSHEET_NAME: str = field(
         default_factory=lambda: os.getenv('PII_DETECTION_WORKSHEET_NAME', 'PII detection')
     )
 
     # PII Reflection Prompt Configuration
-    PII_REFLECTION_PROMPT_STRATEGY: str = os.getenv('PII_REFLECTION_PROMPT_STRATEGY', 'google_sheets')
+    PII_REFLECTION_PROMPT_STRATEGY: str = field(
+        default_factory=lambda: os.getenv('PII_REFLECTION_PROMPT_STRATEGY', 'google_sheets')
+    )
     PII_REFLECTION_WORKSHEET_NAME: str = field(
         default_factory=lambda: os.getenv('PII_REFLECTION_WORKSHEET_NAME', 'PII reflection')
     )

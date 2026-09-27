@@ -37,7 +37,9 @@ def test_pii_prompt_strategy_rendering():
         assert "Samples: ['206', '1']" in rendered or 'Samples: ["206", "1"]' in rendered or "['206', '1']" in rendered
 
 
-def test_prompt_manager_fallback_on_error():
+def test_prompt_manager_fallback_on_error(monkeypatch):
+    monkeypatch.setenv('PII_PROMPT_STRATEGY', 'google_sheets')
+    monkeypatch.setenv('GOOGLE_SHEET_URL', 'https://docs.google.com/spreadsheets/d/test_fallback')
     pm = PromptManager(prompts_dir='src/prompts')
 
     with patch('src.infrastructure.external.google_sheets_client.get_gsheets', side_effect=RuntimeError('Auth failed')):
