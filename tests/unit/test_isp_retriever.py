@@ -118,6 +118,24 @@ def test_isp_retriever_world_counts_as_location(mock_ckan_client):
     assert rules == {'country': 'default', 'rule': 'default_rule'}
 
 
+def test_isp_retriever_duplicate_locations_count_once(mock_ckan_client):
+    """Test ISP retriever counts the same location once, ignoring case and surrounding whitespace."""
+    retriever = ISPRetriever()
+    mock_isps = {
+        'default': {'country': 'default', 'rule': 'default_rule'},
+        'afg_isp': {'country': 'afg', 'rule': 'afg_rule'},
+    }
+
+    mock_ckan_client.return_value.package_show.return_value = {
+        'groups': [{'name': 'afg'}, {'name': 'afg'}, {'name': ' AFG '}]
+    }
+
+    with patch('builtins.open', mock_open(read_data=json.dumps(mock_isps))):
+        rules = retriever.get_isp_rules('pkg123', ckan_client=mock_ckan_client.return_value)
+
+    assert rules == {'country': 'afg', 'rule': 'afg_rule'}
+
+
 def test_isp_retriever_ignores_malformed_groups_when_counting_locations(mock_ckan_client):
     """Test ISP retriever ignores groups without a usable name when counting locations."""
     retriever = ISPRetriever()
@@ -168,26 +186,6 @@ def test_isp_retriever_file_error():
     assert rules == {}
 
 
-def test_isp_retriever_default_exception():
-    """Test ISP retriever handles general exceptions."""
-    retriever = ISPRetriever()
-
-    with patch('builtins.open', side_effect=Exception('File error')):
-        rules = retriever.get_isp_rules(None)
-
-    assert rules == {}
-
-
-def test_isp_retriever_ckan_disabled_exception():
-    """Test ISP retriever handles exceptions when CKAN is disabled."""
-    retriever = ISPRetriever()
-
-    with patch('builtins.open', side_effect=Exception('File error')):
-        rules = retriever.get_isp_rules(None)
-
-    assert rules == {}
-
-
 def test_isp_retriever_general_exception(mock_ckan_client):
     """Test ISP retriever handles CKAN exceptions gracefully."""
     retriever = ISPRetriever()
@@ -229,7 +227,7 @@ def test_isp_retriever_ckan_disabled_fallback():
 
 
 def test_isp_retriever_non_iso3_resource_name_falls_back_to_default():
-    """Test ISP retriever falls back when resource stem is not a valid ISO3 match."""
+    """Test ISP retriever falls back to default when no ISO3 appears in the resource name."""
     retriever = ISPRetriever()
     mock_isps = {'default': {'rule': 'default'}, 'some_isp': {'country': 'afg', 'rule': 'custom'}}
 

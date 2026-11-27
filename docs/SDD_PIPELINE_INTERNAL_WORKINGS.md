@@ -855,7 +855,7 @@ Information Sensitivity Protocols (ISP) are country-specific rules stored in `da
 ```json
 {
   "OCHA Afghanistan": {
-    "country": "afghanistan",
+    "country": "AFG",
     "sensitivity_rules": {
       "LOW/NON_SENSITIVE": {
         "data and information type": [
@@ -911,20 +911,15 @@ The pipeline includes ISP rules for:
 
 ### ISP Loading
 
-```python
-def load_isp_rules(country: str = 'default') -> dict:
-    """Load ISP rules for a specific country."""
-    # 1. Load data/isps.json
-    # 2. Match country name (case-insensitive, partial match)
-    # 3. Return matched ISP or default
-```
+`ISPRetriever.get_isp_rules(package_id, resource_name, ckan_client)`
+(`src/shared/utils/isp_retrieval.py`) picks the ISP in this order:
 
-**Matching Logic**:
-
-- Exact match on country name
-- Case-insensitive comparison
-- Partial matching (e.g., "ukraine" matches "OCHA Ukraine")
-- Falls back to "default" if no match
+1. CKAN package groups (HDX locations): exact, case-insensitive ISO3 match.
+   If the package has more than one distinct location (including `world`),
+   no country ISP is selected (FR-SDD-068).
+2. Resource name: ISO3 anywhere in the name, case-insensitive (FR-SDD-024),
+   only when CKAN metadata can't be fetched (FR-SDD-058).
+3. Falls back to the `default` ISP.
 
 ### Default ISP Rules
 

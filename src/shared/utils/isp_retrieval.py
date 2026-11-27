@@ -40,8 +40,11 @@ class ISPRetriever:
         Get ISP rules based on package groups or resource name.
 
         Priority order:
-        1. Match ISO3 from package groups (CKAN)
-        2. Match ISO3 from resource name (filename stem)
+        1. Match ISO3 from package groups (CKAN). If the package has
+           more than one location, no country ISP is selected (FR-SDD-068).
+        2. Match ISO3 anywhere in the resource name (FR-SDD-024), only
+           when package metadata can't be fetched (no package_id or no
+           ckan_client) (FR-SDD-058).
         3. Fallback to default ISP
 
         Args:
@@ -63,7 +66,7 @@ class ISPRetriever:
         if matched_isp:
             return matched_isp
 
-        # Try matching from resource name (expected ISO3 filename stem)
+        # Try matching ISO3 anywhere in the resource name (FR-SDD-024)
         # Skip resource-name fallback only when package metadata can be fetched (CKAN enabled and package_id provided)
         if not package_id or not ckan_client:
             matched_isp = self._match_from_resource_name(resource_name, isps)
@@ -147,20 +150,25 @@ class ISPRetriever:
             if not groups:
                 return None
 
-            valid_groups = [
-                g for g in groups if isinstance(g, dict) and isinstance(g.get('name'), str) and g.get('name').strip()
-            ]
+            # Distinct, case-insensitive location names; dict.fromkeys keeps CKAN order for stable logs
+            location_names = list(
+                dict.fromkeys(
+                    g['name'].strip().lower()
+                    for g in groups
+                    if isinstance(g, dict) and isinstance(g.get('name'), str) and g['name'].strip()
+                )
+            )
 
-            if len(valid_groups) > 1:
+            if len(location_names) > 1:
                 logger.info(
                     'Package has multiple locations (%d: %s) - using default ISP',
-                    len(valid_groups),
-                    ', '.join(g['name'].strip() for g in valid_groups[:10]),
+                    len(location_names),
+                    ', '.join(location_names[:10]),
                 )
                 return None
 
-            if len(valid_groups) == 1:
-                return self.match_country(valid_groups[0].get('name'), isps)
+            if len(location_names) == 1:
+                return self.match_country(location_names[0], isps)
 
         except Exception as e:
             logger.warning('Failed to get groups from CKAN: %s', e)

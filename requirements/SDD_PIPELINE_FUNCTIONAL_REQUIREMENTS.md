@@ -1,6 +1,6 @@
 # SDD Pipeline Functional Requirements (Implemented Baseline)
 
-Last updated: 2026-03-31
+Last updated: 2026-11-27
 Scope: Event-driven HDX Sensitive Data Detection pipeline (worker/runtime path).
 Purpose: Capture implemented functional requirements so future changes extend behavior instead of rewriting it.
 
@@ -73,6 +73,9 @@ Any new feature request for this project must follow this order:
 
 - [x] FR-SDD-058: Disable resource name matching fallback when package metadata is available.
   - Implemented behavior: When package_id is provided (not None/empty) and CKAN metadata is fetchable (ckan_client is available), the pipeline must NOT fall back to matching the country from the resource name if package groups matching fails. It must fall back directly to the default ISP rules. If CKAN is disabled/unavailable, resource name matching fallback is still used even if package_id is provided.
+
+- [x] FR-SDD-068: Use the default ISP for datasets with multiple locations (interim).
+  - Expected behavior: When CKAN package metadata is available, the retriever counts the distinct (case-insensitive) non-empty string `name` values of package `groups` entries (HDX locations, including `world`). If the count is greater than one, it must not select any single country's ISP, even when only one of the locations has an ISP. It must resolve to the default ISP rules (`isps['default']`). Resource-name matching does not override this (see FR-SDD-058, resource name matching fallback). The default ISP routes non-PII classification through the binary default prompt (FR-SDD-033), so these datasets are classified NON_SENSITIVE or SEVERE_SENSITIVE only. Merging ISPs across locations and resource-level country detection are out of scope.
 
 ### Classification and sensitivity
 
@@ -182,12 +185,12 @@ Any new feature request for this project must follow this order:
     - Record GLiNER scan evidence (column, row index, matched text, label, score) in the sheet report for auditability.
     - Provide a complete, non-truncated explanation detailing the hits grouped by column (e.g. `'col': label ×count`).
 
-- [x] FR-SDD-058: Enhanced PII detection and phone number false positive mitigation.
+- [x] FR-SDD-069: Enhanced PII detection and phone number false positive mitigation.
   - Expected behavior: The PII detection prompt and/or pipeline must prevent false positive classification of short/geographic area codes (e.g., FAOSTAT numeric area codes like 206, country codes, or other regional identifiers) as PHONE_NUMBER. Specifically:
     1. A PHONE_NUMBER must represent actual telephone numbers, which are typically longer and formatted with country codes or local prefixes. Short numeric identifiers, region codes, and FAOSTAT area codes (e.g., Sudan former 206) are not PHONE_NUMBER.
     2. Prompt instructions must clarify that column names like "Area Code", "Country Code", or "Region Code" combined with short numeric codes should not be flagged as PHONE_NUMBER.
 
-- [x] FR-SDD-059: Support for GPT-5.4 reasoning effort and temperature handling.
+- [x] FR-SDD-070: Support for GPT-5.4 reasoning effort and temperature handling.
   - Expected behavior:
     1. In the LLM provider, if a model is identified as a reasoning model (any model name containing 'gpt-5'), reasoning_effort should be configurable via standard parameters or kwargs (defaulting to 'minimal').
     2. When reasoning is active (reasoning_effort is not 'none'), standard temperature and top_p parameters must be stripped from the API payload to prevent validation errors. Standard temperature is only configured if reasoning_effort is explicitly 'none'.
@@ -215,11 +218,11 @@ Any new feature request for this project must follow this order:
 - [x] FR-SDD-066: Increased max completion tokens buffer for reasoning models in OpenAIProvider.
   - Expected behavior: When invoking reasoning models (e.g., `gpt-5` family) in `OpenAIProvider`, the completion token budget (`max_completion_tokens`) must allocate a larger safety buffer for reasoning models—allocating `max_tokens + 8192`—to prevent token exhaustion during internal model reasoning and ensure valid JSON/text responses are generated.
   
-- [x] FR-SDD-065: Exclusion of disabled or inactive rules in Google Sheets ISP strategy.
+- [x] FR-SDD-071: Exclusion of disabled or inactive rules in Google Sheets ISP strategy.
   - Expected behavior: `GoogleSheetsISPStrategy` must skip rows where the 'Enabled' column (case-insensitive) is 'no', and skip rows where the 'ISP Status' column (case-insensitive) is 'under development' or 'not used', ensuring disabled or unapproved rules are not included in downstream prompts.
 
 
-- [x] FR-SDD-065: Deterministic LLM execution via fixed random seed 42.
+- [x] FR-SDD-072: Deterministic LLM execution via fixed random seed 42.
   - Expected behavior: `OpenAIProvider` must pass `seed=42` in all OpenAI API completion requests (including reasoning models such as GPT-5.4 and standard models) to ensure deterministic response generation across pipeline executions.
 
 - [x] FR-SDD-067: Exclude organization-level email addresses from PII reflection sensitivity classification.
@@ -231,9 +234,6 @@ Any new feature request for this project must follow this order:
     re-identification via email" criterion. This mirrors
     the exclusion already applied in the README scan prompt (FR-SDD-059) but was missing from the table-level
     reflection path that most data-column emails actually go through.
-
-- [x] FR-SDD-068: Use the default ISP for datasets with multiple locations (interim).
-  - Expected behavior: When CKAN package metadata is available, the retriever counts package `groups` entries with a non-empty string `name` (HDX locations, including `world`). If the count is greater than one, it must not select any single country's ISP, even when only one of the locations has an ISP. It must resolve to the default ISP rules (`isps['default']`). Resource-name matching does not override this (see FR-SDD-058). The default ISP routes non-PII classification through the binary default prompt (FR-SDD-033), so these datasets are classified NON_SENSITIVE or SEVERE_SENSITIVE only. Merging ISPs across locations and resource-level country detection are out of scope.
 
 ## Notes for implementers
 
