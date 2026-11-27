@@ -153,8 +153,9 @@ class ISPRetriever:
 
             if len(valid_groups) > 1:
                 logger.info(
-                    'Package has multiple locations (%d) - using default ISP',
+                    'Package has multiple locations (%d: %s) - using default ISP',
                     len(valid_groups),
+                    ', '.join(g['name'].strip() for g in valid_groups[:10]),
                 )
                 return None
 
