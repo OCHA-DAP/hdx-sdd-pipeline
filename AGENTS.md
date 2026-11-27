@@ -26,6 +26,8 @@ These rules apply to all AI-assisted code changes in this repository.
 
 - The requirements files in `requirements/` are the source of truth for functional task scope.
 - When adding a feature, update the relevant requirements file first, get human approval, then implement.
+- Requirement IDs must be unique: use the next unused number, and re-check for duplicate IDs
+  after merging or rebasing.
 - Requirement status markers must be used consistently:
   - `[x]` = implemented
   - `[ ]` = planned/not yet implemented

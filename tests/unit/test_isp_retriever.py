@@ -61,6 +61,97 @@ def test_isp_retriever_group_id_field_falls_back_to_default(mock_ckan_client):
     assert rules == {'rule': 'default'}
 
 
+def test_isp_retriever_multiple_locations_falls_back_to_default(mock_ckan_client):
+    """Test ISP retriever uses default rules when package has multiple locations.
+
+    The resource name matches one of the package countries, to confirm it does not override the default.
+    """
+    retriever = ISPRetriever()
+    mock_isps = {
+        'default': {'country': 'default', 'rule': 'default_rule'},
+        'afg_isp': {'country': 'afg', 'rule': 'afg_rule'},
+        'pak_isp': {'country': 'pak', 'rule': 'pak_rule'},
+    }
+
+    # Multiple valid location groups
+    mock_ckan_client.return_value.package_show.return_value = {
+        'groups': [{'name': 'afg', 'title': 'Afghanistan'}, {'name': 'pak', 'title': 'Pakistan'}]
+    }
+
+    with patch('builtins.open', mock_open(read_data=json.dumps(mock_isps))):
+        rules = retriever.get_isp_rules(
+            'pkg123', resource_name='afg_data.csv', ckan_client=mock_ckan_client.return_value
+        )
+
+    assert rules == {'country': 'default', 'rule': 'default_rule'}
+
+
+def test_isp_retriever_multiple_locations_single_isp_country_falls_back_to_default(mock_ckan_client):
+    """Test ISP retriever uses default rules when only one of multiple locations has an ISP."""
+    retriever = ISPRetriever()
+    mock_isps = {
+        'default': {'country': 'default', 'rule': 'default_rule'},
+        'afg_isp': {'country': 'afg', 'rule': 'afg_rule'},
+    }
+
+    mock_ckan_client.return_value.package_show.return_value = {'groups': [{'name': 'afg'}, {'name': 'irn'}]}
+
+    with patch('builtins.open', mock_open(read_data=json.dumps(mock_isps))):
+        rules = retriever.get_isp_rules('pkg123', ckan_client=mock_ckan_client.return_value)
+
+    assert rules == {'country': 'default', 'rule': 'default_rule'}
+
+
+def test_isp_retriever_world_counts_as_location(mock_ckan_client):
+    """Test ISP retriever counts the 'world' group as a location and uses default rules."""
+    retriever = ISPRetriever()
+    mock_isps = {
+        'default': {'country': 'default', 'rule': 'default_rule'},
+        'ukr_isp': {'country': 'ukr', 'rule': 'ukr_rule'},
+    }
+
+    mock_ckan_client.return_value.package_show.return_value = {'groups': [{'name': 'ukr'}, {'name': 'world'}]}
+
+    with patch('builtins.open', mock_open(read_data=json.dumps(mock_isps))):
+        rules = retriever.get_isp_rules('pkg123', ckan_client=mock_ckan_client.return_value)
+
+    assert rules == {'country': 'default', 'rule': 'default_rule'}
+
+
+def test_isp_retriever_duplicate_locations_count_once(mock_ckan_client):
+    """Test ISP retriever counts the same location once, ignoring case and surrounding whitespace."""
+    retriever = ISPRetriever()
+    mock_isps = {
+        'default': {'country': 'default', 'rule': 'default_rule'},
+        'afg_isp': {'country': 'afg', 'rule': 'afg_rule'},
+    }
+
+    mock_ckan_client.return_value.package_show.return_value = {
+        'groups': [{'name': 'afg'}, {'name': 'afg'}, {'name': ' AFG '}]
+    }
+
+    with patch('builtins.open', mock_open(read_data=json.dumps(mock_isps))):
+        rules = retriever.get_isp_rules('pkg123', ckan_client=mock_ckan_client.return_value)
+
+    assert rules == {'country': 'afg', 'rule': 'afg_rule'}
+
+
+def test_isp_retriever_ignores_malformed_groups_when_counting_locations(mock_ckan_client):
+    """Test ISP retriever ignores groups without a usable name when counting locations."""
+    retriever = ISPRetriever()
+    mock_isps = {
+        'default': {'country': 'default', 'rule': 'default_rule'},
+        'afg_isp': {'country': 'afg', 'rule': 'afg_rule'},
+    }
+
+    mock_ckan_client.return_value.package_show.return_value = {'groups': [{'name': 'afg'}, {'id': 'x'}, {'name': '  '}]}
+
+    with patch('builtins.open', mock_open(read_data=json.dumps(mock_isps))):
+        rules = retriever.get_isp_rules('pkg123', ckan_client=mock_ckan_client.return_value)
+
+    assert rules == {'country': 'afg', 'rule': 'afg_rule'}
+
+
 def test_isp_retriever_no_country_match(mock_ckan_client):
     """Test ISP retriever falls back to default when no country match."""
     retriever = ISPRetriever()
@@ -90,26 +181,6 @@ def test_isp_retriever_file_error():
     retriever = ISPRetriever()
 
     with patch('builtins.open', side_effect=Exception('File not found')):
-        rules = retriever.get_isp_rules(None)
-
-    assert rules == {}
-
-
-def test_isp_retriever_default_exception():
-    """Test ISP retriever handles general exceptions."""
-    retriever = ISPRetriever()
-
-    with patch('builtins.open', side_effect=Exception('File error')):
-        rules = retriever.get_isp_rules(None)
-
-    assert rules == {}
-
-
-def test_isp_retriever_ckan_disabled_exception():
-    """Test ISP retriever handles exceptions when CKAN is disabled."""
-    retriever = ISPRetriever()
-
-    with patch('builtins.open', side_effect=Exception('File error')):
         rules = retriever.get_isp_rules(None)
 
     assert rules == {}
@@ -156,7 +227,7 @@ def test_isp_retriever_ckan_disabled_fallback():
 
 
 def test_isp_retriever_non_iso3_resource_name_falls_back_to_default():
-    """Test ISP retriever falls back when resource stem is not a valid ISO3 match."""
+    """Test ISP retriever falls back to default when no ISO3 appears in the resource name."""
     retriever = ISPRetriever()
     mock_isps = {'default': {'rule': 'default'}, 'some_isp': {'country': 'afg', 'rule': 'custom'}}
 
